@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>PackMasters 5S — Select Zone</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg-page:    #0f172a;
+  --bg-header:  #1e293b;
+  --bg-card:    #1e293b;
+  --bg-card-2:  #334155;
+  --accent:     #f97316;
+  --text-1:     #f1f5f9;
+  --text-2:     #94a3b8;
+  --text-3:     #64748b;
+  --font:       system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg-page);
+  color: var(--text-1);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+  overscroll-behavior: none;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ── HEADER ── */
+.header {
+  background: var(--bg-header);
+  border-bottom: 2px solid var(--accent);
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.logo {
+  width: 36px; height: 36px;
+  background: var(--accent);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 14px; color: #fff;
+  letter-spacing: -0.5px; flex-shrink: 0;
+}
+.header-title { font-size: 15px; font-weight: 700; }
+.header-sub   { font-size: 12px; color: var(--text-2); }
+
+/* ── BODY ── */
+.body {
+  flex: 1;
+  padding: 20px 16px;
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.prompt {
+  font-size: 13px;
+  color: var(--text-2);
+  font-weight: 500;
+  margin-bottom: 16px;
+}
+
+/* ── ZONE GRID ── */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+@media (max-width: 360px) { .grid { grid-template-columns: 1fr; } }
+
+.zone-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 12px;
+  background: var(--bg-card);
+  border: 2px solid var(--bg-card-2);
+  border-radius: 12px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: border-color .15s, background .15s;
+  min-height: 90px;
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.zone-card:active,
+.zone-card:hover {
+  border-color: var(--accent);
+  background: var(--bg-card-2);
+}
+.zone-id {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+.zone-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-1);
+  line-height: 1.3;
+}
+
+/* skeleton */
+.skeleton {
+  background: var(--bg-card-2);
+  border-radius: 4px;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,100% { opacity: .5; }
+  50%      { opacity: 1; }
+}
+
+/* ── FOOTER ── */
+.footer {
+  padding: 16px;
+  text-align: center;
+  border-top: 1px solid var(--bg-card-2);
+  flex-shrink: 0;
+}
+.login-link {
+  font-size: 12px;
+  color: var(--text-3);
+  text-decoration: none;
+}
+.login-link:hover { color: var(--text-2); }
+.login-link span  { text-decoration: underline; }
+
+/* error state */
+.error-msg {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--text-2);
+  font-size: 13px;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">PM</div>
+  <div>
+    <div class="header-title">PackMasters 5S</div>
+    <div class="header-sub">Select your zone to begin</div>
+  </div>
+</div>
+
+<div class="body">
+  <div class="prompt">Tap your zone</div>
+  <div class="grid" id="grid">
+    <!-- skeleton placeholders -->
+    <div class="zone-card" style="pointer-events:none">
+      <div class="skeleton" style="height:11px;width:36px;margin-bottom:6px"></div>
+      <div class="skeleton" style="height:13px;width:80px"></div>
+    </div>
+    <div class="zone-card" style="pointer-events:none">
+      <div class="skeleton" style="height:11px;width:36px;margin-bottom:6px"></div>
+      <div class="skeleton" style="height:13px;width:80px"></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <a class="login-link" id="loginLink" href="#">
+    Manager / Admin <span>sign in</span>
+  </a>
+</div>
+
+<script>
+(function() {
+  var GAS_URL = 'https://script.google.com/macros/s/AKfycbyYsCQfJvhorJglpwmpfYNt65659sM5HWKztNK1n5tzeB5wyaovrLpMRDYg95d6yKgQHg/exec';
+  var cbId = 0;
+
+  document.getElementById('loginLink').href = GAS_URL + '?action=login';
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function renderZones(zones) {
+    var grid = document.getElementById('grid');
+    if (!zones || !zones.length) {
+      grid.innerHTML = '<div class="error-msg">No zones configured. Contact your administrator.</div>';
+      return;
+    }
+    grid.innerHTML = '';
+    zones.forEach(function(z) {
+      var a = document.createElement('a');
+      a.className = 'zone-card';
+      a.href = GAS_URL + '?v2=1&action=quickaudit&zone=' + encodeURIComponent(z.id);
+      a.innerHTML =
+        '<div class="zone-id">' + escHtml(z.id) + '</div>' +
+        '<div class="zone-name">' + escHtml(z.name) + '</div>';
+      grid.appendChild(a);
+    });
+  }
+
+  function loadZones() {
+    var cbName = '_gscb' + (++cbId);
+    var url = GAS_URL + '?fn=getPublicZones&args=[]&callback=' + cbName;
+    var timeout = setTimeout(function() {
+      delete window[cbName];
+      document.getElementById('grid').innerHTML =
+        '<div class="error-msg">Could not load zones. Check your connection and reload.</div>';
+    }, 10000);
+    window[cbName] = function(data) {
+      clearTimeout(timeout);
+      delete window[cbName];
+      renderZones(data);
+    };
+    var script = document.createElement('script');
+    script.src = url;
+    script.onerror = function() {
+      clearTimeout(timeout);
+      delete window[cbName];
+      document.getElementById('grid').innerHTML =
+        '<div class="error-msg">Failed to load zones. Please reload.</div>';
+    };
+    document.head.appendChild(script);
+  }
+
+  loadZones();
+})();
+</script>
+</body>
+</html>

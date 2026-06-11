@@ -184,7 +184,17 @@ body {
 <script>
 (function() {
   var GAS_URL = 'https://script.google.com/macros/s/AKfycbyYsCQfJvhorJglpwmpfYNt65659sM5HWKztNK1n5tzeB5wyaovrLpMRDYg95d6yKgQHg/exec';
-  var cbId = 0;
+
+  var STATIC_ZONES = [
+    { id: 'Z-01', name: 'Production Floor A' },
+    { id: 'Z-02', name: 'Production Floor B' },
+    { id: 'Z-03', name: 'Raw Material Store' },
+    { id: 'Z-04', name: 'Finished Goods Store' },
+    { id: 'Z-05', name: 'Quality Lab' },
+    { id: 'Z-06', name: 'Maintenance Workshop' },
+    { id: 'Z-07', name: 'Office & Admin Area' },
+    { id: 'Z-08', name: 'Dispatch & Loading Bay' }
+  ];
 
   document.getElementById('loginLink').href = GAS_URL + '?action=login';
 
@@ -194,10 +204,7 @@ body {
 
   function renderZones(zones) {
     var grid = document.getElementById('grid');
-    if (!zones || !zones.length) {
-      grid.innerHTML = '<div class="error-msg">No zones configured. Contact your administrator.</div>';
-      return;
-    }
+    if (!zones || !zones.length) return;
     grid.innerHTML = '';
     zones.forEach(function(z) {
       var a = document.createElement('a');
@@ -210,31 +217,21 @@ body {
     });
   }
 
-  function loadZones() {
-    var cbName = '_gscb' + (++cbId);
-    var url = GAS_URL + '?fn=getPublicZones&args=[]&callback=' + cbName;
-    var timeout = setTimeout(function() {
-      delete window[cbName];
-      document.getElementById('grid').innerHTML =
-        '<div class="error-msg">Could not load zones. Check your connection and reload.</div>';
-    }, 10000);
-    window[cbName] = function(data) {
-      clearTimeout(timeout);
-      delete window[cbName];
-      renderZones(data);
-    };
-    var script = document.createElement('script');
-    script.src = url;
-    script.onerror = function() {
-      clearTimeout(timeout);
-      delete window[cbName];
-      document.getElementById('grid').innerHTML =
-        '<div class="error-msg">Failed to load zones. Please reload.</div>';
-    };
-    document.head.appendChild(script);
-  }
+  // Show static zones immediately — no GAS needed
+  renderZones(STATIC_ZONES);
 
-  loadZones();
+  // Try GAS refresh in background to pick up any newly added zones
+  var cbName = '_gscb1';
+  var t = setTimeout(function() { delete window[cbName]; }, 8000);
+  window[cbName] = function(data) {
+    clearTimeout(t);
+    delete window[cbName];
+    if (data && data.length) renderZones(data);
+  };
+  var s = document.createElement('script');
+  s.src = GAS_URL + '?fn=getPublicZones&args=[]&callback=' + cbName;
+  s.onerror = function() { clearTimeout(t); delete window[cbName]; };
+  document.head.appendChild(s);
 })();
 </script>
 </body>

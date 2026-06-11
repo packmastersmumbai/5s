@@ -1,0 +1,36 @@
+# Secrets
+_LOGIN_CREDENTIALS.txt
+auth.json
+auth-gas.json
+
+# Claude / tooling internals
+.claude/
+.superpowers/
+.playwright-cli/
+MEMORY.md
+
+# Screenshots / test artifacts
+*.png
+*.yaml
+*.yml
+home-snap.yaml
+login.yaml
+capa-error.yml
+
+# Misc docs not for repo
+AUDIT_SUMMARY.md
+BUG_AUDIT_REPORT.md
+BUG_STRUCTURE_MAP.txt
+COMPRESSION_REPORT.md
+INCIDENT_RESPONSE_SUMMARY.md
+LOGICAL_ISSUES.md
+TESTING_OVERVIEW.md
+TEST_MATRIX.md
+TestCaseMatrix.md
+README_TESTING.txt
+WCAG_ACCESSIBILITY_AUDIT.md
+ErrorMessageAudit.md
+ProductionReadinessChecklist.md
+QUICK_FIX_GUIDE.txt
+project-structure.md
+docs/superpowers/

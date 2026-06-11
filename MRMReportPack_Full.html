@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MRM Report Pack — PackMasters 5S</title>
+<?!= include("CommonStyles") ?>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;color:#333}
+@media print{.no-print{display:none!important}body{font-size:11px}}
+.hdr{background:linear-gradient(135deg,#1a3a5c,#2e75b6);color:#fff;padding:20px 24px}
+.hdr h1{font-size:20px;margin-bottom:4px}.hdr .sub{font-size:12px;opacity:.8}
+.toolbar{padding:8px 16px;background:#f5f5f5;border-bottom:1px solid #e0e0e0;display:flex;gap:8px}
+.toolbar button{padding:6px 14px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;font-size:12px}
+.toolbar button:hover{background:#e8f0fe}
+.container{max-width:900px;margin:0 auto;padding:24px}
+.sec{margin-bottom:28px;page-break-inside:avoid}
+.sec h2{font-size:16px;color:#1a5276;border-bottom:2px solid #2e75b6;padding-bottom:6px;margin-bottom:12px}
+.iso{font-size:11px;color:#999;font-style:italic;margin-bottom:8px}
+.kg{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:16px}
+.kp{background:#f8f9fa;border-radius:8px;padding:12px;text-align:center;border:1px solid #e8e8e8}
+.kp .v{font-size:24px;font-weight:700;color:#1a5276}.kp .v.g{color:#27ae60}.kp .v.w{color:#f39c12}.kp .v.b{color:#e74c3c}
+.kp .l{font-size:11px;color:#999;margin-top:2px}
+table{width:100%;border-collapse:collapse;font-size:12px;margin:8px 0}
+th{background:#1a5276;color:#fff;padding:8px 10px;text-align:left}
+td{padding:7px 10px;border-bottom:1px solid #eee}tr:nth-child(even){background:#f8f9fa}
+.bdg{display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600}
+.bdg.imp{background:#d5f5e3;color:#27ae60}.bdg.dec{background:#fce4e4;color:#e74c3c}.bdg.st{background:#e8f0fe;color:#2e75b6}
+</style>
+</head><body>
+
+<div class="hdr">
+  <h1>Management Review Meeting — Report Pack</h1>
+  <div class="sub" id="period">Loading...</div>
+</div>
+<div class="toolbar no-print">
+  <button onclick="window.print()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Print / Save PDF</button>
+  <button onclick="load()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Refresh</button>
+  <span id="gen" style="font-size:11px;color:#999;margin-left:auto"></span>
+</div>
+
+<div class="container" id="content"><div style="text-align:center;padding:60px;color:#999">Generating MRM Report...</div></div>
+
+<script>
+function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function fmt(n){return typeof n==='number'?n.toLocaleString():String(n||'—');}
+
+function load(){
+  google.script.run.withSuccessHandler(render).withFailureHandler(function(e){
+    document.getElementById('content').innerHTML='<div style="padding:40px;text-align:center;color:red">'+esc(e.message)+'</div>';
+  }).getMRMReportData(1);
+}
+
+function render(d){
+  if(!d){document.getElementById('content').innerHTML='<p>No data</p>';return;}
+  document.getElementById('period').textContent='Period: '+d.period.from+' to '+d.period.to;
+  document.getElementById('gen').textContent='Generated: '+d.generated;
+  var h='';
+  
+  // Section 1: Audit Performance
+  h+='<div class="sec"><h2>1. Audit Performance Summary</h2>';
+  h+='<div class="iso">ISO 9001:2015 Clause 9.2 — Internal Audit | ISO 14001 Clause 9.2 | ISO 45001 Clause 9.2</div>';
+  h+='<table><tr><th>Zone</th><th>Audits</th><th>Avg Score</th><th>Trend</th></tr>';
+  var ap=d.auditPerformance||{};
+  Object.keys(ap).forEach(function(z){
+    var zd=ap[z];
+    var tCls=zd.trend==='IMPROVING'?'imp':zd.trend==='DECLINING'?'dec':'st';
+    h+='<tr><td>'+esc(z)+'</td><td>'+zd.scores.length+'</td><td>'+(zd.avg||'—')+'%</td>';
+    h+='<td><span class="bdg '+tCls+'">'+(zd.trend||'N/A')+'</span></td></tr>';
+  });
+  h+='</table></div>';
+  
+  // Section 2: NC/CAPA
+  var nc=d.ncStats||{};
+  h+='<div class="sec"><h2>2. Non-Conformance &amp; CAPA Status</h2>';
+  h+='<div class="iso">ISO 9001:2015 Clause 10.2 — Nonconformity and Corrective Action</div>';
+  h+='<div class="kg">';
+  h+='<div class="kp"><div class="v">'+fmt(nc.total)+'</div><div class="l">Total NCs</div></div>';
+  h+='<div class="kp"><div class="v g">'+fmt(nc.closed)+'</div><div class="l">Closed</div></div>';
+  h+='<div class="kp"><div class="v w">'+fmt(nc.open)+'</div><div class="l">Open</div></div>';
+  h+='<div class="kp"><div class="v b">'+fmt(nc.overdue)+'</div><div class="l">Overdue</div></div>';
+  h+='<div class="kp"><div class="v">'+fmt(nc.avgAge)+'d</div><div class="l">Avg Age (Open)</div></div>';
+  h+='<div class="kp"><div class="v '+(nc.repeatRate>15?'b':'g')+'">'+fmt(nc.repeatRate)+'%</div><div class="l">Repeat Rate</div></div>';
+  h+='</div>';
+  if(nc.byPillar){
+    h+='<table><tr><th>Pillar</th><th>NC Count</th></tr>';
+    Object.keys(nc.byPillar).sort().forEach(function(p){h+='<tr><td>'+esc(p)+'</td><td>'+nc.byPillar[p]+'</td></tr>';});
+    h+='</table>';
+  }
+  h+='</div>';
+  
+  // Section 3: Red Tag
+  var rt=d.rtStats||{};
+  h+='<div class="sec"><h2>3. Red Tag Disposition</h2>';
+  h+='<div class="iso">5S Methodology — Red Tag Campaign</div>';
+  h+='<div class="kg">';
+  h+='<div class="kp"><div class="v">'+fmt(rt.total)+'</div><div class="l">Total Tags</div></div>';
+  h+='<div class="kp"><div class="v g">'+fmt(rt.disposed)+'</div><div class="l">Disposed</div></div>';
+  h+='<div class="kp"><div class="v w">'+fmt(rt.pending)+'</div><div class="l">Pending</div></div>';
+  h+='<div class="kp"><div class="v b">\u20B9'+Math.round(rt.pendingValue||0).toLocaleString()+'</div><div class="l">Pending Value</div></div>';
+  h+='</div></div>';
+  
+  // Section 4: Kaizen
+  var kz=d.kzStats||{};
+  h+='<div class="sec"><h2>4. Continuous Improvement (Kaizen)</h2>';
+  h+='<div class="iso">ISO 9001:2015 Clause 10.3 — Continual Improvement</div>';
+  h+='<div class="kg">';
+  h+='<div class="kp"><div class="v">'+fmt(kz.submitted)+'</div><div class="l">Submitted</div></div>';
+  h+='<div class="kp"><div class="v g">'+fmt(kz.implemented)+'</div><div class="l">Implemented</div></div>';
+  h+='<div class="kp"><div class="v">'+fmt(kz.verified)+'</div><div class="l">Benefit Verified</div></div>';
+  h+='<div class="kp"><div class="v g">\u20B9'+Math.round(kz.totalSavings||0).toLocaleString()+'</div><div class="l">Verified Savings</div></div>';
+  h+='</div></div>';
+  
+  // Section 5: Training
+  var tr=d.trStats||{};
+  h+='<div class="sec"><h2>5. Competence &amp; Training Status</h2>';
+  h+='<div class="iso">ISO 9001:2015 Clause 7.2 — Competence | ISO 45001 Clause 7.2</div>';
+  h+='<div class="kg">';
+  h+='<div class="kp"><div class="v">'+fmt(tr.totalRecords)+'</div><div class="l">Training Records</div></div>';
+  h+='<div class="kp"><div class="v g">'+fmt(tr.certified)+'</div><div class="l">Certified</div></div>';
+  h+='<div class="kp"><div class="v w">'+fmt(tr.expiringSoon)+'</div><div class="l">Expiring (30d)</div></div>';
+  h+='<div class="kp"><div class="v b">'+fmt(tr.expired)+'</div><div class="l">Expired</div></div>';
+  h+='</div></div>';
+  
+  // Section 6: Tasks
+  var tk=d.taskStats||{};
+  h+='<div class="sec"><h2>6. Action Item Completion</h2>';
+  h+='<div class="iso">ISO 9001:2015 Clause 9.1.3 — Analysis and Evaluation</div>';
+  h+='<div class="kg">';
+  h+='<div class="kp"><div class="v">'+fmt(tk.total)+'</div><div class="l">Total Tasks</div></div>';
+  h+='<div class="kp"><div class="v g">'+fmt(tk.completed)+'</div><div class="l">Completed</div></div>';
+  h+='<div class="kp"><div class="v b">'+fmt(tk.overdue)+'</div><div class="l">Overdue</div></div>';
+  h+='<div class="kp"><div class="v '+(tk.completionRate>=80?'g':tk.completionRate>=60?'w':'b')+'">'+fmt(tk.completionRate)+'%</div><div class="l">Completion Rate</div></div>';
+  h+='</div></div>';
+  
+  // ISO References footer
+  h+='<div class="sec"><h2>7. Applicable Standards</h2>';
+  h+='<div class="iso">This report satisfies the management review input requirements of:</div>';
+  (d.isoReferences||[]).forEach(function(r){h+='<p style="font-size:12px;margin:4px 0">• '+esc(r)+'</p>';});
+  h+='</div>';
+  
+  document.getElementById('content').innerHTML=h;
+}
+
+// Auto-load report on page init
+document.addEventListener('DOMContentLoaded', load);
+load();
+</script>
+</body></html>

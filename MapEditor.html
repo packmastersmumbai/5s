@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Floor Map Editor — PackMasters 5S</title>
+<?!= include("CommonStyles") ?>
+<style>
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-main); background: var(--bg-page); color: var(--text-primary); min-height: 100vh; }
+
+/* ── HEADER ─────────────────────────────────────────────────── */
+.me-header {
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: sticky; top: 0; z-index: 100;
+  flex-wrap: wrap;
+}
+.me-header-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--pm-primary);
+  flex: 1;
+}
+.me-header a.back {
+  color: var(--pm-primary); text-decoration: none; font-size: 13px; opacity: .8;
+  white-space: nowrap;
+}
+#meSaveBtn {
+  padding: 8px 18px;
+  background: var(--pm-primary);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+#meSaveBtn:disabled { opacity: .5; cursor: default; }
+#meSaveStatus {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ── TOOLBAR ────────────────────────────────────────────────── */
+.me-toolbar {
+  padding: 8px 16px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.me-toolbar button {
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  color: var(--text-primary);
+}
+.me-toolbar button:hover { background: var(--pm-primary-soft); color: var(--pm-primary); border-color: var(--pm-primary); }
+
+/* ── MAIN CONTENT ───────────────────────────────────────────── */
+.me-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 12px 12px 80px;
+}
+
+/* ── CANVAS WRAPPER ─────────────────────────────────────────── */
+.me-canvas-wrap { width: 100%; overflow-x: auto; }
+.me-canvas-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+/* ── 12×8 GRID CANVAS ───────────────────────────────────────── */
+.me-grid-outer {
+  min-width: 560px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg-card);
+  box-shadow: var(--shadow);
+}
+.me-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  grid-template-rows: repeat(8, 52px);
+  gap: 1px;
+  background: var(--border);
+  position: relative;
+}
+.me-cell {
+  background: var(--bg-page);
+  transition: background .1s;
+  cursor: crosshair;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: transparent;
+}
+.me-cell:hover { background: var(--pm-primary-soft); }
+.me-cell.drag-over { background: var(--pm-primary-soft) !important; outline: 2px solid var(--pm-primary); }
+.me-zone-box {
+  background: var(--pm-primary);
+  color: #fff;
+  border-radius: 6px;
+  padding: 6px 8px;
+  cursor: grab;
+  z-index: 2;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  overflow: hidden;
+  transition: box-shadow .15s, opacity .15s;
+  box-shadow: 0 2px 6px rgba(0,0,0,.2);
+}
+.me-zone-box:hover { box-shadow: 0 4px 12px rgba(0,0,0,.3); }
+.me-zone-box.selected { box-shadow: 0 0 0 3px var(--score-amber), 0 2px 8px rgba(0,0,0,.2); }
+.me-zone-box.dragging { opacity: .5; cursor: grabbing; }
+.me-zone-id   { font-family: var(--font-mono); font-size: 9px; opacity: .8; letter-spacing: 1px; }
+.me-zone-name { font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: var(--font-display); }
+.me-zone-dept { font-size: 9px; opacity: .7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── PALETTE BAR ────────────────────────────────────────────── */
+.me-palette-label {
+  font-family: var(--font-mono);
+  font-size: 9px; color: var(--text-muted);
+  letter-spacing: 1.5px; text-transform: uppercase;
+  margin: 14px 0 6px;
+}
+.me-palette-bar {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  padding: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  min-height: 52px;
+}
+.me-palette-zone {
+  background: var(--bg-card-2);
+  border: 1.5px dashed var(--pm-primary);
+  color: var(--pm-primary);
+  border-radius: 8px; padding: 6px 12px;
+  cursor: grab; font-size: 12px; font-weight: 600;
+  font-family: var(--font-display); user-select: none;
+  display: flex; align-items: center; gap: 6px;
+  transition: background .1s;
+}
+.me-palette-zone:hover { background: var(--pm-primary-soft); }
+.me-palette-empty { color: var(--text-muted); font-size: 12px; font-family: var(--font-mono); align-self: center; }
+
+/* ── SIDE PANEL ─────────────────────────────────────────────── */
+.me-panel {
+  position: fixed;
+  top: 0; right: 0; width: 300px; height: 100vh;
+  background: var(--bg-header);
+  border-left: 1px solid var(--border);
+  box-shadow: -4px 0 20px rgba(0,0,0,.1);
+  z-index: 200;
+  transform: translateX(100%);
+  transition: transform .25s cubic-bezier(.4,0,.2,1);
+  overflow-y: auto; display: flex; flex-direction: column;
+}
+.me-panel.open { transform: translateX(0); }
+.me-panel-header {
+  padding: 14px 16px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; background: var(--bg-header); z-index: 1;
+}
+.me-panel-title { font-family: var(--font-display); font-size: 14px; font-weight: 700; color: var(--pm-primary); }
+.me-panel-close { width: 28px; height: 28px; border: none; background: none; cursor: pointer; color: var(--text-muted); font-size: 18px; display: flex; align-items: center; justify-content: center; border-radius: 6px; }
+.me-panel-close:hover { background: var(--bg-card-2); }
+.me-panel-body { padding: 14px 16px; flex: 1; }
+.me-field { margin-bottom: 12px; }
+.me-label { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); letter-spacing: .8px; text-transform: uppercase; display: block; margin-bottom: 4px; }
+.me-input, .me-select { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); color: var(--text-primary); font-size: 13px; font-family: inherit; }
+.me-input:focus, .me-select:focus { outline: none; border-color: var(--pm-primary); }
+.me-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.me-panel-footer { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+.me-btn-delete { padding: 8px 14px; background: var(--score-red-bg); color: var(--score-red); border: 1px solid var(--score-red); border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.me-btn-delete:hover { background: var(--score-red); color: #fff; }
+.me-btn-remove-pos { padding: 8px 14px; background: var(--bg-card-2); color: var(--text-secondary); border: 1px solid var(--border); border-radius: 8px; font-size: 12px; cursor: pointer; font-family: inherit; flex: 1; }
+.me-btn-remove-pos:hover { background: var(--pm-primary-soft); color: var(--pm-primary); }
+
+/* ── MODALS ─────────────────────────────────────────────────── */
+.me-modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 250; align-items: center; justify-content: center; }
+.me-modal-backdrop.open { display: flex; }
+.me-modal { background: var(--bg-header); border-radius: 14px; padding: 24px; width: min(90vw, 380px); box-shadow: 0 16px 40px rgba(0,0,0,.25); }
+.me-modal h3 { font-family: var(--font-display); font-size: 16px; font-weight: 700; color: var(--pm-primary); margin-bottom: 16px; }
+.me-modal-btns { margin-top: 18px; display: flex; gap: 8px; justify-content: flex-end; }
+.me-btn-cancel { padding: 8px 16px; background: var(--bg-card-2); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; cursor: pointer; font-family: inherit; }
+.me-btn-confirm { padding: 8px 16px; background: var(--pm-primary); color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.me-btn-confirm-del { padding: 8px 16px; background: var(--score-red); color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+
+.me-loading { text-align: center; padding: 60px 24px; color: var(--text-muted); font-family: var(--font-mono); font-size: 12px; letter-spacing: 1px; }
+</style>
+</head>
+<body>
+
+<div class="me-header">
+  <a class="back" href="javascript:history.back()">← Back</a>
+  <div class="me-header-title">Floor Map Editor</div>
+  <span id="meSaveStatus"></span>
+  <button id="meSaveBtn" disabled onclick="saveAll()">Save</button>
+</div>
+
+<div class="me-toolbar">
+  <button onclick="openAddModal()">+ Add Zone</button>
+  <button onclick="autoArrange()">Auto-Arrange</button>
+</div>
+
+<div class="me-main" id="meMain">
+  <div class="me-loading" id="meLoading">Loading map data…</div>
+</div>
+
+<!-- SIDE PANEL -->
+<div class="me-panel" id="mePanel">
+  <div class="me-panel-header">
+    <div class="me-panel-title" id="mePanelTitle">Zone Details</div>
+    <button class="me-panel-close" onclick="closePanel()">×</button>
+  </div>
+  <div class="me-panel-body">
+    <div class="me-2col">
+      <div class="me-field"><label class="me-label">Zone ID</label><input class="me-input" id="pfId" disabled></div>
+      <div class="me-field">
+        <label class="me-label">Audit Day</label>
+        <select class="me-select" id="pfAuditDay">
+          <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
+          <option>Thursday</option><option>Friday</option><option>Saturday</option>
+        </select>
+      </div>
+    </div>
+    <div class="me-field"><label class="me-label">Name (English)</label><input class="me-input" id="pfName" placeholder="Zone name"></div>
+    <div class="me-field"><label class="me-label">Name (Hindi)</label><input class="me-input" id="pfNameHi" placeholder="हिंदी नाम"></div>
+    <div class="me-field"><label class="me-label">Zone Leader</label><input class="me-input" id="pfLeader" placeholder="Mr. Name"></div>
+    <div class="me-field"><label class="me-label">Email</label><input class="me-input" id="pfEmail" type="email" placeholder="leader@company.in"></div>
+    <div class="me-field"><label class="me-label">Department</label><input class="me-input" id="pfDept" placeholder="Production & Ops"></div>
+    <div class="me-2col">
+      <div class="me-field"><label class="me-label">Target Score %</label><input class="me-input" id="pfTarget" type="number" min="0" max="100" placeholder="80"></div>
+      <div class="me-field"><label class="me-label">Drive Folder ID</label><input class="me-input" id="pfDrive" placeholder="Optional"></div>
+    </div>
+  </div>
+  <div class="me-panel-footer">
+    <button class="me-btn-remove-pos" onclick="removeZonePosition()">Remove from Grid</button>
+    <button class="me-btn-delete" onclick="openDeleteModal()">Delete Zone</button>
+  </div>
+</div>
+
+<!-- ADD ZONE MODAL -->
+<div class="me-modal-backdrop" id="meAddModal">
+  <div class="me-modal">
+    <h3>Add New Zone</h3>
+    <div class="me-field"><label class="me-label">Zone ID (e.g. Z-09)</label><input class="me-input" id="addZoneId" placeholder="Z-09" maxlength="4"></div>
+    <div class="me-field"><label class="me-label">Zone Name</label><input class="me-input" id="addZoneName" placeholder="Zone name"></div>
+    <div class="me-field"><label class="me-label">Department</label><input class="me-input" id="addZoneDept" placeholder="Department"></div>
+    <div class="me-modal-btns">
+      <button class="me-btn-cancel" onclick="closeAddModal()">Cancel</button>
+      <button class="me-btn-confirm" onclick="confirmAddZone()">Add Zone</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE ZONE MODAL -->
+<div class="me-modal-backdrop" id="meDeleteModal">
+  <div class="me-modal">
+    <h3>Delete Zone</h3>
+    <p style="font-size:13px;color:var(--text-secondary);line-height:1.5">
+      Delete zone <strong id="delZoneLabel"></strong>?<br>
+      This removes it from the system permanently. Historical audit data in the spreadsheet is preserved.
+    </p>
+    <div class="me-modal-btns">
+      <button class="me-btn-cancel" onclick="closeDeleteModal()">Cancel</button>
+      <button class="me-btn-confirm-del" onclick="confirmDeleteZone()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var _zones  = {};   // keyed by zoneId
+var _layout = {};   // { zoneId: {col,row,colSpan,rowSpan} }
+var _selectedId = null;
+var _dragId = null;
+
+function loadData() {
+  google.script.run
+    .withSuccessHandler(function(d) {
+      if (!d || !d.success) {
+        document.getElementById('meLoading').textContent = 'Error: ' + (d && d.message ? d.message : 'Could not load data');
+        return;
+      }
+      _zones  = d.zones  || {};
+      _layout = d.layout || {};
+      renderEditor();
+      document.getElementById('meSaveBtn').disabled = false;
+    })
+    .withFailureHandler(function(e) {
+      document.getElementById('meLoading').textContent = 'Error: ' + e.message;
+    })
+    .getMapEditorData();
+}
+
+function renderEditor() {
+  var main = document.getElementById('meMain');
+  main.innerHTML = '';
+
+  var cl = document.createElement('div');
+  cl.className = 'me-canvas-label';
+  cl.textContent = 'Factory Floor Grid (12 × 8) — Drag zone boxes to position them';
+  main.appendChild(cl);
+
+  var cw = document.createElement('div');
+  cw.className = 'me-canvas-wrap';
+  var go = document.createElement('div');
+  go.className = 'me-grid-outer';
+  var grid = document.createElement('div');
+  grid.className = 'me-grid';
+  grid.id = 'meGrid';
+
+  // 96 drop-target cells
+  for (var r = 1; r <= 8; r++) {
+    for (var c = 1; c <= 12; c++) {
+      var cell = document.createElement('div');
+      cell.className = 'me-cell';
+      cell.dataset.col = c; cell.dataset.row = r;
+      cell.textContent = c + ',' + r;
+      _bindCellDrop(cell);
+      grid.appendChild(cell);
+    }
+  }
+
+  // Zone boxes (on top of cells via z-index)
+  Object.keys(_zones).sort().forEach(function(zid) {
+    var pos = _layout[zid];
+    if (!pos) return;
+    grid.appendChild(_createZoneBox(zid, pos));
+  });
+
+  go.appendChild(grid);
+  cw.appendChild(go);
+  main.appendChild(cw);
+
+  // Palette
+  var pl = document.createElement('div');
+  pl.className = 'me-palette-label';
+  pl.textContent = 'Unplaced Zones — Drag onto the grid to position';
+  main.appendChild(pl);
+
+  var palette = document.createElement('div');
+  palette.className = 'me-palette-bar';
+  palette.id = 'mePalette';
+  palette.addEventListener('dragover', function(e) { e.preventDefault(); });
+  palette.addEventListener('drop', function(e) {
+    e.preventDefault();
+    var zid = e.dataTransfer.getData('text/plain') || _dragId;
+    if (zid) { delete _layout[zid]; renderEditor(); }
+  });
+
+  var hasUnplaced = false;
+  Object.keys(_zones).sort().forEach(function(zid) {
+    if (_layout[zid]) return;
+    hasUnplaced = true;
+    var chip = document.createElement('div');
+    chip.className = 'me-palette-zone';
+    chip.draggable = true;
+    chip.dataset.zoneId = zid;
+    chip.textContent = zid + ' — ' + (_zones[zid].name || zid);
+    chip.addEventListener('dragstart', function(e) {
+      _dragId = zid; e.dataTransfer.setData('text/plain', zid); chip.style.opacity = '.4';
+    });
+    chip.addEventListener('dragend', function() { _dragId = null; chip.style.opacity = ''; });
+    chip.addEventListener('click', function() { selectZone(zid); });
+    palette.appendChild(chip);
+  });
+  if (!hasUnplaced) {
+    var emp = document.createElement('div'); emp.className = 'me-palette-empty';
+    emp.textContent = 'All zones placed on grid'; palette.appendChild(emp);
+  }
+  main.appendChild(palette);
+}
+
+function _createZoneBox(zid, pos) {
+  var box = document.createElement('div');
+  box.className = 'me-zone-box' + (_selectedId === zid ? ' selected' : '');
+  box.dataset.zoneId = zid; box.draggable = true;
+  box.style.gridColumn = pos.col + ' / span ' + (pos.colSpan || 1);
+  box.style.gridRow    = pos.row + ' / span ' + (pos.rowSpan || 1);
+  var z = _zones[zid];
+  box.innerHTML = '<div class="me-zone-id">' + _esc(zid) + '</div>' +
+    '<div class="me-zone-name">' + _esc(z.name || zid) + '</div>' +
+    (z.department ? '<div class="me-zone-dept">' + _esc(z.department) + '</div>' : '');
+  box.addEventListener('dragstart', function(e) {
+    _dragId = zid; e.dataTransfer.setData('text/plain', zid);
+    box.classList.add('dragging'); setTimeout(function() { box.style.opacity = '.4'; }, 0);
+  });
+  box.addEventListener('dragend', function() {
+    _dragId = null; box.classList.remove('dragging'); box.style.opacity = '';
+  });
+  box.addEventListener('click', function(e) { e.stopPropagation(); selectZone(zid); });
+  return box;
+}
+
+function _bindCellDrop(cell) {
+  cell.addEventListener('dragover', function(e) { e.preventDefault(); cell.classList.add('drag-over'); });
+  cell.addEventListener('dragleave', function() { cell.classList.remove('drag-over'); });
+  cell.addEventListener('drop', function(e) {
+    e.preventDefault(); cell.classList.remove('drag-over');
+    var zid = e.dataTransfer.getData('text/plain') || _dragId;
+    if (!zid) return;
+    _layout[zid] = { col: parseInt(cell.dataset.col,10), row: parseInt(cell.dataset.row,10), colSpan: 1, rowSpan: 1 };
+    renderEditor(); selectZone(zid);
+  });
+}
+
+function selectZone(zid) {
+  _selectedId = zid;
+  document.querySelectorAll('.me-zone-box').forEach(function(b) {
+    b.classList.toggle('selected', b.dataset.zoneId === zid);
+  });
+  var z = _zones[zid] || {};
+  document.getElementById('pfId').value       = zid;
+  document.getElementById('pfName').value     = z.name           || '';
+  document.getElementById('pfNameHi').value   = z.nameHi         || '';
+  document.getElementById('pfLeader').value   = z.leader         || '';
+  document.getElementById('pfEmail').value    = z.email          || '';
+  document.getElementById('pfDept').value     = z.department     || '';
+  document.getElementById('pfTarget').value   = z.targetScore    || '';
+  document.getElementById('pfDrive').value    = z.driveFolderId  || '';
+  document.getElementById('pfAuditDay').value = z.auditDay       || 'Monday';
+  document.getElementById('mePanelTitle').textContent = zid + ' — ' + (z.name || 'Zone');
+  document.getElementById('mePanel').classList.add('open');
+}
+
+function closePanel() {
+  _flushPanel();
+  document.getElementById('mePanel').classList.remove('open');
+  _selectedId = null;
+  document.querySelectorAll('.me-zone-box').forEach(function(b) { b.classList.remove('selected'); });
+}
+
+function _flushPanel() {
+  if (!_selectedId || !_zones[_selectedId]) return;
+  var z = _zones[_selectedId];
+  z.name         = document.getElementById('pfName').value.trim();
+  z.nameHi       = document.getElementById('pfNameHi').value.trim();
+  z.leader       = document.getElementById('pfLeader').value.trim();
+  z.email        = document.getElementById('pfEmail').value.trim();
+  z.department   = document.getElementById('pfDept').value.trim();
+  z.auditDay     = document.getElementById('pfAuditDay').value;
+  z.driveFolderId = document.getElementById('pfDrive').value.trim();
+  var ts = parseFloat(document.getElementById('pfTarget').value);
+  z.targetScore  = isNaN(ts) ? undefined : ts;
+  var days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  z.auditDayNum  = Math.max(0, days.indexOf(z.auditDay));
+}
+
+function removeZonePosition() {
+  if (!_selectedId) return;
+  delete _layout[_selectedId];
+  closePanel(); renderEditor();
+}
+
+function autoArrange() {
+  var ids = Object.keys(_zones).sort();
+  var cols = Math.min(12, Math.ceil(Math.sqrt(ids.length * 1.5)));
+  var span = Math.max(1, Math.floor(12 / cols));
+  var rSpan = Math.max(1, Math.floor(8 / Math.ceil(ids.length / cols)));
+  _layout = {};
+  ids.forEach(function(zid, i) {
+    _layout[zid] = { col: (i % cols) * span + 1, row: Math.floor(i / cols) * rSpan + 1, colSpan: span, rowSpan: rSpan };
+  });
+  renderEditor();
+  setStatus('Auto-arranged ' + ids.length + ' zones. Press Save.', '#B45309');
+}
+
+function openAddModal() {
+  ['addZoneId','addZoneName','addZoneDept'].forEach(function(id){ document.getElementById(id).value=''; });
+  document.getElementById('meAddModal').classList.add('open');
+  document.getElementById('addZoneId').focus();
+}
+function closeAddModal() { document.getElementById('meAddModal').classList.remove('open'); }
+function confirmAddZone() {
+  var newId   = (document.getElementById('addZoneId').value.trim()).toUpperCase();
+  var newName = document.getElementById('addZoneName').value.trim();
+  var newDept = document.getElementById('addZoneDept').value.trim();
+  if (!/^Z-\d{2}$/.test(newId)) { alert('Zone ID must match Z-XX (e.g. Z-09)'); return; }
+  if (_zones[newId]) { alert('Zone ' + newId + ' already exists.'); return; }
+  setStatus('Adding…', '');
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (!res || !res.success) { alert(res ? res.message : 'Add failed'); return; }
+      closeAddModal(); loadData();
+    })
+    .withFailureHandler(function(e) { alert('Error: ' + e.message); })
+    .addZone({ id: newId, name: newName, dept: newDept });
+}
+
+function openDeleteModal() {
+  if (!_selectedId) return;
+  document.getElementById('delZoneLabel').textContent = _selectedId + ' — ' + (_zones[_selectedId] && _zones[_selectedId].name ? _zones[_selectedId].name : _selectedId);
+  document.getElementById('meDeleteModal').classList.add('open');
+}
+function closeDeleteModal() { document.getElementById('meDeleteModal').classList.remove('open'); }
+function confirmDeleteZone() {
+  if (!_selectedId) return;
+  var zid = _selectedId;
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (!res || !res.success) { alert(res ? res.message : 'Delete failed'); return; }
+      closeDeleteModal();
+      delete _zones[zid]; delete _layout[zid];
+      _selectedId = null;
+      document.getElementById('mePanel').classList.remove('open');
+      renderEditor();
+      setStatus('Zone ' + zid + ' deleted.', 'var(--score-red)');
+    })
+    .withFailureHandler(function(e) { alert('Error: ' + e.message); })
+    .deleteZone(zid);
+}
+
+function saveAll() {
+  _flushPanel();
+  setStatus('Saving…', '');
+  document.getElementById('meSaveBtn').disabled = true;
+  var zonesArr = Object.keys(_zones).map(function(zid) {
+    var z = _zones[zid];
+    return { id: zid, name: z.name||'', nameHi: z.nameHi||'', leader: z.leader||'',
+      email: z.email||'', auditDay: z.auditDay||'Monday', auditDayNum: z.auditDayNum||1,
+      dept: z.department||'', driveFolderId: z.driveFolderId||'', targetScore: z.targetScore||'' };
+  });
+  google.script.run
+    .withSuccessHandler(function(res) {
+      document.getElementById('meSaveBtn').disabled = false;
+      if (!res || !res.success) { setStatus('Save failed: ' + (res?res.message:'unknown'), 'var(--score-red)'); return; }
+      setStatus('\u2713 ' + res.message, 'var(--score-green)');
+    })
+    .withFailureHandler(function(e) {
+      document.getElementById('meSaveBtn').disabled = false;
+      setStatus('Error: ' + e.message, 'var(--score-red)');
+    })
+    .saveMapEditorData({ zones: zonesArr, layout: _layout });
+}
+
+function setStatus(msg, color) {
+  var el = document.getElementById('meSaveStatus');
+  el.textContent = msg; el.style.color = color || 'var(--text-muted)';
+}
+function _esc(s) {
+  return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
+}
+
+// Close panel when clicking outside it
+document.body.addEventListener('click', function(e) {
+  var p = document.getElementById('mePanel');
+  if (p.classList.contains('open') && !p.contains(e.target)) closePanel();
+});
+
+loadData();
+</script>
+
+<script>
+window.PM_TOUR_ID = 'mapeditor';
+window.PM_TOUR_STEPS = [
+  { selector: '#meGrid',       title: 'Floor Grid',     body: 'This 12×8 grid represents your factory floor. Drag zone boxes to position them where they sit in the real facility.', pos: 'bottom' },
+  { selector: '#mePalette',    title: 'Unplaced Zones', body: 'Zones without a position appear here. Drag them onto any grid cell to place them on the floor map.', pos: 'top' },
+  { selector: '.me-toolbar',   title: 'Toolbar',        body: 'Use + Add Zone to create a new zone, or Auto-Arrange to automatically lay out all zones.', pos: 'bottom' },
+  { selector: '#meSaveBtn',    title: 'Save Layout',    body: 'Press Save to write all zone properties and layout positions to the system. Changes only take effect after saving.', pos: 'bottom' }
+];
+</script>
+<?!= include('GuidedTour') ?>
+</body>
+</html>

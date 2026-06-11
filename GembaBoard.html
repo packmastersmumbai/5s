@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gemba Board — PackMasters 5S</title>
+<?!= include('CommonStyles') ?>
+<style>
+  body { overflow: hidden; }
+
+  .gemba-header {
+    background: var(--bg-header);
+    border-bottom: 2px solid var(--pm-accent);
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+  .gemba-header h1 {
+    font-size: var(--size-lg);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--text-primary);
+  }
+  .gemba-header .meta {
+    font-size: var(--size-xs);
+    color: var(--text-muted);
+  }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+
+  .status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: var(--size-xs);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  .status-ok    { background: var(--score-green-bg); color: var(--score-green); }
+  .status-warn  { background: var(--score-amber-bg); color: var(--score-amber); }
+  .status-alert { background: var(--score-red-bg);   color: var(--score-red);   }
+
+  .fullscreen-btn {
+    background: none;
+    border: 1px solid rgba(255,255,255,.2);
+    color: var(--text-secondary);
+    padding: 4px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: var(--size-xs);
+    font-family: var(--font-main);
+    transition: border-color .15s, color .15s;
+  }
+  .fullscreen-btn:hover { border-color: var(--pm-accent); color: var(--text-primary); }
+
+  .board-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 10px;
+    padding: 10px;
+    height: calc(100vh - 52px);
+    overflow: auto;
+  }
+
+  .zone-card {
+    background: var(--bg-card);
+    border-radius: 10px;
+    padding: 14px;
+    border: 2px solid rgba(255,255,255,.06);
+    transition: border-color .25s, opacity .25s;
+  }
+  .zone-card.skeleton-card { border-color: rgba(255,255,255,.04); }
+  .zone-card.score-high { border-color: var(--score-green); }
+  .zone-card.score-mid  { border-color: var(--score-amber); }
+  .zone-card.score-low  { border-color: var(--score-red);   }
+  .zone-card.no-data    { border-color: rgba(255,255,255,.1); opacity: 0.55; }
+
+  /* Skeleton shimmer */
+  .skel {
+    background: linear-gradient(90deg, var(--bg-card-2) 25%, rgba(255,255,255,.06) 50%, var(--bg-card-2) 75%);
+    background-size: 200% 100%;
+    animation: gshin 1.6s infinite;
+    border-radius: 4px;
+  }
+  @keyframes gshin { 0% { background-position: 200% 0 } 100% { background-position: -200% 0 } }
+
+  /* Alert pulse — subtle glow, no hard flash */
+  .zone-card.pulse {
+    animation: cardPulse 2.5s ease-in-out infinite;
+  }
+  @keyframes cardPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(201,42,42,.3); }
+    50%       { box-shadow: 0 0 0 6px rgba(201,42,42,.0); }
+  }
+
+  .zone-name   { font-size: var(--size-md); font-weight: 700; margin-bottom: 3px; color: var(--text-primary); }
+  .zone-leader { font-size: var(--size-xs); color: var(--text-muted); margin-bottom: 10px; display: flex; align-items: center; gap: 4px; }
+
+  .zone-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  .metric {
+    background: var(--bg-page);
+    border-radius: 7px;
+    padding: 10px;
+    text-align: center;
+  }
+  .metric-value {
+    font-size: var(--size-xl);
+    font-weight: 700;
+    font-family: var(--font-display);
+    line-height: 1;
+  }
+  .metric-label { font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 3px; }
+
+  .metric-value.green { color: var(--score-green); }
+  .metric-value.amber { color: var(--score-amber); }
+  .metric-value.red   { color: var(--score-red);   }
+  .metric-value.grey  { color: var(--text-muted);  }
+
+  .submission-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 9px;
+    padding: 7px 10px;
+    background: var(--bg-page);
+    border-radius: 7px;
+    font-size: var(--size-xs);
+    color: var(--text-secondary);
+  }
+
+  /* Status dot — solid, no blink (blink is cognitively expensive on factory floors) */
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+  .dot.green { background: var(--score-green); }
+  .dot.red   { background: var(--score-red);   opacity: .9; }
+
+  .trend-arrow { font-size: var(--size-sm); }
+  .trend-arrow.up   { color: var(--score-green); }
+  .trend-arrow.down { color: var(--score-red);   }
+  .trend-arrow.flat { color: var(--score-amber); }
+
+  .nc-bar { display: flex; gap: 4px; margin-top: 8px; flex-wrap: wrap; }
+  .nc-badge { padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+  .nc-open  { background: var(--score-red-bg);   color: var(--score-red);   }
+  .nc-active{ background: var(--score-amber-bg); color: var(--score-amber); }
+  .nc-none  { background: var(--score-green-bg); color: var(--score-green); }
+
+  .last-updated {
+    position: fixed;
+    bottom: 8px;
+    right: 16px;
+    font-size: 10px;
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="gemba-header">
+  <h1>GEMBA BOARD — PackMasters 5S</h1>
+  <div class="header-right">
+    <span id="submissionBadge" class="status-badge status-ok">0/0 Submitted</span>
+    <button class="fullscreen-btn" onclick="toggleFullscreen()">Kiosk</button>
+  </div>
+</div>
+
+<div class="board-grid" id="boardGrid">
+  <div class="zone-card skeleton-card"><div class="skel" style="height:20px;width:60%;margin-bottom:8px"></div><div class="skel" style="height:11px;width:40%;margin-bottom:12px"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="skel" style="height:58px"></div><div class="skel" style="height:58px"></div></div><div class="skel" style="height:28px;margin-top:9px"></div></div>
+  <div class="zone-card skeleton-card"><div class="skel" style="height:20px;width:60%;margin-bottom:8px"></div><div class="skel" style="height:11px;width:40%;margin-bottom:12px"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="skel" style="height:58px"></div><div class="skel" style="height:58px"></div></div><div class="skel" style="height:28px;margin-top:9px"></div></div>
+  <div class="zone-card skeleton-card"><div class="skel" style="height:20px;width:60%;margin-bottom:8px"></div><div class="skel" style="height:11px;width:40%;margin-bottom:12px"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="skel" style="height:58px"></div><div class="skel" style="height:58px"></div></div><div class="skel" style="height:28px;margin-top:9px"></div></div>
+  <div class="zone-card skeleton-card"><div class="skel" style="height:20px;width:60%;margin-bottom:8px"></div><div class="skel" style="height:11px;width:40%;margin-bottom:12px"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="skel" style="height:58px"></div><div class="skel" style="height:58px"></div></div><div class="skel" style="height:28px;margin-top:9px"></div></div>
+</div>
+
+<div class="last-updated">Last updated: <span id="lastUpdate">—</span> | Auto-refresh: 5 min</div>
+
+<script>
+
+function escHtml(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function loadGembaData(forceRefresh) {
+  var cacheKey = 'gemba_board';
+  var cached = PM5SCache.get(cacheKey);
+  if (!cached) {
+    document.getElementById("boardGrid").innerHTML =
+      '<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted);">Loading Gemba Board data...</div>';
+  }
+  PM5SCache.load(cacheKey, function(onFresh, onError) {
+    google.script.run.withSuccessHandler(onFresh).withFailureHandler(onError).getGembaBoardData();
+  }, function(data, isStale) {
+    renderGembaBoard(data, isStale);
+  }, { ttl: 5 * 60 * 1000, forceRefresh: !!forceRefresh,
+    onError: function(e) {
+      if (!cached) document.getElementById("boardGrid").innerHTML =
+        '<div style="text-align:center;padding:40px;color:var(--score-red);">Error: ' + escHtml(e.message) + '</div>';
+    }
+  });
+}
+
+function renderGembaBoard(data, isStale) {
+  var grid = document.getElementById("boardGrid");
+  grid.innerHTML = "";
+
+  var submittedCount = data.zones.filter(function(z) { return z.submittedToday; }).length;
+  var totalZones = data.totalZones || data.zones.length;
+
+  var badge = document.getElementById("submissionBadge");
+  badge.textContent = submittedCount + "/" + totalZones + " Submitted";
+  badge.className = "status-badge " + (submittedCount === totalZones ? "status-ok" : (submittedCount >= totalZones / 2 ? "status-warn" : "status-alert"));
+
+  document.getElementById("lastUpdate").textContent = data.timestamp;
+
+  data.zones.forEach(function(zone) {
+    var card = document.createElement("div");
+    var dailyScore  = zone.todayScore !== undefined ? zone.todayScore : zone.dailyScore;
+    var weeklyScore = zone.weekAvg    !== undefined ? zone.weekAvg    : zone.weeklyScore;
+    var trend       = zone.trend      !== undefined ? zone.trend      : zone.weeklyTrend;
+    var submitted   = zone.submittedToday !== undefined ? zone.submittedToday : zone.dailySubmitted;
+    var zoneId      = zone.zoneId     !== undefined ? zone.zoneId     : zone.id;
+    var zoneName    = zone.zoneName   !== undefined ? zone.zoneName   : zone.name;
+
+    var scoreClass = dailyScore === null || dailyScore === undefined ? "no-data" : (dailyScore >= 80 ? "score-high" : (dailyScore >= 60 ? "score-mid" : "score-low"));
+    card.className = "zone-card " + scoreClass;
+    if (zone.overdueNCs > 0) card.className += " pulse";
+
+    var scoreColor  = (dailyScore  === null || dailyScore  === undefined) ? "grey" : (dailyScore  >= 80 ? "green" : (dailyScore  >= 60 ? "amber" : "red"));
+    var weeklyColor = (weeklyScore === null || weeklyScore === undefined) ? "grey" : (weeklyScore >= 80 ? "green" : (weeklyScore >= 60 ? "amber" : "red"));
+    var trendArrow  = trend === "up" ? "▲" : (trend === "down" ? "▼" : "●");
+    var trendClass  = trend || "flat";
+
+    var openNCs    = parseInt(zone.openNCs, 10)    || 0;
+    var overdueNCs = parseInt(zone.overdueNCs, 10) || 0;
+    var activeCAPAs= parseInt(zone.activeCAPAs, 10)|| 0;
+
+    card.innerHTML =
+      '<div class="zone-name">' + escHtml(zoneId) + ' — ' + escHtml(zoneName) + '</div>' +
+      '<div class="zone-leader"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>' + escHtml(zone.leader || '—') + '</div>' +
+      '<div class="zone-metrics">' +
+        '<div class="metric"><div class="metric-value ' + scoreColor + '">' + (dailyScore !== null && dailyScore !== undefined ? parseInt(dailyScore, 10) + '%' : '—') + '</div><div class="metric-label">Daily Score</div></div>' +
+        '<div class="metric"><div class="metric-value ' + weeklyColor + '">' + (weeklyScore !== null && weeklyScore !== undefined ? parseInt(weeklyScore, 10) + '%' : '—') + ' <span class="trend-arrow ' + trendClass + '">' + trendArrow + '</span></div><div class="metric-label">Weekly Score</div></div>' +
+      '</div>' +
+      '<div class="submission-status">' +
+        '<span class="dot ' + (submitted ? 'green' : 'red') + '"></span>' +
+        (submitted ? 'Daily submitted' : 'Daily NOT submitted') +
+      '</div>' +
+      '<div class="nc-bar">' +
+        (openNCs > 0 ? '<span class="nc-badge nc-open">' + openNCs + ' open NC' + (openNCs > 1 ? 's' : '') + '</span>' : '<span class="nc-badge nc-none">No open NCs</span>') +
+        (overdueNCs > 0 ? '<span class="nc-badge nc-open">' + overdueNCs + ' overdue</span>' : '') +
+        (activeCAPAs > 0 ? '<span class="nc-badge nc-active">' + activeCAPAs + ' active CAPA</span>' : '') +
+      '</div>';
+
+    grid.appendChild(card);
+  });
+}
+
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(function(){});
+  } else {
+    document.exitFullscreen();
+  }
+}
+
+loadGembaData();
+setInterval(function() {
+  if (document.visibilityState !== 'hidden') loadGembaData();
+}, 300000);
+</script>
+</body>
+</html>

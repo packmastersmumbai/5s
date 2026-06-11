@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Floor Map — PackMasters 5S</title>
+<?!= include('CommonStyles') ?>
+<style>
+/* ── Page shell ─────────────────────────────────────────────── */
+.fm-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--bg-page, #F8FAFC);
+  overflow: hidden;
+}
+
+/* ── Toolbar ────────────────────────────────────────────────── */
+.fm-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--bg-card, #fff);
+  border-bottom: 1px solid var(--border, #E2E8F0);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  z-index: 10;
+}
+.fm-toolbar h1 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--pm-primary, #0F172A);
+  flex: 1;
+  min-width: 120px;
+}
+.fm-toolbar .fm-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: #F1F5F9;
+  color: #64748B;
+  font-family: 'Figtree', sans-serif;
+}
+.fm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #E2E8F0);
+  background: var(--bg-card, #fff);
+  color: var(--pm-primary, #0F172A);
+  font-size: 13px;
+  font-family: 'Figtree', sans-serif;
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+.fm-btn:hover { background: #F1F5F9; }
+.fm-btn.primary {
+  background: var(--pm-primary, #0F172A);
+  color: #fff;
+  border-color: transparent;
+}
+.fm-btn.primary:hover { background: #1E293B; }
+.fm-btn.danger {
+  background: #FEF2F2;
+  color: #DC2626;
+  border-color: #FECACA;
+}
+.fm-btn.danger:hover { background: #FEE2E2; }
+.fm-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* edit mode indicator */
+.fm-mode-chip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-family: 'Figtree', sans-serif;
+}
+.fm-mode-chip.view { background: #DCFCE7; color: #166534; }
+.fm-mode-chip.edit { background: #FEF9C3; color: #854D0E; }
+
+/* ── Map area ───────────────────────────────────────────────── */
+.fm-canvas-wrap {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: #F1F5F9;
+}
+
+/* D3 SVG */
+#fm-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ── Loading / Error states ─────────────────────────────────── */
+.fm-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: rgba(248,250,252,0.92);
+  z-index: 20;
+}
+.fm-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #E2E8F0;
+  border-top-color: var(--pm-primary, #0F172A);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.fm-overlay p {
+  font-family: 'Figtree', sans-serif;
+  font-size: 14px;
+  color: #64748B;
+}
+
+/* ── Tooltip ────────────────────────────────────────────────── */
+#fm-tooltip {
+  position: fixed;
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border, #E2E8F0);
+  border-radius: 10px;
+  padding: 12px 14px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+  font-family: 'Figtree', sans-serif;
+  font-size: 13px;
+  pointer-events: none;
+  display: none;
+  z-index: 200;
+  min-width: 190px;
+  max-width: 260px;
+}
+#fm-tooltip .tt-id {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #94A3B8;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+#fm-tooltip .tt-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--pm-primary, #0F172A);
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#fm-tooltip .tt-score {
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 8px;
+  font-family: 'JetBrains Mono', monospace;
+}
+#fm-tooltip .tt-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #64748B;
+  margin-top: 3px;
+}
+#fm-tooltip .tt-row span:last-child { font-weight: 600; color: var(--pm-primary,#0F172A); }
+#fm-tooltip .tt-overdue {
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #DC2626;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+#fm-tooltip .tt-hint {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #94A3B8;
+}
+
+/* ── Legend ─────────────────────────────────────────────────── */
+.fm-legend {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  background: var(--bg-card,#fff);
+  border: 1px solid var(--border,#E2E8F0);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-family: 'Figtree', sans-serif;
+  font-size: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  z-index: 5;
+}
+.fm-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+  color: #475569;
+}
+.fm-legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* ── Info chip (bottom-right) ──────────────────────────────── */
+.fm-info-chip {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  background: var(--bg-card,#fff);
+  border: 1px solid var(--border,#E2E8F0);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: #94A3B8;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  z-index: 5;
+}
+
+/* ── Edit-mode rename input ─────────────────────────────────── */
+.fm-rename-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+}
+.fm-rename-card {
+  background: var(--bg-card,#fff);
+  border-radius: 12px;
+  padding: 20px 24px;
+  width: 340px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+}
+.fm-rename-card h3 {
+  font-family: 'Outfit',sans-serif;
+  font-size: 15px;
+  margin-bottom: 12px;
+  color: var(--pm-primary,#0F172A);
+}
+.fm-rename-card input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border,#E2E8F0);
+  border-radius: 8px;
+  font-family: 'Figtree',sans-serif;
+  font-size: 14px;
+  color: var(--pm-primary,#0F172A);
+  outline: none;
+  margin-bottom: 14px;
+}
+.fm-rename-card input:focus {
+  border-color: var(--pm-primary,#0F172A);
+  box-shadow: 0 0 0 2px rgba(15,23,42,0.08);
+}
+.fm-rename-btns { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* ── Pulse keyframes (overdue zones) ────────────────────────── */
+@keyframes fm-pulse-stroke {
+  0%,100% { stroke-opacity: 1; }
+  50%      { stroke-opacity: 0.25; }
+}
+.zone-overdue-rect {
+  animation: fm-pulse-stroke 1.8s ease-in-out infinite;
+}
+
+/* ── SVG zone text ──────────────────────────────────────────── */
+.zone-id-text {
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-weight: 700;
+  pointer-events: none;
+  fill: rgba(255,255,255,0.9);
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+.zone-label-text {
+  font-family: 'Figtree', Arial, sans-serif;
+  pointer-events: none;
+  fill: rgba(255,255,255,0.75);
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+.zone-score-text {
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-weight: 800;
+  pointer-events: none;
+  fill: #fff;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+/* ── Badge circle ───────────────────────────────────────────── */
+.badge-circle { pointer-events: none; }
+.badge-text {
+  font-family: 'Figtree', Arial, sans-serif;
+  font-weight: 700;
+  fill: #fff;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+
+/* resize handle */
+.resize-handle {
+  cursor: se-resize;
+}
+.resize-handle rect {
+  fill: rgba(255,255,255,0.6);
+  stroke: rgba(255,255,255,0.9);
+  stroke-width: 1.5;
+  rx: 3;
+}
+</style>
+</head>
+<body>
+
+<!-- Server-injected data -->
+<script>
+var FMD = <?!= floorMapData ?>;
+var DEPLOY_URL = '<?= deployUrl ?>';
+var ZONE_ID    = '<?= zoneId ?>';
+</script>
+
+<div class="fm-page" id="fmPage">
+
+  <!-- Toolbar -->
+  <div class="fm-toolbar" id="fmToolbar">
+    <h1>Factory Floor Map</h1>
+    <span class="fm-badge" id="fmTimestamp">Loading…</span>
+    <span class="fm-mode-chip view" id="fmModeChip">View</span>
+    <!-- TODO (RBAC): show edit button only for ADMIN/MANAGER once RBAC frontend check is wired -->
+    <button class="fm-btn" id="btnEdit" onclick="enterEditMode()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      Edit Layout
+    </button>
+    <button class="fm-btn primary" id="btnSave" onclick="saveLayout()" style="display:none" disabled>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      Save
+    </button>
+    <button class="fm-btn danger" id="btnCancel" onclick="cancelEdit()" style="display:none">
+      Cancel
+    </button>
+    <button class="fm-btn" onclick="refreshMap()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      Refresh
+    </button>
+  </div>
+
+  <!-- Canvas -->
+  <div class="fm-canvas-wrap" id="fmCanvasWrap">
+    <svg id="fm-svg" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet"></svg>
+
+    <!-- Loading overlay -->
+    <div class="fm-overlay" id="fmLoading">
+      <div class="fm-spinner"></div>
+      <p>Loading floor map…</p>
+    </div>
+
+    <!-- Error overlay (hidden by default) -->
+    <div class="fm-overlay" id="fmError" style="display:none">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <p id="fmErrorMsg">Failed to load floor map data.</p>
+      <button class="fm-btn" onclick="refreshMap()">Retry</button>
+    </div>
+
+    <!-- Legend -->
+    <div class="fm-legend">
+      <div class="fm-legend-row"><div class="fm-legend-dot" style="background:#22C55E"></div> ≥80% — Excellent</div>
+      <div class="fm-legend-row"><div class="fm-legend-dot" style="background:#F59E0B"></div> 60–79% — Needs Attention</div>
+      <div class="fm-legend-row"><div class="fm-legend-dot" style="background:#EF4444"></div> &lt;60% — Critical</div>
+      <div class="fm-legend-row"><div class="fm-legend-dot" style="background:#94A3B8"></div> No Data</div>
+    </div>
+
+    <!-- Info chip -->
+    <div class="fm-info-chip" id="fmInfoChip">—</div>
+  </div>
+
+</div>
+
+<!-- Tooltip -->
+<div id="fm-tooltip"></div>
+
+<!-- Rename modal (hidden) -->
+<div class="fm-rename-overlay" id="fmRenameOverlay" style="display:none">
+  <div class="fm-rename-card">
+    <h3>Rename Zone Label</h3>
+    <input type="text" id="fmRenameInput" placeholder="Zone label…" maxlength="60">
+    <div class="fm-rename-btns">
+      <button class="fm-btn" onclick="cancelRename()">Cancel</button>
+      <button class="fm-btn primary" onclick="applyRename()">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- D3.js v7 UMD from CDN -->
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js" defer></script>
+<script>
+// ============================================================================
+// Floor Map — client-side controller
+// ============================================================================
+
+var _isEditMode   = false;
+var _zones        = [];       // working copy (mutated in edit mode)
+var _origZones    = [];       // snapshot on enter edit — for cancel
+var _renameZoneId = null;
+var _refreshTimer = null;
+var _svgNS        = "http://www.w3.org/2000/svg";
+
+// ── Bootstrap ───────────────────────────────────────────────────────────────
+window.addEventListener('load', function() {
+  if (FMD && FMD.zones && FMD.zones.length > 0) {
+    renderMap(FMD);
+  } else {
+    // Fall back to google.script.run if server data was null
+    loadMapFromServer();
+  }
+  // Auto-refresh every 5 minutes
+  _refreshTimer = setInterval(function() {
+    if (!_isEditMode) loadMapFromServer();
+  }, 300000);
+});
+
+// ── Data load ────────────────────────────────────────────────────────────────
+function loadMapFromServer() {
+  showLoading(true);
+  google.script.run
+    .withSuccessHandler(function(data) {
+      if (data && data.zones && data.zones.length > 0) {
+        renderMap(data);
+      } else {
+        showError("No floor map data available. Create a FloorMapConfig sheet or contact your admin.");
+      }
+    })
+    .withFailureHandler(function(err) {
+      showError(err && err.message ? err.message : "Server error loading floor map.");
+    })
+    .getFloorMapData();
+}
+
+function refreshMap() {
+  if (_isEditMode && !confirm("Refreshing will discard unsaved edits. Continue?")) return;
+  _isEditMode = false;
+  syncToolbarState();
+  loadMapFromServer();
+}
+
+// ── Render ───────────────────────────────────────────────────────────────────
+function renderMap(data) {
+  _zones = data.zones.map(function(z) { return Object.assign({}, z); });
+  _origZones = [];
+
+  // Update timestamp chip
+  var ts = data.timestamp ? new Date(data.timestamp) : new Date();
+  document.getElementById('fmTimestamp').textContent =
+    'Updated ' + ts.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+
+  var mockNote = data.isMock ? ' (mock data — FloorMapConfig sheet not found)' : '';
+  document.getElementById('fmInfoChip').textContent =
+    data.zones.length + ' zone' + (data.zones.length !== 1 ? 's' : '') + mockNote;
+
+  drawSVG();
+  showLoading(false);
+  syncToolbarState();
+}
+
+// ── D3 SVG draw ──────────────────────────────────────────────────────────────
+function drawSVG() {
+  // Wait until D3 is available (deferred script)
+  if (typeof d3 === 'undefined') {
+    setTimeout(drawSVG, 80);
+    return;
+  }
+
+  var svg = d3.select('#fm-svg');
+  svg.selectAll('*').remove();
+
+  // Floor background
+  svg.append('rect')
+    .attr('width', 1000).attr('height', 600)
+    .attr('fill', '#F8FAFC').attr('rx', 0);
+
+  // Grid lines (subtle)
+  var gridG = svg.append('g').attr('class', 'fm-grid').attr('opacity', 0.35);
+  for (var gx = 0; gx <= 1000; gx += 100) {
+    gridG.append('line').attr('x1',gx).attr('y1',0).attr('x2',gx).attr('y2',600)
+      .attr('stroke','#CBD5E1').attr('stroke-width',0.5);
+  }
+  for (var gy = 0; gy <= 600; gy += 60) {
+    gridG.append('line').attr('x1',0).attr('y1',gy).attr('x2',1000).attr('y2',gy)
+      .attr('stroke','#CBD5E1').attr('stroke-width',0.5);
+  }
+
+  // Floor label
+  svg.append('text')
+    .attr('x', 990).attr('y', 590)
+    .attr('text-anchor', 'end')
+    .attr('font-family', "'JetBrains Mono', monospace")
+    .attr('font-size', 10)
+    .attr('fill', '#CBD5E1')
+    .text('FACTORY FLOOR — 5S STATUS MAP');
+
+  // Zone groups
+  var zonesG = svg.append('g').attr('class', 'fm-zones');
+
+  _zones.forEach(function(z) {
+    drawZone(zonesG, z);
+  });
+}
+
+function drawZone(parent, z) {
+  var g = parent.append('g')
+    .attr('class', 'zone-group')
+    .attr('data-id', z.id)
+    .attr('cursor', _isEditMode ? 'move' : 'pointer');
+
+  // Main rect
+  var rect = g.append('rect')
+    .attr('x', z.x).attr('y', z.y)
+    .attr('width', z.width).attr('height', z.height)
+    .attr('fill', z.color)
+    .attr('fill-opacity', 0.82)
+    .attr('stroke', z.color)
+    .attr('stroke-width', z.hasOverdueItems ? 3 : 1.5)
+    .attr('rx', 8);
+
+  if (z.hasOverdueItems) {
+    rect.attr('class', 'zone-overdue-rect');
+  }
+
+  // Zone ID
+  var midX = z.x + z.width / 2;
+  var midY = z.y + z.height / 2;
+  var idSize = Math.max(9, Math.min(14, z.width / 8));
+
+  g.append('text')
+    .attr('class', 'zone-id-text')
+    .attr('x', midX).attr('y', midY - (z.height > 80 ? 16 : 0))
+    .attr('font-size', idSize)
+    .text(z.id);
+
+  // Score (only if height permits)
+  if (z.height > 70) {
+    var scoreSize = Math.max(16, Math.min(28, z.width / 5));
+    g.append('text')
+      .attr('class', 'zone-score-text')
+      .attr('x', midX).attr('y', midY + (z.height > 100 ? 10 : 0))
+      .attr('font-size', scoreSize)
+      .text(z.score !== null ? z.score + '%' : '—');
+  }
+
+  // Label below score (only if tall enough)
+  if (z.height > 110) {
+    var lblSize = Math.max(8, Math.min(11, z.width / 16));
+    // Trim label so it fits
+    var lbl = z.label || z.id;
+    if (lbl.length > 22) lbl = lbl.substring(0, 20) + '…';
+    g.append('text')
+      .attr('class', 'zone-label-text')
+      .attr('x', midX).attr('y', midY + 32)
+      .attr('font-size', lblSize)
+      .text(lbl);
+  }
+
+  // Badge: open CAPAs (top-right)
+  if (z.openCAPAs > 0) {
+    drawBadge(g, z.x + z.width - 14, z.y + 14, z.openCAPAs, '#DC2626');
+  }
+
+  // Badge: open RedTags (top-left)
+  if (z.openRedTags > 0) {
+    drawBadge(g, z.x + 14, z.y + 14, z.openRedTags, '#7C3AED');
+  }
+
+  // ── Edit mode: resize handle (bottom-right corner) ──
+  if (_isEditMode) {
+    var hSize = 14;
+    var hG = g.append('g').attr('class', 'resize-handle');
+    hG.append('rect')
+      .attr('x', z.x + z.width - hSize - 2)
+      .attr('y', z.y + z.height - hSize - 2)
+      .attr('width', hSize).attr('height', hSize)
+      .attr('fill', 'rgba(255,255,255,0.7)')
+      .attr('stroke', 'rgba(0,0,0,0.3)')
+      .attr('stroke-width', 1)
+      .attr('rx', 3);
+    // grip dots
+    hG.append('circle').attr('cx', z.x+z.width-8).attr('cy', z.y+z.height-8).attr('r', 1.5).attr('fill', '#64748B');
+    hG.append('circle').attr('cx', z.x+z.width-12).attr('cy', z.y+z.height-8).attr('r', 1.5).attr('fill', '#64748B');
+    hG.append('circle').attr('cx', z.x+z.width-8).attr('cy', z.y+z.height-12).attr('r', 1.5).attr('fill', '#64748B');
+
+    attachResizeDrag(hG, z);
+    attachDragBehavior(g, z);
+
+    // Double-click to rename
+    g.on('dblclick', function(event) {
+      event.preventDefault();
+      openRenameModal(z.id);
+    });
+  } else {
+    // View mode: hover tooltip + click navigate
+    g.on('mouseenter', function(event) { showTooltip(event, z); })
+     .on('mousemove',  function(event) { moveTooltip(event); })
+     .on('mouseleave', function()       { hideTooltip(); })
+     .on('click',      function()       { navigateToZone(z.id); });
+  }
+}
+
+function drawBadge(parent, cx, cy, count, color) {
+  parent.append('circle')
+    .attr('class','badge-circle')
+    .attr('cx', cx).attr('cy', cy).attr('r', 10)
+    .attr('fill', color);
+  parent.append('text')
+    .attr('class', 'badge-text')
+    .attr('x', cx).attr('y', cy)
+    .attr('font-size', count > 9 ? 8 : 10)
+    .text(count > 99 ? '99+' : count);
+}
+
+// ── D3 drag for zone move ────────────────────────────────────────────────────
+function attachDragBehavior(g, z) {
+  var drag = d3.drag()
+    .filter(function(event) {
+      // Don't start drag on resize handle
+      return !event.target.closest || !event.target.closest('.resize-handle');
+    })
+    .on('start', function(event) {
+      d3.select(this).raise();
+    })
+    .on('drag', function(event) {
+      var nx = Math.max(0, Math.min(1000 - z.width, event.x - z.width / 2));
+      var ny = Math.max(0, Math.min(600 - z.height, event.y - z.height / 2));
+      z.x = Math.round(nx);
+      z.y = Math.round(ny);
+      drawSVG();
+    });
+
+  g.call(drag);
+}
+
+function attachResizeDrag(handle, z) {
+  var drag = d3.drag()
+    .on('drag', function(event) {
+      var newW = Math.max(60, Math.min(1000 - z.x, event.x - z.x));
+      var newH = Math.max(50, Math.min(600 - z.y, event.y - z.y));
+      z.width  = Math.round(newW);
+      z.height = Math.round(newH);
+      drawSVG();
+    });
+  handle.call(drag);
+}
+
+// ── Tooltip ──────────────────────────────────────────────────────────────────
+function showTooltip(event, z) {
+  var tt = document.getElementById('fm-tooltip');
+  var scoreHtml = z.score !== null
+    ? '<div class="tt-score" style="color:' + z.color + '">' + z.score + '%</div>'
+    : '<div class="tt-score" style="color:#94A3B8">—</div>';
+
+  var overdueHtml = z.hasOverdueItems
+    ? '<div class="tt-overdue">⚠ Overdue items present</div>'
+    : '';
+
+  tt.innerHTML =
+    '<div class="tt-id">' + escHtml(z.id) + '</div>' +
+    '<div class="tt-label">' + escHtml(z.label || z.id) + '</div>' +
+    scoreHtml +
+    '<div class="tt-row"><span>Open CAPAs</span><span>' + z.openCAPAs + '</span></div>' +
+    '<div class="tt-row"><span>Open Red Tags</span><span>' + z.openRedTags + '</span></div>' +
+    overdueHtml +
+    '<div class="tt-hint">Click to open zone dashboard</div>';
+
+  tt.style.display = 'block';
+  moveTooltip(event);
+}
+
+function moveTooltip(event) {
+  var tt = document.getElementById('fm-tooltip');
+  var x = (event.clientX || event.pageX || 0) + 18;
+  var y = (event.clientY || event.pageY || 0) - 12;
+  var ttW = 240, ttH = 160;
+  if (x + ttW > window.innerWidth)  x = (event.clientX || event.pageX || 0) - ttW - 10;
+  if (y + ttH > window.innerHeight) y = (event.clientY || event.pageY || 0) - ttH - 10;
+  tt.style.left = x + 'px';
+  tt.style.top  = y + 'px';
+}
+
+function hideTooltip() {
+  document.getElementById('fm-tooltip').style.display = 'none';
+}
+
+// ── Navigate ─────────────────────────────────────────────────────────────────
+function navigateToZone(zoneId) {
+  if (DEPLOY_URL) {
+    var token = getTokenFromUrl();
+    var url = DEPLOY_URL + '?v2=1&action=home&zone=' + encodeURIComponent(zoneId) +
+              (token ? '&token=' + encodeURIComponent(token) : '');
+    window.top.location.href = url;
+  }
+}
+
+function getTokenFromUrl() {
+  try {
+    var m = window.location.search.match(/[?&]token=([^&]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
+  } catch(e) { return ''; }
+}
+
+// ── Edit mode ────────────────────────────────────────────────────────────────
+function enterEditMode() {
+  _isEditMode = true;
+  _origZones = _zones.map(function(z) { return Object.assign({}, z); });
+  syncToolbarState();
+  drawSVG();
+  pmToast('Edit mode active — drag zones, resize corners, double-click to rename.', 'info');
+}
+
+function cancelEdit() {
+  _isEditMode = false;
+  _zones = _origZones.map(function(z) { return Object.assign({}, z); });
+  _origZones = [];
+  syncToolbarState();
+  drawSVG();
+}
+
+function saveLayout() {
+  var saveBtn = document.getElementById('btnSave');
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving…';
+
+  var layoutJSON = JSON.stringify(_zones.map(function(z) {
+    return {
+      id:         z.id,
+      x:          z.x,
+      y:          z.y,
+      width:      z.width,
+      height:     z.height,
+      label:      z.label,
+      floorLevel: z.floorLevel || 'GF'
+    };
+  }));
+
+  google.script.run
+    .withSuccessHandler(function(result) {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save';
+      if (result && result.success) {
+        _isEditMode = false;
+        _origZones = [];
+        syncToolbarState();
+        drawSVG();
+        pmToast('Layout saved successfully.', 'success');
+      } else {
+        pmToast((result && result.message) ? result.message : 'Save failed.', 'error');
+      }
+    })
+    .withFailureHandler(function(err) {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save';
+      pmToast((err && err.message) ? err.message : 'Server error saving layout.', 'error');
+    })
+    .saveFloorMapLayout(layoutJSON);
+}
+
+// ── Rename modal ─────────────────────────────────────────────────────────────
+function openRenameModal(zoneId) {
+  _renameZoneId = zoneId;
+  var z = _zones.find(function(z) { return z.id === zoneId; });
+  var inp = document.getElementById('fmRenameInput');
+  inp.value = z ? (z.label || z.id) : '';
+  document.getElementById('fmRenameOverlay').style.display = 'flex';
+  inp.focus();
+  inp.select();
+}
+
+function cancelRename() {
+  _renameZoneId = null;
+  document.getElementById('fmRenameOverlay').style.display = 'none';
+}
+
+function applyRename() {
+  var newLabel = document.getElementById('fmRenameInput').value.trim();
+  if (!newLabel) { pmToast('Label cannot be empty.', 'warn'); return; }
+  var z = _zones.find(function(z) { return z.id === _renameZoneId; });
+  if (z) {
+    z.label = newLabel;
+    document.getElementById('btnSave').disabled = false;
+  }
+  cancelRename();
+  drawSVG();
+}
+
+// Enter key in rename input
+document.addEventListener('DOMContentLoaded', function() {
+  var inp = document.getElementById('fmRenameInput');
+  if (inp) {
+    inp.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') applyRename();
+      if (e.key === 'Escape') cancelRename();
+    });
+  }
+});
+
+// ── Toolbar state sync ────────────────────────────────────────────────────────
+function syncToolbarState() {
+  var modeChip = document.getElementById('fmModeChip');
+  var btnEdit   = document.getElementById('btnEdit');
+  var btnSave   = document.getElementById('btnSave');
+  var btnCancel = document.getElementById('btnCancel');
+
+  if (_isEditMode) {
+    modeChip.textContent = 'Edit';
+    modeChip.className = 'fm-mode-chip edit';
+    btnEdit.style.display   = 'none';
+    btnSave.style.display   = 'inline-flex';
+    btnCancel.style.display = 'inline-flex';
+  } else {
+    modeChip.textContent = 'View';
+    modeChip.className = 'fm-mode-chip view';
+    btnEdit.style.display   = 'inline-flex';
+    btnSave.style.display   = 'none';
+    btnCancel.style.display = 'none';
+  }
+}
+
+// ── Loading / Error helpers ───────────────────────────────────────────────────
+function showLoading(show) {
+  document.getElementById('fmLoading').style.display = show ? 'flex' : 'none';
+  document.getElementById('fmError').style.display   = 'none';
+}
+
+function showError(msg) {
+  document.getElementById('fmLoading').style.display = 'none';
+  document.getElementById('fmErrorMsg').textContent = msg || 'Unknown error.';
+  document.getElementById('fmError').style.display  = 'flex';
+}
+
+// ── XSS helper ───────────────────────────────────────────────────────────────
+function escHtml(s) {
+  if (!s) return '';
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+}
+
+// ── pmToast fallback (in case CommonStyles version not available) ─────────────
+if (typeof pmToast === 'undefined') {
+  window.pmToast = function(msg, type) { console.log('[Toast][' + (type||'info') + '] ' + msg); };
+}
+</script>
+</body>
+</html>

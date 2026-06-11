@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PackMasters 5S — Home Dashboard</title>
+<?!= include('CommonStyles') ?>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@5.6.0/dist/apexcharts.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/countup.js@2.8.0/dist/countUp.umd.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
+<style>
+/* ═══════════════════════════════════════════════
+   HOME PAGE — HOME DASHBOARD
+   ═══════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-main);
+  background: var(--bg-page);
+  color: var(--text-primary);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+.wrap {
+  min-height: 100vh;
+  padding-bottom: 72px;
+}
+
+/* ── HEADER ────────────────────────────────── */
+.hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 18px;
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 200;
+}
+
+.hdr-brand { display: flex; align-items: center; gap: 10px; }
+
+.brand-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--pm-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  color: #fff;
+  letter-spacing: -0.5px;
+  flex-shrink: 0;
+}
+
+.brand-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: 0.3px;
+  line-height: 1;
+  color: var(--pm-primary);
+}
+.brand-ver {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  margin-top: 3px;
+  text-transform: uppercase;
+}
+
+/* Health pill */
+.health-pill {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--bg-card-2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 5px 12px 5px 8px;
+}
+.health-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--border);
+  transition: background 0.6s;
+  flex-shrink: 0;
+}
+.health-dot.g { background: var(--score-green); }
+.health-dot.a { background: var(--score-amber); }
+.health-dot.r { background: var(--score-red); animation: blink-r 1.6s ease-in-out infinite; }
+@keyframes blink-r { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+.health-num {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Gear icon button in header */
+.hdr-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hdr-gear {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  text-decoration: none;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, color 0.15s;
+}
+.hdr-gear svg { width: 18px; height: 18px; display: block; }
+.hdr-gear:active { background: var(--bg-card-2); color: var(--pm-primary); }
+
+/* ── USER INFO CARD ────────────────────────── */
+.user-info-card {
+  margin: 18px 18px 0;
+  padding: 12px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  box-shadow: var(--shadow);
+}
+.user-avatar {
+  font-size: 28px;
+  flex-shrink: 0;
+}
+.user-details {
+  flex: 1;
+}
+.user-email {
+  font-weight: 600;
+  color: var(--pm-primary);
+  font-size: 13px;
+  margin-bottom: 3px;
+}
+.user-role {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* ── SECTION HEADER ───────────────────────── */
+.sec-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.sec-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sec-label::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 12px;
+  background: var(--pm-primary);
+  border-radius: 2px;
+}
+
+/* ── OFFLINE BANNER ────────────────────────── */
+.offline-bar {
+  display: none;
+  background: var(--score-amber);
+  color: #fff;
+  text-align: center;
+  padding: 8px 16px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.offline-bar.on { display: block; }
+
+/* ── SCORE BANNER ──────────────────────────── */
+.score-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+}
+.score-banner-left { flex: 1; min-width: 0; }
+.score-zone-id {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.score-zone-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--pm-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+.score-date {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+.score-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.score-progress-rail {
+  flex: 1;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.score-progress-fill {
+  height: 100%;
+  width: 100%;
+  border-radius: 3px;
+  background: var(--text-muted);
+  transform-origin: left;
+  transform: scaleX(0);
+  transition: transform 1.4s cubic-bezier(.2,1,.3,1), background .6s;
+}
+.score-progress-fill.g { background: var(--score-green); }
+.score-progress-fill.a { background: var(--score-amber); }
+.score-progress-fill.r { background: var(--score-red); }
+.score-progress-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+.score-banner-right { flex-shrink: 0; }
+.gauge-chart { width: 150px; height: 150px; }
+.gauge-fallback {
+  width: 150px;
+  height: 150px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-card);
+  border: 2px solid var(--border);
+  border-radius: 50%;
+}
+.gauge-fallback-num {
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 800;
+  color: var(--pm-primary);
+  line-height: 1;
+}
+.gauge-fallback-lbl {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+@media (max-width: 480px) {
+  .score-banner { flex-direction: column; align-items: flex-start; }
+  .score-banner-right { align-self: center; }
+}
+
+/* ── STAT CHIPS ────────────────────────────── */
+.stat-chips-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 18px 18px 0;
+}
+@media (min-width: 600px) {
+  .stat-chips-row { grid-template-columns: repeat(4, 1fr); }
+}
+.stat-chip {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 80px;
+  box-shadow: var(--shadow);
+  opacity: 0;
+}
+.stat-chip.animate__animated { opacity: 1; }
+.stat-number {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--pm-primary);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.stat-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-family: var(--font-mono);
+}
+
+/* ── TASK QUEUE ────────────────────────────── */
+.task-queue-section { padding: 26px 18px 0; }
+.task-queue { display: flex; flex-direction: column; gap: 10px; }
+.task-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: var(--r);
+  padding: 12px 14px;
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(8px);
+}
+.task-card.--overdue { border-left-color: var(--score-red); }
+.task-card.--today   { border-left-color: var(--score-amber); }
+.task-card.--upcoming { border-left-color: var(--text-muted); }
+.task-card-body { flex: 1; min-width: 0; }
+.task-card-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 3px;
+}
+.task-card-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+.task-card-status {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.5px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100px;
+  color: var(--score-green);
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+}
+.empty-check { font-size: 32px; }
+</style>
+</head>
+<body>
+
+<div id="offlineBar" class="offline-bar">● OFFLINE — SUBMISSIONS QUEUED</div>
+
+<div class="wrap">
+
+  <!-- ══════════════ HEADER ══════════════ -->
+  <header class="hdr">
+    <div class="hdr-brand">
+      <div class="brand-mark">PM</div>
+      <div>
+        <div class="brand-name">PackMasters</div>
+        <div class="brand-ver">5S · IMS · v5.0</div>
+      </div>
+    </div>
+    <div class="hdr-right">
+      <div class="health-pill">
+        <div class="health-dot" id="hdrDot"></div>
+        <span class="health-num" id="hdrPct">—%</span>
+      </div>
+      <a class="hdr-gear" id="settingsBtn" href="#" title="Settings"></a>
+    </div>
+  </header>
+
+  <!-- ══════════════ USER INFO CARD ══════════════ -->
+  <div class="user-info-card" style="display: flex; justify-content: space-between; align-items: center;">
+    <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
+      <div class="user-avatar">👤</div>
+      <div class="user-details">
+        <div class="user-email" id="userEmail">User</div>
+        <div class="user-role" id="userRole">PackMasters 5S</div>
+      </div>
+    </div>
+    <button id="logoutBtn" style="margin-left: auto; padding: 8px 14px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600; white-space: nowrap;">
+      🚪 Logout
+    </button>
+  </div>
+
+  <!-- ══════════════ SCORE BANNER ══════════════ -->
+  <section class="score-banner" id="scoreBanner">
+    <div class="score-banner-left">
+      <div class="score-zone-id" id="scoreZoneId">Z-01</div>
+      <div class="score-zone-name" id="scoreZoneName">Loading...</div>
+      <div class="score-date" id="scoreDate"></div>
+      <div class="score-progress-wrap">
+        <div class="score-progress-rail">
+          <div class="score-progress-fill" id="scoreProgressFill"></div>
+        </div>
+        <span class="score-progress-label" id="scoreProgressLabel">—%</span>
+      </div>
+    </div>
+    <div class="score-banner-right">
+      <div id="gaugeContainer" class="gauge-chart">
+        <!-- ApexCharts gauge renders here; fallback shown below -->
+        <div id="gaugeFallback" class="gauge-fallback" style="display:none">
+          <span class="gauge-fallback-num" id="gaugeFallbackNum">—</span>
+          <span class="gauge-fallback-lbl">5S SCORE</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ STAT CHIPS ══════════════ -->
+  <section class="stat-chips-row" id="statChips">
+    <div class="stat-chip animate__animated animate__fadeInUp" id="chipCAPAs" style="animation-delay:0.1s">
+      <span class="stat-number" id="statOpenCAPAs">0</span>
+      <span class="stat-label">Open CAPAs</span>
+    </div>
+    <div class="stat-chip animate__animated animate__fadeInUp" id="chipRedTags" style="animation-delay:0.18s">
+      <span class="stat-number" id="statRedTags">0</span>
+      <span class="stat-label">Red Tags</span>
+    </div>
+    <div class="stat-chip animate__animated animate__fadeInUp" id="chipKaizens" style="animation-delay:0.26s">
+      <span class="stat-number" id="statKaizens">0</span>
+      <span class="stat-label">Kaizens</span>
+    </div>
+    <div class="stat-chip animate__animated animate__fadeInUp" id="chipStreak" style="animation-delay:0.34s">
+      <span class="stat-number" id="statAuditStreak">0</span>
+      <span class="stat-label">Audit Streak</span>
+    </div>
+  </section>
+
+  <!-- ══════════════ TASK QUEUE ══════════════ -->
+  <section class="task-queue-section">
+    <div class="sec-hdr">
+      <span class="sec-label">MY TASKS</span>
+    </div>
+    <div id="taskQueue" class="task-queue"></div>
+    <div id="emptyState" class="empty-state" style="display:none">
+      <span class="empty-check">✓</span>
+      <span>All caught up</span>
+    </div>
+  </section>
+
+</div><!-- /.wrap -->
+
+<script>
+// Auth guard — read from URL param first (GAS iframe navigation), then localStorage
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var urlToken = params.get('token');
+  if (urlToken) localStorage.setItem('pm5s_token', urlToken);
+  var token = localStorage.getItem('pm5s_token');
+  if (!token) {
+    window.top.location.href = '<?= deployUrl ?>?v2=1&action=login';
+    return;
+  }
+  window.PM5S_TOKEN = token;
+})();
+
+(function() {
+  'use strict';
+  /* Server-injected data */
+  var SD  = (<?!= data ?>) || {};
+  var HD  = <?!= homeData ?>;       /* home dashboard data from getHomeData_() */
+  var DU  = '<?= deployUrl ?>';
+  var zones   = SD.zones   || {};
+  var zoneIds = SD.zoneIds || [];
+
+  /* Live date */
+  var D = new Date();
+  var DAYS  = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var MONS  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var dateStr = DAYS[D.getDay()] + ' · ' + D.getDate() + ' ' + MONS[D.getMonth()] + ' ' + D.getFullYear();
+  var sdEl = document.getElementById('scoreDate');
+  if (sdEl) sdEl.textContent = dateStr;
+
+  /* Settings gear */
+  function esc(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : ''; }
+  var IC_GEAR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
+  var settingsBtn = document.getElementById('settingsBtn');
+  if (settingsBtn) {
+    var params2 = new URLSearchParams(window.location.search);
+    var zp = params2.get('zone') || '';
+    settingsBtn.href = DU + '?v2=1&action=settings&token=' + encodeURIComponent(window.PM5S_TOKEN || '') + (zp ? '&zone=' + encodeURIComponent(zp) : '');
+    settingsBtn.innerHTML = IC_GEAR;
+  }
+
+  /* Zone label */
+  var params3 = new URLSearchParams(window.location.search);
+  var currentZone = params3.get('zone') || (SD.zoneId || 'Z-01');
+  var zoneEl = document.getElementById('scoreZoneId');
+  var zoneNameEl = document.getElementById('scoreZoneName');
+  if (zoneEl) zoneEl.textContent = currentZone;
+  if (zoneNameEl && zones[currentZone]) zoneNameEl.textContent = zones[currentZone].name || currentZone;
+  else if (zoneNameEl) zoneNameEl.textContent = currentZone;
+
+  /* User info */
+  if (window.PM5S_TOKEN && typeof google !== 'undefined' && google.script && google.script.run) {
+    google.script.run
+      .withSuccessHandler(function(result) {
+        if (result && result.success) {
+          var emailEl = document.getElementById('userEmail');
+          var roleEl = document.getElementById('userRole');
+          if (emailEl) emailEl.textContent = result.username || 'User';
+          if (roleEl) roleEl.textContent = (result.role || 'VIEWER').toUpperCase();
+        }
+      })
+      .withFailureHandler(function() {})
+      .getCurrentUserInfo(window.PM5S_TOKEN);
+  }
+
+  /* Logout */
+  var logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      if (!confirm('Are you sure you want to logout?')) return;
+      logoutBtn.disabled = true;
+      logoutBtn.innerHTML = '⏳ Logging out...';
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run.withSuccessHandler(function() {
+          localStorage.removeItem('pm5s_token');
+          window.location.href = '<?= deployUrl ?>?v2=1&action=login';
+        }).withFailureHandler(function() {
+          logoutBtn.disabled = false;
+          logoutBtn.innerHTML = '🚪 Logout';
+        }).logoutUser(window.PM5S_TOKEN);
+      } else {
+        localStorage.removeItem('pm5s_token');
+        window.location.href = '<?= deployUrl ?>?v2=1&action=login';
+      }
+    });
+  }
+
+  /* Offline detection */
+  function chkOnline() {
+    var b = document.getElementById('offlineBar');
+    if (b) b.classList.toggle('on', !navigator.onLine);
+  }
+  window.addEventListener('online',  chkOnline);
+  window.addEventListener('offline', chkOnline);
+  chkOnline();
+
+  /* Expose HD globally for later scripts (Tasks 3-5 will use this) */
+  window.PM5S_HD = HD;
+  window.PM5S_DU = DU;
+
+  /* Prefetch zone data on nav link hover — data is cached so the target page loads instantly */
+  document.addEventListener('mouseover', function(e) {
+    var link = e.target.closest('a[href]');
+    if (!link) return;
+    var href = link.href || '';
+    var zoneMatch = href.match(/[?&]zone=([^&]+)/);
+    if (!zoneMatch) return;
+    var zid = decodeURIComponent(zoneMatch[1]);
+    var cacheKey = 'pm5s_cache_actionlist_' + zid;
+    try {
+      var existing = localStorage.getItem(cacheKey);
+      if (existing) return; // Already cached
+    } catch(e_) {}
+    if (typeof google === 'undefined' || !google.script || !google.script.run) return;
+    // Prefetch action list for this zone silently
+    google.script.run
+      .withSuccessHandler(function(data) {
+        if (typeof PM5SCache !== 'undefined') PM5SCache.set('actionlist_' + zid, data, 3 * 60 * 1000);
+      })
+      .withFailureHandler(function() {})
+      .getAutoActionList(zid);
+  });
+
+})();
+</script>
+
+<script>
+(function() {
+  'use strict';
+
+  var HD = window.PM5S_HD;
+  var DU = window.PM5S_DU || '';
+  var token = window.PM5S_TOKEN || '';
+
+  /* ── Library fallback helper ── */
+  function noLib(name) { console.warn('Library not loaded: ' + name); }
+
+  /* ── Stat chip population ── */
+  function populateStats(stats) {
+    if (!stats) return;
+    var chips = [
+      { id: 'statOpenCAPAs', val: stats.openCAPAs || 0 },
+      { id: 'statRedTags',   val: stats.redTags   || 0 },
+      { id: 'statKaizens',   val: stats.kaizens   || 0 },
+      { id: 'statAuditStreak', val: stats.auditStreak || 0 }
+    ];
+    chips.forEach(function(chip, i) {
+      var el = document.getElementById(chip.id);
+      if (!el) return;
+      if (typeof CountUp !== 'undefined') {
+        try {
+          var cu = new CountUp(el, chip.val, { duration: 1.5, useEasing: true });
+          setTimeout(function() { cu.start(); }, i * 120);
+        } catch(e) { el.textContent = chip.val; }
+      } else {
+        el.textContent = chip.val;
+      }
+    });
+  }
+
+  /* ── Score banner ── */
+  function populateScore(score, scoreColor) {
+    var fill = document.getElementById('scoreProgressFill');
+    var label = document.getElementById('scoreProgressLabel');
+    if (score !== null && score !== undefined) {
+      if (fill) {
+        fill.className = 'score-progress-fill ' + (scoreColor || 'a');
+        setTimeout(function() { fill.style.transform = 'scaleX(' + Math.min(score, 100) / 100 + ')'; }, 50);
+      }
+      if (label) label.textContent = score + '%';
+    }
+  }
+
+  /* ── ApexCharts gauge ── */
+  function renderGauge(score, scoreColor) {
+    var container = document.getElementById('gaugeContainer');
+    var fallback  = document.getElementById('gaugeFallback');
+    var fallbackNum = document.getElementById('gaugeFallbackNum');
+
+    var scoreVal = (score !== null && score !== undefined) ? score : 0;
+    var colorMap = { g: '#22c55e', a: '#f59e0b', r: '#ef4444' };
+    var gaugeColor = colorMap[scoreColor] || '#94a3b8';
+
+    if (!container) {
+      if (fallback) fallback.style.display = 'flex';
+      if (fallbackNum) fallbackNum.textContent = score !== null ? score + '%' : '—';
+      return;
+    }
+    if (typeof ApexCharts !== 'undefined') {
+      try {
+        var opts = {
+          chart: { type: 'radialBar', height: 150, sparkline: { enabled: true } },
+          plotOptions: {
+            radialBar: {
+              startAngle: -90, endAngle: 90,
+              track: { background: 'var(--border, #E2E8F0)', strokeWidth: '100%' },
+              dataLabels: {
+                name: { show: false },
+                value: {
+                  offsetY: -8,
+                  fontSize: '22px',
+                  fontWeight: '800',
+                  color: gaugeColor,
+                  formatter: function(val) { return val + '%'; }
+                }
+              }
+            }
+          },
+          series: [scoreVal],
+          colors: [gaugeColor]
+        };
+        var chart = new ApexCharts(container, opts);
+        chart.render();
+      } catch(e) {
+        noLib('ApexCharts render error: ' + e.message);
+        if (fallback) fallback.style.display = 'flex';
+        if (fallbackNum) fallbackNum.textContent = score !== null ? score + '%' : '—';
+      }
+    } else {
+      noLib('ApexCharts');
+      if (fallback) fallback.style.display = 'flex';
+      if (fallbackNum) fallbackNum.textContent = score !== null ? score + '%' : '—';
+    }
+  }
+
+  /* ── Task queue ── */
+  function esc(s) {
+    return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : '';
+  }
+
+  function formatDue(dueDate, urgency) {
+    if (!dueDate) return '';
+    if (urgency === 'overdue') return '⚠ ' + dueDate;
+    if (urgency === 'today')   return '📅 Today';
+    return dueDate;
+  }
+
+  function populateTasks(tasks) {
+    var queue = document.getElementById('taskQueue');
+    var empty = document.getElementById('emptyState');
+    if (!queue || !empty) return;
+
+    if (!tasks || tasks.length === 0) {
+      queue.style.display = 'none';
+      empty.style.display = 'flex';
+      return;
+    }
+
+    queue.style.display = 'flex';
+    empty.style.display = 'none';
+
+    tasks.forEach(function(task) {
+      var card = document.createElement('div');
+      card.className = 'task-card --' + (task.urgency || 'upcoming');
+      card.innerHTML =
+        '<div class="task-card-body">' +
+          '<div class="task-card-title">' + esc(task.title) + '</div>' +
+          '<div class="task-card-meta">' + esc(task.zone) + ' · ' + esc(formatDue(task.dueDate, task.urgency)) + '</div>' +
+        '</div>' +
+        '<span class="task-card-status">' + esc(task.status || 'OPEN') + '</span>';
+      card.addEventListener('click', function() {
+        var params = new URLSearchParams(window.location.search);
+        var zone = params.get('zone') || task.zone || '';
+        window.top.location.href = DU + '?v2=1&action=taskboard&zone=' + encodeURIComponent(zone) + '&token=' + encodeURIComponent(token);
+      });
+      queue.appendChild(card);
+    });
+  }
+
+  /* ── GSAP entrance animation ── */
+  function runEntranceAnimation(tasks) {
+    if (typeof gsap === 'undefined') {
+      noLib('gsap');
+      /* Fallback: make everything visible immediately */
+      var chips = document.querySelectorAll('.stat-chip');
+      for (var i = 0; i < chips.length; i++) {
+        chips[i].style.opacity = '1';
+        chips[i].style.transform = 'none';
+      }
+      var cards = document.querySelectorAll('.task-card');
+      for (var j = 0; j < cards.length; j++) {
+        cards[j].style.opacity = '1';
+        cards[j].style.transform = 'none';
+      }
+      return;
+    }
+    try {
+      var tl = gsap.timeline();
+      tl.to('#scoreBanner',  { opacity: 1, duration: 0.4 }, 0)
+        .to('.stat-chip',    { opacity: 1, y: 0, duration: 0.3, stagger: 0.08 }, 0.4)
+        .to('.task-card',    { opacity: 1, y: 0, duration: 0.35, stagger: 0.07 }, 0.7);
+    } catch(e) {
+      noLib('gsap timeline error: ' + e.message);
+    }
+  }
+
+  /* ── Plan G: score cache helpers ── */
+  function saveFreshScore_(zone, score) {
+    try {
+      localStorage.setItem('pm5s_score_cache_' + zone, JSON.stringify({
+        score: score, timestamp: Date.now()
+      }));
+    } catch(e) {}
+  }
+
+  function showCachedScoreBadge_(zone) {
+    try {
+      var raw = localStorage.getItem('pm5s_score_cache_' + zone);
+      if (!raw) return;
+      var c = JSON.parse(raw);
+      var hoursAgo = Math.floor((Date.now() - c.timestamp) / 3600000);
+      if (hoursAgo < 1) return;
+      var existing = document.getElementById('scoreCacheBadge');
+      if (existing) return;
+      var badge = document.createElement('div');
+      badge.id = 'scoreCacheBadge';
+      badge.style.cssText = 'font-size:11px;color:var(--score-amber);font-family:var(--font-mono);margin-top:4px;';
+      badge.textContent = '(Cached ' + hoursAgo + 'h ago)';
+      var progressWrap = document.querySelector('.score-progress-wrap');
+      if (progressWrap && progressWrap.parentNode) {
+        progressWrap.parentNode.insertBefore(badge, progressWrap.nextSibling);
+      }
+    } catch(e) {}
+  }
+
+  /* ── Main init (wait up to 2s for deferred scripts) ── */
+  function initDashboard() {
+    var score = null, scoreColor = 'a', stats = null, tasks = [];
+    if (HD) {
+      score      = HD.score !== undefined ? HD.score : null;
+      scoreColor = HD.scoreColor || 'a';
+      stats      = HD.stats || null;
+      tasks      = HD.tasks || [];
+    }
+
+    populateScore(score, scoreColor);
+    renderGauge(score, scoreColor);
+    populateStats(stats);
+    populateTasks(tasks);
+    runEntranceAnimation(tasks);
+
+    /* Plan G: save fresh score to localStorage; show badge if offline/stale */
+    var zone = (new URLSearchParams(window.location.search)).get('zone') || 'Z-01';
+    if (score !== null && score !== undefined) {
+      saveFreshScore_(zone, score);
+    }
+    showCachedScoreBadge_(zone);
+  }
+
+  /* Deferred scripts load after window.onload; wait for them */
+  if (document.readyState === 'complete') {
+    setTimeout(initDashboard, 300);
+  } else {
+    window.addEventListener('load', function() {
+      setTimeout(initDashboard, 300);
+    });
+  }
+
+})();
+</script>
+
+<?!= include('GuidedTour') ?>
+</body>
+</html>

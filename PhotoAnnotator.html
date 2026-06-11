@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Photo Annotator</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #111; color: white; touch-action: none; }
+  .toolbar { display: flex; gap: 4px; padding: 8px; background: #222; flex-wrap: wrap; align-items: center; }
+  .toolbar button { padding: 8px 12px; border: 1px solid #555; border-radius: 6px; background: #333; color: white; font-size: 14px; cursor: pointer; min-height: 44px; min-width: 44px; }
+  .toolbar button.active { background: #2980b9; border-color: #3498db; }
+  .toolbar select { padding: 6px; border-radius: 6px; background: #333; color: white; border: 1px solid #555; }
+  .canvas-container { position: relative; width: 100%; display: flex; justify-content: center; align-items: center; background: #000; overflow: hidden; }
+  canvas { max-width: 100%; max-height: calc(100vh - 120px); display: block; }
+  .stamp-preview { position: absolute; bottom: 8px; left: 8px; font-size: 10px; color: #999; background: rgba(0,0,0,0.7); padding: 4px 8px; border-radius: 4px; }
+  .action-bar { display: flex; gap: 8px; padding: 8px; background: #222; justify-content: center; }
+  .action-bar button { padding: 10px 24px; border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; min-height: 44px; }
+  .btn-save { background: #27ae60; color: white; }
+  .btn-cancel { background: #555; color: white; }
+  .btn-undo { background: #f39c12; color: white; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <button id="toolDraw" class="active" onclick="setTool('draw')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg> Draw</button>
+  <button id="toolArrow" onclick="setTool('arrow')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="12 5 19 5 19 12"/></svg> Arrow</button>
+  <button id="toolCircle" onclick="setTool('circle')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0"><circle cx="12" cy="12" r="10"/></svg> Circle</button>
+  <button id="toolText" onclick="setTool('text')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg> Text</button>
+  <select id="colorSelect" onchange="currentColor=this.value">
+    <option value="#e74c3c">Red</option>
+    <option value="#f39c12">Yellow</option>
+    <option value="#27ae60">Green</option>
+    <option value="#2980b9">Blue</option>
+    <option value="#ffffff">White</option>
+  </select>
+  <select id="sizeSelect" onchange="lineWidth=parseInt(this.value)">
+    <option value="3">Thin</option>
+    <option value="5" selected>Medium</option>
+    <option value="8">Thick</option>
+  </select>
+</div>
+
+<div class="canvas-container">
+  <canvas id="annotCanvas"></canvas>
+  <div class="stamp-preview" id="stampInfo"></div>
+</div>
+
+<div class="action-bar">
+  <button class="btn-undo" onclick="undo()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg> Undo</button>
+  <button class="btn-cancel" onclick="cancel()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Cancel</button>
+  <button class="btn-save" onclick="saveAnnotation()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save</button>
+</div>
+
+<script>
+
+function escHtml(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+var canvas = document.getElementById("annotCanvas");
+var ctx = canvas.getContext("2d");
+var currentTool = "draw";
+var currentColor = "#e74c3c";
+var lineWidth = 5;
+var isDrawing = false;
+var startX, startY;
+var baseImage = null;
+var annotations = []; // Stack for undo
+var stampData = {};
+
+// ── Image Loading ──
+function loadImage(dataUrl, stamp) {
+  stampData = stamp || {};
+  var img = new Image();
+  img.onload = function() {
+    baseImage = img;
+    canvas.width = img.width;
+    canvas.height = img.height;
+    redraw();
+    if (stamp) {
+      document.getElementById("stampInfo").textContent =
+        (stamp.zone || "") + " | " + (stamp.date || "") + " | " + (stamp.auditor || "");
+    }
+  };
+  img.src = dataUrl;
+}
+
+function redraw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (baseImage) ctx.drawImage(baseImage, 0, 0);
+
+  // Draw stamp watermark
+  if (stampData.zone) {
+    ctx.save();
+    ctx.globalAlpha = 0.4;
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold " + Math.max(14, canvas.width * 0.025) + "px Arial";
+    var stampText = stampData.zone + " | " + stampData.date + " | " + stampData.auditor;
+    ctx.fillText(stampText, 10, canvas.height - 12);
+    ctx.globalAlpha = 1.0;
+    ctx.restore();
+  }
+
+  // Replay annotations
+  annotations.forEach(function(ann) { drawAnnotation(ann); });
+}
+
+function drawAnnotation(ann) {
+  ctx.save();
+  ctx.strokeStyle = ann.color;
+  ctx.fillStyle = ann.color;
+  ctx.lineWidth = ann.lineWidth;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  switch (ann.type) {
+    case "path":
+      if (ann.points.length < 2) break;
+      ctx.beginPath();
+      ctx.moveTo(ann.points[0].x, ann.points[0].y);
+      for (var i = 1; i < ann.points.length; i++) {
+        ctx.lineTo(ann.points[i].x, ann.points[i].y);
+      }
+      ctx.stroke();
+      break;
+
+    case "arrow":
+      var dx = ann.ex - ann.sx, dy = ann.ey - ann.sy;
+      var angle = Math.atan2(dy, dx);
+      var headLen = Math.max(15, ann.lineWidth * 4);
+      ctx.beginPath();
+      ctx.moveTo(ann.sx, ann.sy);
+      ctx.lineTo(ann.ex, ann.ey);
+      ctx.stroke();
+      // Arrowhead
+      ctx.beginPath();
+      ctx.moveTo(ann.ex, ann.ey);
+      ctx.lineTo(ann.ex - headLen * Math.cos(angle - 0.4), ann.ey - headLen * Math.sin(angle - 0.4));
+      ctx.moveTo(ann.ex, ann.ey);
+      ctx.lineTo(ann.ex - headLen * Math.cos(angle + 0.4), ann.ey - headLen * Math.sin(angle + 0.4));
+      ctx.stroke();
+      break;
+
+    case "circle":
+      var rx = Math.abs(ann.ex - ann.sx), ry = Math.abs(ann.ey - ann.sy);
+      var cx = (ann.sx + ann.ex) / 2, cy = (ann.sy + ann.ey) / 2;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, rx / 2, ry / 2, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      break;
+
+    case "text":
+      ctx.font = "bold " + Math.max(16, ann.lineWidth * 4) + "px Arial";
+      ctx.fillText(ann.text, ann.sx, ann.sy);
+      break;
+  }
+  ctx.restore();
+}
+
+// ── Tool Selection ──
+function setTool(tool) {
+  currentTool = tool;
+  document.querySelectorAll(".toolbar button").forEach(function(b) { b.classList.remove("active"); });
+  document.getElementById("tool" + tool.charAt(0).toUpperCase() + tool.slice(1)).classList.add("active");
+}
+
+// ── Coordinate helpers ──
+function getPos(e) {
+  var rect = canvas.getBoundingClientRect();
+  var touch = e.touches ? e.touches[0] : e;
+  var scaleX = canvas.width / rect.width;
+  var scaleY = canvas.height / rect.height;
+  return {
+    x: (touch.clientX - rect.left) * scaleX,
+    y: (touch.clientY - rect.top) * scaleY
+  };
+}
+
+// ── Drawing Events ──
+var currentPath = null;
+
+canvas.addEventListener("mousedown", startDraw);
+canvas.addEventListener("mousemove", continueDraw);
+canvas.addEventListener("mouseup", endDraw);
+canvas.addEventListener("touchstart", function(e) { e.preventDefault(); startDraw(e); }, { passive: false });
+canvas.addEventListener("touchmove", function(e) { e.preventDefault(); continueDraw(e); }, { passive: false });
+canvas.addEventListener("touchend", function(e) { e.preventDefault(); endDraw(e); }, { passive: false });
+
+function startDraw(e) {
+  isDrawing = true;
+  var pos = getPos(e);
+  startX = pos.x;
+  startY = pos.y;
+
+  if (currentTool === "draw") {
+    currentPath = { type: "path", color: currentColor, lineWidth: lineWidth, points: [pos] };
+  } else if (currentTool === "text") {
+    var text = prompt("Enter label text:");
+    if (text) {
+      annotations.push({ type: "text", color: currentColor, lineWidth: lineWidth, sx: pos.x, sy: pos.y, text: text });
+      redraw();
+    }
+    isDrawing = false;
+  }
+}
+
+function continueDraw(e) {
+  if (!isDrawing) return;
+  var pos = getPos(e);
+
+  if (currentTool === "draw" && currentPath) {
+    currentPath.points.push(pos);
+    redraw();
+    drawAnnotation(currentPath);
+  } else if (currentTool === "arrow" || currentTool === "circle") {
+    redraw();
+    var preview = { type: currentTool, color: currentColor, lineWidth: lineWidth, sx: startX, sy: startY, ex: pos.x, ey: pos.y };
+    drawAnnotation(preview);
+  }
+}
+
+function endDraw(e) {
+  if (!isDrawing) return;
+  isDrawing = false;
+
+  if (currentTool === "draw" && currentPath) {
+    annotations.push(currentPath);
+    currentPath = null;
+  } else if (currentTool === "arrow" || currentTool === "circle") {
+    var pos = e.changedTouches ? { x: startX + 50, y: startY + 50 } : getPos(e);
+    annotations.push({ type: currentTool, color: currentColor, lineWidth: lineWidth, sx: startX, sy: startY, ex: pos.x, ey: pos.y });
+  }
+  redraw();
+}
+
+// ── Actions ──
+function undo() {
+  if (annotations.length > 0) {
+    annotations.pop();
+    redraw();
+  }
+}
+
+function cancel() {
+  if (window.parent && window.parent.closeAnnotator) {
+    window.parent.closeAnnotator(null);
+  } else {
+    google.script.host.close();
+  }
+}
+
+function saveAnnotation() {
+  var dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+  if (window.parent && window.parent.closeAnnotator) {
+    window.parent.closeAnnotator(dataUrl);
+  } else {
+    // Return to calling form
+    google.script.run.withFailureHandler(function(e){console.error(e);var se=document.querySelector("[id$=Status]");if(se)se.innerHTML="<span style=color:#e74c3c>Error: "+escHtml(e.message)+"</span>";}).withSuccessHandler(function() {
+      google.script.host.close();
+    }).uploadPhotoToDrive(dataUrl.split(",")[1], "annotated_" + Date.now() + ".jpg", stampData.zone || "");
+  }
+}
+
+// ── Expose for parent iframe ──
+window.loadImageForAnnotation = loadImage;
+</script>
+</body>
+</html>

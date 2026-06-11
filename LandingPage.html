@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zone — PackMasters 5S</title>
+  <link rel="manifest" href="<?= deployUrl ?>?action=manifest">
+  <meta name="theme-color" content="#1a5276">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <?!= include('CommonStyles') ?>
+  <style>
+    .landing-zone-name {
+      font-size: var(--size-xl);
+      font-weight: 800;
+      color: var(--pm-primary);
+      text-align: center;
+      margin: var(--sp-6) 0 var(--sp-2);
+    }
+    .landing-zone-name-hi {
+      font-size: var(--size-lg);
+      color: var(--text-secondary);
+      text-align: center;
+      margin-bottom: var(--sp-2);
+    }
+    .landing-leader {
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: var(--size-sm);
+      margin-bottom: var(--sp-6);
+    }
+    .landing-actions {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-4);
+    }
+    .landing-info {
+      background: var(--score-blue-bg);
+      border-radius: 10px;
+      padding: var(--sp-4);
+      margin-top: var(--sp-6);
+      font-size: var(--size-sm);
+      color: var(--pm-primary);
+    }
+    .landing-info__row {
+      display: flex;
+      justify-content: space-between;
+      padding: var(--sp-1) 0;
+    }
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sp-2);
+      color: var(--pm-primary);
+      text-decoration: none;
+      font-size: var(--size-sm);
+      opacity: 0.85;
+    }
+    /* ── Tool grid ── */
+    .tools-section-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin: var(--sp-6) 0 var(--sp-3);
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+    }
+    .tools-section-label::before {
+      content: '';
+      display: inline-block;
+      width: 3px; height: 10px;
+      background: var(--pm-primary);
+      border-radius: 2px;
+    }
+    .tools-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--sp-2);
+    }
+    .tool-tile {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+      padding: 11px 13px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      text-decoration: none;
+      color: var(--text-primary);
+      font-size: var(--size-sm);
+      font-weight: 600;
+      box-shadow: var(--shadow);
+      transition: background var(--trans), border-color var(--trans), transform var(--trans);
+      min-height: var(--tap-min);
+    }
+    .tool-tile:active { background: var(--bg-card-2); border-color: var(--pm-primary); transform: scale(.97); }
+    .tool-tile svg { flex-shrink: 0; stroke: var(--text-muted); }
+    .tool-tile:active svg { stroke: var(--pm-primary); }
+  </style>
+</head>
+<body class="lang-en">
+  <div class="pm-header">
+    <div class="pm-header__row">
+      <div>
+        <a class="back-link" href="<?= deployUrl ?>">← Home</a>
+        <div class="pm-header__brand" style="margin-top:4px;">PackMasters 5S</div>
+      </div>
+      <div class="lang-toggle">
+        <button class="lang-toggle__btn active" onclick="setLang('en')" id="langEn">EN</button>
+        <button class="lang-toggle__btn" onclick="setLang('hi')" id="langHi">हिं</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="offline-banner" id="offlineBanner">You are offline</div>
+
+  <div class="pm-content">
+    <div class="landing-zone-name" id="zoneName"></div>
+    <div class="landing-zone-name-hi" id="zoneNameHi"></div>
+    <div class="landing-leader" id="zoneLeader"></div>
+
+    <div class="landing-actions">
+      <a class="pm-btn pm-btn--primary pm-btn--lg" id="dailyBtn">
+        <span class="label-en">Daily Checksheet</span><span class="label-hi" style="display:none">दैनिक चेकशीट</span>
+      </a>
+      <a class="pm-btn pm-btn--success pm-btn--lg" id="weeklyBtn">
+        <span class="label-en">Weekly Audit</span><span class="label-hi" style="display:none">साप्ताहिक ऑडिट</span>
+      </a>
+    </div>
+
+    <!-- V2 Zone Tools -->
+    <div style="margin-top:20px;">
+      <div class="tools-section-label">Zone Tools</div>
+      <div id="v2ZoneTools"></div>
+    </div>
+
+    <div class="landing-info">
+      <div class="landing-info__row">
+        <span class="label-en">Department</span><span class="label-hi" style="display:none">विभाग</span>
+        <strong id="zoneDept"></strong>
+      </div>
+      <div class="landing-info__row">
+        <span class="label-en">Audit Day</span><span class="label-hi" style="display:none">ऑडिट दिन</span>
+        <strong id="zoneAuditDay"></strong>
+      </div>
+      <div class="landing-info__row">
+        <span class="label-en">Today</span><span class="label-hi" style="display:none">आज</span>
+        <strong id="todayDate"></strong>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      var SERVER_DATA = <?!= data ?>;
+      var deployUrl = '<?= deployUrl ?>';
+      var zone = SERVER_DATA.zone;
+
+      document.getElementById('zoneName').textContent = zone.id + ' — ' + zone.name;
+      document.getElementById('zoneNameHi').textContent = zone.nameHi;
+      document.getElementById('zoneLeader').textContent = zone.leader;
+      document.getElementById('zoneDept').textContent = zone.department;
+      document.getElementById('zoneAuditDay').textContent = zone.auditDay;
+      document.getElementById('todayDate').textContent = new Date().toLocaleDateString('en-IN', {
+        weekday: 'long', year: 'numeric', month: 'short', day: 'numeric'
+      });
+
+      document.getElementById('dailyBtn').href = deployUrl + '?zone=' + zone.id + '&type=daily';
+      document.getElementById('weeklyBtn').href = deployUrl + '?zone=' + zone.id + '&type=weekly';
+
+      // V2 zone-specific tools
+      var SVG_CLIP = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="2"/><polyline points="9 12 11 14 15 10"/></svg>';
+      var SVG_GRID = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>';
+      var SVG_PIN = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>';
+      var SVG_TAG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>';
+      var SVG_BULB = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="9" y1="18" x2="15" y2="18"/><line x1="10" y1="22" x2="14" y2="22"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>';
+      var SVG_EYE = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+      var SVG_SWAP = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>';
+      var v2Tools = [
+        { icon: SVG_CLIP, label: 'Quick Audit', action: 'quickaudit' },
+        { icon: SVG_GRID, label: 'SQCDP Board', action: 'sqcdp' },
+        { icon: SVG_PIN,  label: 'Kanban / CAPA', action: 'kanban' },
+        { icon: SVG_CLIP, label: 'Task Board', action: 'taskboard' },
+        { icon: SVG_TAG,  label: 'Red Tag', action: 'redtag' },
+        { icon: SVG_BULB, label: 'Kaizen Suggestion', action: 'kaizen' },
+        { icon: SVG_EYE,  label: 'Gemba Walk', action: 'gembawalk' },
+        { icon: SVG_SWAP, label: 'Shift Handover', action: 'handover' }
+      ];
+      var toolsDiv = document.getElementById('v2ZoneTools');
+      var grid = document.createElement('div');
+      grid.className = 'tools-grid';
+      v2Tools.forEach(function(t) {
+        var a = document.createElement('a');
+        a.className = 'tool-tile';
+        a.href = deployUrl + '?v2=1&action=' + t.action + '&zone=' + zone.id;
+        a.innerHTML = t.icon + ' ' + t.label;
+        grid.appendChild(a);
+      });
+      toolsDiv.appendChild(grid);
+
+      // Language toggle
+      window.setLang = function(lang) {
+        document.body.className = 'lang-' + lang;
+        document.querySelectorAll('.label-en').forEach(function(el) { el.style.display = lang === 'en' ? '' : 'none'; });
+        document.querySelectorAll('.label-hi').forEach(function(el) { el.style.display = lang === 'hi' ? '' : 'none'; });
+        document.getElementById('langEn').classList.toggle('active', lang === 'en');
+        document.getElementById('langHi').classList.toggle('active', lang === 'hi');
+        localStorage.setItem('pm5s_lang', lang);
+      };
+
+      var savedLang = localStorage.getItem('pm5s_lang') || 'en';
+      setLang(savedLang);
+
+      // Offline
+      function updateOnline() {
+        document.getElementById('offlineBanner').classList.toggle('visible', !navigator.onLine);
+      }
+      window.addEventListener('online', updateOnline);
+      window.addEventListener('offline', updateOnline);
+      updateOnline();
+    })();
+  </script>
+</body>
+</html>

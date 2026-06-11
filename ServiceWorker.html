@@ -1,0 +1,82 @@
+/**
+ * ============================================================================
+ * ServiceWorker.js — PackMasters 5S PWA Service Worker
+ * ============================================================================
+ * Caches static HTML shell for offline home-screen launch.
+ * Does NOT cache data endpoints (always fresh).
+ * Implements offline submission queue flush on reconnect.
+ */
+
+var CACHE_NAME = 'pm5s-cache-v<?= PropertiesService.getScriptProperties().getProperty("QR_VERSION") || "1" ?>';
+var DEPLOY_URL = '<?= getDeployUrl_() ?>';
+
+// Static shell URLs to cache
+var STATIC_URLS = [
+  DEPLOY_URL
+];
+
+// Install: cache static shell
+self.addEventListener('install', function(event) {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(function(cache) {
+      return cache.addAll(STATIC_URLS).catch(function() {
+        // Non-critical if cache fails
+      });
+    })
+  );
+  self.skipWaiting();
+});
+
+// Activate: clean old caches
+self.addEventListener('activate', function(event) {
+  event.waitUntil(
+    caches.keys().then(function(names) {
+      return Promise.all(
+        names.filter(function(name) {
+          return name !== CACHE_NAME;
+        }).map(function(name) {
+          return caches.delete(name);
+        })
+      );
+    })
+  );
+  self.clients.claim();
+});
+
+// Fetch: network-first for data, cache-first for shell
+self.addEventListener('fetch', function(event) {
+  var url = event.request.url;
+
+  // Never cache data endpoints or POST requests
+  if (event.request.method !== 'GET' ||
+      url.indexOf('action=data') !== -1 ||
+      url.indexOf('action=sw') !== -1 ||
+      url.indexOf('action=manifest') !== -1) {
+    return;
+  }
+
+  // Network-first with cache fallback for HTML pages
+  event.respondWith(
+    fetch(event.request)
+      .then(function(response) {
+        // Clone and cache successful responses
+        if (response.ok) {
+          var responseClone = response.clone();
+          caches.open(CACHE_NAME).then(function(cache) {
+            cache.put(event.request, responseClone);
+          });
+        }
+        return response;
+      })
+      .catch(function() {
+        // Offline: serve from cache
+        return caches.match(event.request).then(function(cached) {
+          return cached || new Response(
+            '<html><body style="font-family:Arial;text-align:center;padding:40px;">' +
+            '<h2>Offline</h2><p>Please check your internet connection.</p></body></html>',
+            { headers: { 'Content-Type': 'text/html' } }
+          );
+        });
+      })
+  );
+});

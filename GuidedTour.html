@@ -1,0 +1,393 @@
+<!-- GuidedTour.html — PackMasters 5S v5.4
+     Self-contained tour engine partial. Include via: <?!= include('GuidedTour') ?>
+     Pages define tour steps BEFORE the include:
+       window.PM_TOUR_ID    = 'pageid';
+       window.PM_TOUR_STEPS = [{ selector, title, body, pos },...];
+-->
+<style>
+/* ── Tour overlay dim layer with spotlight cutout ─────────────────────── */
+.pm-tour-dim {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background: rgba(0,0,0,.6);
+  pointer-events: auto;
+  /* clip-path set dynamically via JS to create spotlight hole */
+}
+.pm-tour-dim.active { display: block; }
+
+/* ── Highlight ring around target element ─────────────────────────────── */
+.pm-tour-ring {
+  display: none;
+  position: fixed;
+  z-index: 901;
+  border: 2px solid rgba(255,255,255,.9);
+  border-radius: 8px;
+  box-shadow: 0 0 0 2px rgba(30,58,95,.6);
+  pointer-events: none;
+  transition: all .25s cubic-bezier(.4,0,.2,1);
+}
+.pm-tour-ring.active { display: block; }
+
+/* ── Tooltip card ─────────────────────────────────────────────────────── */
+.pm-tour-tip {
+  display: none;
+  position: fixed;
+  z-index: 910;
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px 18px 14px;
+  max-width: 300px;
+  min-width: 220px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.22), 0 2px 8px rgba(0,0,0,.12);
+  font-family: var(--font-main, system-ui, sans-serif);
+}
+.pm-tour-tip.active { display: block; }
+
+/* Arrow pseudo-element — direction set via class */
+.pm-tour-tip::before {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  transform: rotate(45deg);
+}
+.pm-tour-tip.pos-top::before    { bottom: -6px; left: 50%; margin-left: -6px; }
+.pm-tour-tip.pos-bottom::before { top: -6px;    left: 50%; margin-left: -6px; }
+.pm-tour-tip.pos-left::before   { right: -6px;  top: 50%;  margin-top: -6px;  }
+.pm-tour-tip.pos-right::before  { left: -6px;   top: 50%;  margin-top: -6px;  }
+
+/* Tip content */
+.pm-tour-tip-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--pm-primary, #1E3A5F);
+  margin-bottom: 6px;
+  font-family: var(--font-display, var(--font-main, system-ui));
+}
+.pm-tour-tip-body {
+  font-size: 13px;
+  color: var(--text-primary, #1a1a2e);
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+/* ── Progress dots ────────────────────────────────────────────────────── */
+.pm-tour-progress {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+.pm-tour-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--border, #e5e7eb);
+  transition: background .2s;
+}
+.pm-tour-dot.current { background: var(--pm-primary, #1E3A5F); }
+
+/* ── Nav buttons ──────────────────────────────────────────────────────── */
+.pm-tour-nav {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: space-between;
+}
+.pm-tour-skip {
+  font-size: 11px;
+  color: var(--text-muted, #9ca3af);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  font-family: inherit;
+  text-decoration: underline;
+}
+.pm-tour-skip:hover { color: var(--text-secondary, #6b7280); }
+.pm-tour-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity .15s;
+  border: none;
+}
+.pm-tour-btn:hover { opacity: .85; }
+.pm-tour-btn-prev {
+  background: var(--bg-card-2, #f0f2f5);
+  color: var(--text-secondary, #6b7280);
+}
+.pm-tour-btn-next {
+  background: var(--pm-primary, #1E3A5F);
+  color: #fff;
+}
+.pm-tour-btn-finish {
+  background: var(--score-green, #15803d);
+  color: #fff;
+}
+
+/* ── Floating "?" help button ─────────────────────────────────────────── */
+.pm-tour-help {
+  display: none;
+  position: fixed;
+  bottom: 80px;
+  right: 16px;
+  z-index: 895;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: var(--pm-primary, #1E3A5F);
+  color: #fff;
+  border: 2px solid rgba(255,255,255,.25);
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.pm-tour-help:hover { background: var(--pm-primary-light, #2B5082); }
+@media print { .pm-tour-dim, .pm-tour-tip, .pm-tour-ring, .pm-tour-help { display: none !important; } }
+</style>
+
+<!-- Tour DOM elements (hidden until tour starts) -->
+<div class="pm-tour-dim"  id="pmTourDim"></div>
+<div class="pm-tour-ring" id="pmTourRing"></div>
+<div class="pm-tour-tip"  id="pmTourTip">
+  <div class="pm-tour-progress" id="pmTourProgress"></div>
+  <div class="pm-tour-tip-title" id="pmTourTitle"></div>
+  <div class="pm-tour-tip-body"  id="pmTourBody"></div>
+  <div class="pm-tour-nav">
+    <button class="pm-tour-skip" onclick="window.PM_TOUR&&window.PM_TOUR.skip()">Skip tour</button>
+    <div style="display:flex;gap:6px">
+      <button class="pm-tour-btn pm-tour-btn-prev" id="pmTourPrev" onclick="window.PM_TOUR&&window.PM_TOUR.prev()">← Back</button>
+      <button class="pm-tour-btn pm-tour-btn-next" id="pmTourNext" onclick="window.PM_TOUR&&window.PM_TOUR.next()">Next →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  // ── State ─────────────────────────────────────────────────────────────────
+  var steps   = null;
+  var tourId  = 'default';
+  var current = 0;
+  var active  = false;
+
+  var dimEl   = document.getElementById('pmTourDim');
+  var ringEl  = document.getElementById('pmTourRing');
+  var tipEl   = document.getElementById('pmTourTip');
+  var progEl  = document.getElementById('pmTourProgress');
+  var titleEl = document.getElementById('pmTourTitle');
+  var bodyEl  = document.getElementById('pmTourBody');
+  var prevBtn = document.getElementById('pmTourPrev');
+  var nextBtn = document.getElementById('pmTourNext');
+
+  // ── Initialise ────────────────────────────────────────────────────────────
+  function init() {
+    if (!window.PM_TOUR_STEPS || !window.PM_TOUR_STEPS.length) return;
+    steps  = window.PM_TOUR_STEPS;
+    tourId = window.PM_TOUR_ID || 'default';
+    _buildHelpBtn();
+    // Auto-trigger on first visit (800 ms delay so page content has settled)
+    // Skipped if the user has disabled global tour auto-start via the More sheet toggle
+    try {
+      var globalOff = localStorage.getItem('pm5s_tours_global') === 'off';
+      if (!globalOff && !localStorage.getItem('pm5s_tour_' + tourId)) {
+        setTimeout(function() { start(false); }, 800);
+      }
+    } catch(e) { /* localStorage blocked */ }
+  }
+
+  // ── Public API ────────────────────────────────────────────────────────────
+  function start(force) {
+    if (!steps) return;
+    try {
+      if (!force && localStorage.getItem('pm5s_tour_' + tourId) === 'done') return;
+    } catch(e) {}
+    active  = true;
+    current = 0;
+    dimEl.classList.add('active');
+    ringEl.classList.add('active');
+    tipEl.classList.add('active');
+    showStep(0);
+  }
+
+  function showStep(n) {
+    if (!steps || n < 0 || n >= steps.length) { finish(); return; }
+    var s  = steps[n];
+    var el = document.querySelector(s.selector);
+    if (!el) { // skip missing elements
+      if (n < steps.length - 1) { current = n + 1; showStep(current); } else { finish(); }
+      return;
+    }
+
+    // Smooth scroll into view, then position overlay
+    try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch(e) {}
+    setTimeout(function() {
+      var r = el.getBoundingClientRect();
+      _createSpotlight(r);
+      _positionRing(r);
+      _positionTooltip(r, s, n);
+      _updateProgress(n);
+    }, 320);
+  }
+
+  function next() {
+    if (!active) return;
+    if (current < steps.length - 1) { current++; showStep(current); }
+    else { finish(); }
+  }
+
+  function prev() {
+    if (!active || current === 0) return;
+    current--;
+    showStep(current);
+  }
+
+  function skip() {
+    try { localStorage.setItem('pm5s_tour_' + tourId, 'done'); } catch(e) {}
+    _hide();
+  }
+
+  function finish() {
+    try { localStorage.setItem('pm5s_tour_' + tourId, 'done'); } catch(e) {}
+    _hide();
+  }
+
+  // ── Internal helpers ──────────────────────────────────────────────────────
+  function _hide() {
+    active = false;
+    dimEl.classList.remove('active');
+    ringEl.classList.remove('active');
+    tipEl.classList.remove('active');
+    dimEl.style.clipPath = '';
+  }
+
+  function _createSpotlight(r) {
+    var pad = 8;
+    var vw  = window.innerWidth;
+    var vh  = window.innerHeight;
+    var x1  = Math.max(0, r.left   - pad);
+    var y1  = Math.max(0, r.top    - pad);
+    var x2  = Math.min(vw, r.right  + pad);
+    var y2  = Math.min(vh, r.bottom + pad);
+    // Outer clockwise rect, inner counter-clockwise hole = spotlight cutout
+    dimEl.style.clipPath = [
+      'polygon(',
+      '0% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 0%,',
+      x1 + 'px ' + y1 + 'px,',
+      x1 + 'px ' + y2 + 'px,',
+      x2 + 'px ' + y2 + 'px,',
+      x2 + 'px ' + y1 + 'px,',
+      x1 + 'px ' + y1 + 'px',
+      ')'
+    ].join(' ');
+  }
+
+  function _positionRing(r) {
+    var pad = 6;
+    ringEl.style.left   = Math.max(0, r.left   - pad) + 'px';
+    ringEl.style.top    = Math.max(0, r.top    - pad) + 'px';
+    ringEl.style.width  = (r.width  + pad * 2) + 'px';
+    ringEl.style.height = (r.height + pad * 2) + 'px';
+  }
+
+  function _positionTooltip(r, s, n) {
+    var TW = 300, TH = 160; // approximate tip dimensions
+    var vw = window.innerWidth, vh = window.innerHeight;
+    var pad = 12; // gap between spotlight and tooltip
+
+    // Remove all pos classes
+    tipEl.className = 'pm-tour-tip active';
+
+    // Determine preferred position, auto-flip if near edge
+    var pos = s.pos || 'bottom';
+    if (pos === 'bottom' && r.bottom + TH + pad > vh) pos = 'top';
+    if (pos === 'top'    && r.top    - TH - pad < 0)  pos = 'bottom';
+    if (pos === 'right'  && r.right  + TW + pad > vw) pos = 'left';
+    if (pos === 'left'   && r.left   - TW - pad < 0)  pos = 'right';
+
+    tipEl.classList.add('pos-' + pos);
+
+    var left, top;
+    if (pos === 'bottom') {
+      left = r.left + r.width / 2 - TW / 2;
+      top  = r.bottom + pad + 8;
+    } else if (pos === 'top') {
+      left = r.left + r.width / 2 - TW / 2;
+      top  = r.top - TH - pad - 8;
+    } else if (pos === 'right') {
+      left = r.right + pad + 8;
+      top  = r.top + r.height / 2 - TH / 2;
+    } else { // left
+      left = r.left - TW - pad - 8;
+      top  = r.top + r.height / 2 - TH / 2;
+    }
+
+    // Clamp to viewport
+    left = Math.max(8, Math.min(vw - TW - 8, left));
+    top  = Math.max(8, Math.min(vh - TH - 8, top));
+
+    tipEl.style.left = left + 'px';
+    tipEl.style.top  = top  + 'px';
+
+    // Set content
+    titleEl.textContent = s.title || '';
+    bodyEl.textContent  = s.body  || '';
+
+    // Update buttons
+    prevBtn.style.display = (n === 0) ? 'none' : '';
+    nextBtn.className = 'pm-tour-btn ' + (n === steps.length - 1 ? 'pm-tour-btn-finish' : 'pm-tour-btn-next');
+    nextBtn.textContent = (n === steps.length - 1) ? '✓ Done' : 'Next →';
+  }
+
+  function _updateProgress(n) {
+    var html = '';
+    for (var i = 0; i < steps.length; i++) {
+      html += '<div class="pm-tour-dot' + (i === n ? ' current' : '') + '"></div>';
+    }
+    progEl.innerHTML = html;
+  }
+
+  function _buildHelpBtn() {
+    var btn = document.createElement('button');
+    btn.className   = 'pm-tour-help';
+    btn.title       = 'Take a guided tour';
+    btn.textContent = '?';
+    btn.onclick     = function() { start(true); };
+    document.body.appendChild(btn);
+  }
+
+  // ── Close dim on backdrop click ───────────────────────────────────────────
+  dimEl.addEventListener('click', function(e) {
+    if (active) skip();
+  });
+
+  // ── Keyboard nav ─────────────────────────────────────────────────────────
+  document.addEventListener('keydown', function(e) {
+    if (!active) return;
+    if (e.key === 'ArrowRight' || e.key === 'Enter') next();
+    else if (e.key === 'ArrowLeft') prev();
+    else if (e.key === 'Escape') skip();
+  });
+
+  // ── Expose public API ─────────────────────────────────────────────────────
+  window.PM_TOUR = { start: start, next: next, prev: prev, skip: skip, finish: finish };
+
+  // ── Boot after DOM is ready ───────────────────────────────────────────────
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>

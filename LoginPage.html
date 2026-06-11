@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PackMasters 5S — Login</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: linear-gradient(135deg, #1E3A5F 0%, #0D1B2A 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #333;
+    }
+
+    .login-container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      width: 100%;
+      max-width: 380px;
+      padding: 40px 32px;
+      animation: slideUp 0.5s ease-out;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .logo-section {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .logo-circle {
+      width: 56px;
+      height: 56px;
+      background: #1E3A5F;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: 700;
+      color: white;
+      margin: 0 auto 16px;
+      font-family: "Helvetica Neue", Arial, sans-serif;
+      letter-spacing: -0.5px;
+    }
+
+    .logo-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1E3A5F;
+      margin-bottom: 4px;
+      letter-spacing: 0.3px;
+    }
+
+    .logo-subtitle {
+      font-size: 12px;
+      color: #999;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #1E3A5F;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 11px 13px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #1E3A5F;
+      box-shadow: 0 0 0 3px rgba(30, 58, 95, 0.1);
+    }
+
+    .form-input::placeholder {
+      color: #999;
+    }
+
+    .login-button {
+      width: 100%;
+      padding: 12px 16px;
+      background: #1E3A5F;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.15s;
+      margin-top: 8px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .login-button:hover:not(:disabled) {
+      background: #152d47;
+    }
+
+    .login-button:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+
+    .login-button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .error-message {
+      background: #fee;
+      color: #c33;
+      border: 1px solid #fcc;
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .error-message.show {
+      display: block;
+      animation: shake 0.3s ease-in-out;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-4px); }
+      75% { transform: translateX(4px); }
+    }
+
+    .credentials-box {
+      background: #f9f9f9;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      padding: 12px;
+      margin-top: 20px;
+      font-size: 12px;
+      color: #666;
+    }
+
+    .credentials-box .label {
+      font-weight: 600;
+      color: #333;
+      margin-top: 8px;
+      margin-bottom: 2px;
+    }
+
+    .credentials-box .label:first-child {
+      margin-top: 0;
+    }
+
+    .credentials-box code {
+      background: white;
+      padding: 2px 4px;
+      border-radius: 3px;
+      font-family: "Courier New", monospace;
+      color: #1E3A5F;
+      font-weight: 600;
+    }
+
+    .loading-spinner {
+      display: none;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #fff;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      margin: 0 auto;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .footer-text {
+      text-align: center;
+      font-size: 11px;
+      color: #999;
+      margin-top: 20px;
+      letter-spacing: 0.3px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="login-container">
+  <div class="logo-section">
+    <div class="logo-circle">PM</div>
+    <div class="logo-title">PackMasters</div>
+    <div class="logo-subtitle">5S · IMS</div>
+  </div>
+
+  <form id="loginForm" onsubmit="handleLogin(event)">
+    <div class="error-message" id="errorMsg"></div>
+
+    <div class="form-group">
+      <label class="form-label">Username</label>
+      <input type="text" id="username" class="form-input" placeholder="Enter username" required autocomplete="username">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input type="password" id="password" class="form-input" placeholder="Enter password" required autocomplete="current-password">
+    </div>
+
+    <button type="submit" class="login-button" id="loginBtn">
+      <span id="btnText">Sign In</span>
+      <div class="loading-spinner" id="spinner"></div>
+    </button>
+  </form>
+
+  <div class="credentials-box">
+    <div class="label">📝 Test Credentials:</div>
+    <div><code>admin</code> / <code>Admin@123</code></div>
+    <div><code>manager</code> / <code>Manager@123</code></div>
+    <div><code>auditor</code> / <code>Auditor@123</code></div>
+  </div>
+
+  <div class="footer-text">5S Manufacturing QMS System</div>
+</div>
+
+<script>
+// Clear stale/expired token from localStorage if server signals it
+if (<?= clearStaleToken ? 'true' : 'false' ?>) {
+  localStorage.removeItem('pm5s_token');
+}
+
+function handleLogin(event) {
+  event.preventDefault();
+
+  var username = document.getElementById('username').value.trim();
+  var password = document.getElementById('password').value;
+  var errorMsg = document.getElementById('errorMsg');
+  var loginBtn = document.getElementById('loginBtn');
+  var spinner = document.getElementById('spinner');
+  var btnText = document.getElementById('btnText');
+
+  if (!username || !password) {
+    showError('Please enter username and password');
+    return;
+  }
+
+  // Show loading state
+  loginBtn.disabled = true;
+  spinner.style.display = 'block';
+  btnText.textContent = 'Signing in...';
+  errorMsg.classList.remove('show');
+
+  // Call backend authentication
+  google.script.run
+    .withSuccessHandler(function(result) {
+      if (result.success) {
+        // Login successful - store token in localStorage and pass in URL for GAS iframe navigation
+        localStorage.setItem('pm5s_token', result.token);
+        window.top.location.href = '<?= deployUrl ?>' + '?v2=1&action=home&token=' + encodeURIComponent(result.token);
+      } else {
+        showError(result.message || 'Login failed');
+        loginBtn.disabled = false;
+        spinner.style.display = 'none';
+        btnText.textContent = 'Sign In';
+      }
+    })
+    .withFailureHandler(function(error) {
+      showError('Server error: ' + error.message);
+      loginBtn.disabled = false;
+      spinner.style.display = 'none';
+      btnText.textContent = 'Sign In';
+    })
+    .authenticateUser(username, password);
+}
+
+function showError(message) {
+  var errorMsg = document.getElementById('errorMsg');
+  errorMsg.textContent = message;
+  errorMsg.classList.add('show');
+}
+
+// Focus username on load
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('username').focus();
+});
+
+// Auto-hide error on input
+document.getElementById('username').addEventListener('input', function() {
+  document.getElementById('errorMsg').classList.remove('show');
+});
+document.getElementById('password').addEventListener('input', function() {
+  document.getElementById('errorMsg').classList.remove('show');
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Management Review — PackMasters 5S</title>
+  <?!= include('CommonStyles') ?>
+  <style>
+    :root {
+      --pm-primary: #0F172A;
+      --bg-page: #F8FAFC;
+      --bg-card: #FFFFFF;
+      --border: #E2E8F0;
+      --text-muted: #64748B;
+      --red: #EF4444;
+      --amber: #F59E0B;
+      --green: #10B981;
+    }
+    body { background: var(--bg-page); font-family: 'Outfit', sans-serif; margin: 0; padding-bottom: 80px; }
+    .page-header {
+      background: var(--pm-primary);
+      color: #fff;
+      padding: 20px 24px 16px;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .page-header h1 { margin: 0; font-size: 1.2rem; font-weight: 600; }
+    .page-header p  { margin: 4px 0 0; font-size: 0.8rem; opacity: 0.7; }
+    .content { max-width: 900px; margin: 0 auto; padding: 20px 16px; }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .kpi-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+    .kpi-value { font-size: 2rem; font-weight: 700; line-height: 1; margin-bottom: 4px; }
+    .kpi-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .kpi-red    .kpi-value { color: var(--red); }
+    .kpi-amber  .kpi-value { color: var(--amber); }
+    .kpi-green  .kpi-value { color: var(--green); }
+    .kpi-blue   .kpi-value { color: #3B82F6; }
+    .section-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--pm-primary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin: 0 0 10px;
+    }
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .audit-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .audit-table th {
+      background: var(--pm-primary); color: #fff;
+      padding: 8px 10px; text-align: left; font-weight: 500;
+    }
+    .audit-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); }
+    .audit-table tr:last-child td { border-bottom: none; }
+    .audit-table tr:nth-child(even) td { background: #F8FAFC; }
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 999px;
+      font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+    }
+    .badge-red    { background: #FEE2E2; color: #B91C1C; }
+    .badge-green  { background: #D1FAE5; color: #065F46; }
+    .badge-amber  { background: #FEF3C7; color: #92400E; }
+    .badge-blue   { background: #DBEAFE; color: #1E40AF; }
+    .loader {
+      display: flex; justify-content: center; align-items: center;
+      height: 200px; color: var(--text-muted); font-size: 0.9rem;
+    }
+    .refresh-btn {
+      background: var(--pm-primary); color: #fff; border: none;
+      padding: 8px 16px; border-radius: 8px; cursor: pointer;
+      font-size: 0.8rem; font-weight: 500;
+    }
+    .refresh-btn:hover { opacity: 0.85; }
+    .error-msg { color: var(--red); font-size: 0.85rem; padding: 12px; }
+  </style>
+</head>
+<body>
+  <div class="page-header">
+    <h1>Management Review Dashboard</h1>
+    <p>ISO Compliance — Live KPIs &amp; Audit Trail</p>
+  </div>
+
+  <div class="content">
+    <div id="loading" class="loader">Loading data…</div>
+    <div id="main-content" style="display:none;">
+
+      <!-- KPI Cards -->
+      <div class="kpi-grid" id="kpi-grid"></div>
+
+      <!-- Recent Audit Trail -->
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <p class="section-title" style="margin:0;">Recent Audit Trail (last 20 entries)</p>
+          <button class="refresh-btn" onclick="loadData()">Refresh</button>
+        </div>
+        <div id="audit-trail-container">
+          <p style="color:var(--text-muted);font-size:0.85rem;">No entries yet.</p>
+        </div>
+      </div>
+
+    </div>
+    <div id="error-area" class="error-msg" style="display:none;"></div>
+  </div>
+
+  <script>
+    (function() {
+      var zoneId = <?= JSON.stringify(zoneId || 'Z-01') ?>;
+
+      function loadData() {
+        document.getElementById('loading').style.display = 'flex';
+        document.getElementById('main-content').style.display = 'none';
+        document.getElementById('error-area').style.display = 'none';
+
+        google.script.run
+          .withSuccessHandler(function(data) {
+            document.getElementById('loading').style.display = 'none';
+            if (!data || data.error) {
+              showError(data ? data.error : 'No data returned from server.');
+              return;
+            }
+            renderKPIs(data);
+            renderAuditTrail(data.recentAuditTrail || []);
+            document.getElementById('main-content').style.display = 'block';
+          })
+          .withFailureHandler(function(err) {
+            document.getElementById('loading').style.display = 'none';
+            showError('Server error: ' + (err.message || err));
+          })
+          .getManagementReviewData(zoneId);
+      }
+
+      function showError(msg) {
+        var el = document.getElementById('error-area');
+        el.textContent = msg;
+        el.style.display = 'block';
+        document.getElementById('main-content').style.display = 'none';
+      }
+
+      function kpiCard(value, label, colorClass) {
+        return '<div class="kpi-card ' + (colorClass || '') + '">' +
+               '<div class="kpi-value">' + value + '</div>' +
+               '<div class="kpi-label">' + label + '</div></div>';
+      }
+
+      function renderKPIs(data) {
+        var nc = data.totalOpenNCs || 0;
+        var od = data.overdueCount || 0;
+        var acr = typeof data.auditComplianceRate === 'number' ? Math.round(data.auditComplianceRate) + '%' : '—';
+        var rcr = typeof data.rcaCompletionRate  === 'number' ? Math.round(data.rcaCompletionRate)  + '%' : '—';
+        var at  = (data.recentAuditTrail || []).length;
+
+        var ncColor  = nc  > 0 ? 'kpi-red'   : 'kpi-green';
+        var odColor  = od  > 0 ? 'kpi-red'   : 'kpi-green';
+        var acrColor = (data.auditComplianceRate || 0) >= 80 ? 'kpi-green' : 'kpi-amber';
+        var rcrColor = (data.rcaCompletionRate  || 0) >= 80 ? 'kpi-green' : 'kpi-amber';
+
+        document.getElementById('kpi-grid').innerHTML =
+          kpiCard(nc,  'Open NCs',              ncColor)  +
+          kpiCard(od,  'Overdue CAPAs',          odColor)  +
+          kpiCard(acr, 'Audit Compliance (30d)', acrColor) +
+          kpiCard(rcr, 'RCA Completion Rate',    rcrColor) +
+          kpiCard(at,  'Audit Trail Entries',    'kpi-blue');
+      }
+
+      function actionBadge(action) {
+        var map = {
+          'STATUS_CHANGE': 'badge-blue',
+          'CAPA_CREATED':  'badge-amber',
+          'CAPA_CLOSED':   'badge-green',
+          'CAPA_DELETED':  'badge-red'
+        };
+        var cls = map[action] || 'badge-blue';
+        return '<span class="badge ' + cls + '">' + esc(action) + '</span>';
+      }
+
+      function esc(s) {
+        return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      }
+
+      function renderAuditTrail(entries) {
+        var container = document.getElementById('audit-trail-container');
+        if (!entries || entries.length === 0) {
+          container.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;">No audit trail entries found. Run a CAPA status update to see entries here.</p>';
+          return;
+        }
+        var html = '<div style="overflow-x:auto;"><table class="audit-table"><thead><tr>' +
+          '<th>Timestamp</th><th>Actor</th><th>Action</th><th>Record ID</th>' +
+          '<th>Before</th><th>After</th><th>Reason</th><th>Zone</th>' +
+          '</tr></thead><tbody>';
+
+        entries.forEach(function(e) {
+          html += '<tr>' +
+            '<td style="white-space:nowrap;">' + esc(e.timestamp)   + '</td>' +
+            '<td>' + esc(e.actorEmail)  + '</td>' +
+            '<td>' + actionBadge(e.action) + '</td>' +
+            '<td style="font-family:monospace;">' + esc(e.targetId)  + '</td>' +
+            '<td>' + esc(e.beforeState) + '</td>' +
+            '<td>' + esc(e.afterState)  + '</td>' +
+            '<td>' + esc(e.reason)      + '</td>' +
+            '<td>' + esc(e.zoneId)      + '</td>' +
+            '</tr>';
+        });
+        html += '</tbody></table></div>';
+        container.innerHTML = html;
+      }
+
+      window.loadData = loadData;
+      loadData();
+    })();
+  </script>
+</body>
+</html>

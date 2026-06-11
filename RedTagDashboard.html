@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Red Tag Register</title>
+<?!= include("CommonStyles") ?>
+<style>
+/* ── page-specific ── */
+.rt-hdr {
+  background: linear-gradient(135deg, var(--pm-primary) 0%, var(--pm-primary-light) 100%);
+  color: #fff;
+  padding: 14px 16px 12px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.rt-hdr__top { display: flex; align-items: center; gap: 10px; }
+.rt-hdr__back {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: rgba(255,255,255,.15);
+  border: none; color: #fff; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; flex-shrink: 0;
+}
+.rt-hdr__title { font-family: var(--font-display); font-size: 18px; font-weight: 700; flex: 1; }
+.rt-hdr__add {
+  background: rgba(255,255,255,.2);
+  border: 1.5px solid rgba(255,255,255,.5);
+  color: #fff; padding: 6px 14px;
+  border-radius: 20px; font-size: 13px; font-weight: 600;
+  cursor: pointer; min-height: 36px;
+}
+
+.rt-filter {
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-light);
+  padding: 10px 16px;
+  display: flex; gap: 8px; overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.rt-filter::-webkit-scrollbar { display: none; }
+
+.rt-chip {
+  padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;
+  border: 1.5px solid var(--border); background: var(--bg-card);
+  color: var(--text-secondary); cursor: pointer; white-space: nowrap;
+  min-height: 32px; transition: var(--trans);
+}
+.rt-chip.active { background: var(--pm-primary); border-color: var(--pm-primary); color: #fff; }
+
+.rt-list { padding: 12px 12px 120px; }
+
+.rt-card {
+  background: var(--bg-card);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border-light);
+  margin-bottom: 10px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.rt-card__phase-bar { height: 4px; }
+.phase-IDENTIFIED .rt-card__phase-bar { background: var(--score-amber); }
+.phase-EVALUATED  .rt-card__phase-bar { background: var(--score-blue); }
+.phase-DISPOSED   .rt-card__phase-bar { background: var(--sqcdp-p); }
+.phase-CLOSED     .rt-card__phase-bar { background: var(--score-green); }
+.phase-OPEN       .rt-card__phase-bar { background: var(--score-amber); }
+
+.rt-card__body { padding: 12px 14px 10px; }
+.rt-card__top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
+.rt-card__id { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
+.rt-card__desc { font-weight: 600; font-size: 14px; line-height: 1.4; color: var(--text-primary); margin-bottom: 6px; }
+.rt-card__meta { font-size: 12px; color: var(--text-secondary); line-height: 1.7; }
+.rt-card__meta span { margin-right: 12px; }
+
+.rt-badge {
+  padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 700;
+  letter-spacing: .2px; white-space: nowrap; flex-shrink: 0;
+}
+.badge-IDENTIFIED { background: var(--score-amber-bg);  color: var(--score-amber); }
+.badge-EVALUATED  { background: var(--score-blue-bg);   color: var(--score-blue); }
+.badge-DISPOSED   { background: rgba(103,65,217,.12);   color: var(--sqcdp-p); }
+.badge-CLOSED     { background: var(--score-green-bg);  color: var(--score-green); }
+.badge-OPEN       { background: var(--score-amber-bg);  color: var(--score-amber); }
+
+.rt-card__actions { display: flex; gap: 6px; padding: 8px 14px 12px; flex-wrap: wrap; }
+.rt-act-btn {
+  padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
+  border: 1.5px solid var(--border); background: var(--bg-card-2);
+  cursor: pointer; min-height: 32px; transition: var(--trans); color: var(--text-primary);
+}
+.rt-act-btn:active { transform: scale(.96); }
+.rt-act-btn--primary { background: var(--pm-primary); border-color: var(--pm-primary); color: #fff; }
+.rt-act-btn--danger  { border-color: var(--score-red-bg); color: var(--score-red); background: var(--score-red-bg); }
+.rt-act-btn--success { background: var(--score-green);    border-color: var(--score-green); color: #fff; }
+
+.rt-empty {
+  text-align: center; padding: 60px 24px; color: var(--text-muted);
+}
+.rt-empty__icon { font-size: 48px; margin-bottom: 12px; opacity: .5; }
+
+/* ── drawer fields ── */
+.drw-field { margin-bottom: 14px; }
+.drw-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 5px; display: block; }
+.drw-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* ── Plan F: mobile-only ── */
+.mobile-only { display: none; }
+@media (max-width: 768px) {
+  .mobile-only { display: inline; color: var(--score-red, #EF4444); }
+}
+
+/* ── phase steps ── */
+.phase-steps { display: flex; align-items: center; gap: 0; margin: 12px 0 16px; overflow-x: auto; }
+.ph-step { display: flex; align-items: center; flex: 1; min-width: 64px; }
+.ph-dot {
+  width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--border);
+  background: var(--bg-card); display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; flex-shrink: 0; transition: var(--trans);
+}
+.ph-dot.active { background: var(--pm-primary); border-color: var(--pm-primary); color: #fff; }
+.ph-dot.done   { background: var(--score-green); border-color: var(--score-green); color: #fff; }
+.ph-line { flex: 1; height: 2px; background: var(--border); margin: 0 2px; }
+.ph-line.done { background: var(--score-green); }
+.ph-label { font-size: 9px; color: var(--text-muted); text-align: center; margin-top: 2px; }
+.ph-step-wrap { display: flex; flex-direction: column; align-items: center; }
+</style>
+</head>
+<body>
+
+<div class="rt-hdr">
+  <div class="rt-hdr__top">
+    <button class="rt-hdr__back" onclick="history.back()">&#8592;</button>
+    <span class="rt-hdr__title">Red Tag Register</span>
+    <button class="rt-hdr__add" onclick="openCreate()">+ New Tag</button>
+  </div>
+</div>
+
+<div class="rt-filter">
+  <button class="rt-chip active" data-filter="ALL"      onclick="setFilter(this,'ALL')">All</button>
+  <button class="rt-chip"        data-filter="IDENTIFIED" onclick="setFilter(this,'IDENTIFIED')">Identified</button>
+  <button class="rt-chip"        data-filter="EVALUATED"  onclick="setFilter(this,'EVALUATED')">Evaluated</button>
+  <button class="rt-chip"        data-filter="DISPOSED"   onclick="setFilter(this,'DISPOSED')">Disposed</button>
+  <button class="rt-chip"        data-filter="CLOSED"     onclick="setFilter(this,'CLOSED')">Closed</button>
+</div>
+
+<div class="rt-list" id="rtList">
+  <!-- skeleton -->
+  <div id="rtSkeleton">
+    <div class="skeleton skeleton-card"></div>
+    <div class="skeleton skeleton-card"></div>
+    <div class="skeleton skeleton-card"></div>
+  </div>
+</div>
+
+<!-- ─── Create / Edit Drawer ─── -->
+<div class="pm-drawer-backdrop" id="rtDrawerBackdrop" onclick="pmDrawer('rtDrawer',false)"></div>
+<div class="pm-drawer" id="rtDrawer">
+  <div class="pm-drawer__handle"></div>
+  <div class="pm-drawer__header">
+    <span class="pm-drawer__title" id="rtDrawerTitle">New Red Tag</span>
+    <button class="pm-drawer__close" onclick="pmDrawer('rtDrawer',false)">&#215;</button>
+  </div>
+  <div class="pm-drawer__body">
+    <input type="hidden" id="rtEditId">
+    <div class="drw-field">
+      <label class="drw-label" for="rtDesc">Item Description *</label>
+      <textarea class="pm-textarea" id="rtDesc" placeholder="Describe the item clearly..." rows="2"></textarea>
+    </div>
+    <div class="drw-row">
+      <div class="drw-field">
+        <label class="drw-label" for="rtCat">Category</label>
+        <select class="pm-input" id="rtCat">
+          <option>Equipment</option><option>Material</option><option>Tool</option>
+          <option>Furniture</option><option>WIP</option><option>Other</option>
+        </select>
+      </div>
+      <div class="drw-field">
+        <label class="drw-label" for="rtAct">Proposed Action</label>
+        <select class="pm-input" id="rtAct">
+          <option>Discard</option><option>Return</option><option>Relocate</option>
+          <option>Repair</option><option>Keep</option>
+        </select>
+      </div>
+    </div>
+    <div class="drw-row">
+      <div class="drw-field">
+        <label class="drw-label" for="rtVal">Est. Value (₹)</label>
+        <input class="pm-input" type="number" id="rtVal" placeholder="0" min="0">
+      </div>
+      <div class="drw-field">
+        <label class="drw-label" for="rtOwner">Owner</label>
+        <input class="pm-input" type="text" id="rtOwner" placeholder="Name">
+      </div>
+    </div>
+    <div class="drw-row">
+      <div class="drw-field">
+        <label class="drw-label" for="rtZone">Zone *</label>
+        <select class="pm-input" id="rtZone"></select>
+      </div>
+      <div class="drw-field">
+        <label class="drw-label" for="rtDeadline">Deadline</label>
+        <input class="pm-input" type="date" id="rtDeadline">
+      </div>
+    </div>
+    <div class="drw-field">
+      <label class="drw-label" for="rtRemarks">Remarks</label>
+      <textarea class="pm-textarea" id="rtRemarks" placeholder="Optional notes..." rows="2"></textarea>
+    </div>
+    <div class="drw-field form-section">
+      <label class="drw-label">Photo Evidence <span class="mobile-only">(required)</span></label>
+      <input type="file" id="photoInput" name="photoInput" accept="image/*" capture="environment" class="pm-input" style="padding:6px;">
+      <small style="color: var(--text-muted, #94A3B8);">Capture on-site evidence</small>
+    </div>
+    <button class="pm-btn pm-btn--primary form-sticky-submit" id="rtSaveBtn" onclick="saveTag()">Save Red Tag</button>
+  </div>
+</div>
+
+<!-- ─── Advance Phase Drawer ─── -->
+<div class="pm-drawer-backdrop" id="rtPhaseBackdrop" onclick="pmDrawer('rtPhaseDrawer',false)"></div>
+<div class="pm-drawer" id="rtPhaseDrawer">
+  <div class="pm-drawer__handle"></div>
+  <div class="pm-drawer__header">
+    <span class="pm-drawer__title" id="rtPhaseTitle">Advance Phase</span>
+    <button class="pm-drawer__close" onclick="pmDrawer('rtPhaseDrawer',false)">&#215;</button>
+  </div>
+  <div class="pm-drawer__body">
+    <input type="hidden" id="rtPhaseId">
+    <input type="hidden" id="rtPhaseTarget">
+
+    <!-- phase progress indicator -->
+    <div class="phase-steps" id="rtPhaseSteps"></div>
+
+    <div class="drw-field">
+      <label class="drw-label" for="rtPhaseNotes">Notes / Disposition *</label>
+      <textarea class="pm-textarea" id="rtPhaseNotes" placeholder="Describe what was done..." rows="3"></textarea>
+    </div>
+    <button class="pm-btn pm-btn--success" onclick="confirmAdvance()">Confirm &amp; Advance</button>
+  </div>
+</div>
+
+<script>
+// Auth guard — read from URL param first (GAS iframe navigation), then localStorage
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var urlToken = params.get('token');
+  if (urlToken) localStorage.setItem('pm5s_token', urlToken);
+  var token = localStorage.getItem('pm5s_token');
+  if (!token) {
+    window.top.location.href = '<?= deployUrl ?>?v2=1&action=login';
+    return;
+  }
+  window.PM5S_TOKEN = token;
+})();
+
+var DU = '<?= deployUrl ?>';
+var ZONE_ID = '<?= params && params.zone ? String(params.zone).replace(/[^a-zA-Z0-9\-_]/g,"") : "" ?>';
+var allTags = [];
+var currentFilter = 'ALL';
+var zones = [];
+
+var PHASES = ['IDENTIFIED','EVALUATED','DISPOSED','CLOSED'];
+var PHASE_LABELS = {IDENTIFIED:'Identified', EVALUATED:'Evaluated', DISPOSED:'Disposed', CLOSED:'Closed', OPEN:'Open'};
+var PHASE_NEXT   = {IDENTIFIED:'EVALUATED', EVALUATED:'DISPOSED', DISPOSED:'CLOSED'};
+var PHASE_PREV   = {EVALUATED:'IDENTIFIED', DISPOSED:'EVALUATED', CLOSED:'DISPOSED'};
+
+function escH(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function formatMoney(n){var v=parseFloat(n)||0;if(v>=100000)return'₹'+(v/100000).toFixed(1)+'L';if(v>=1000)return'₹'+(v/1000).toFixed(1)+'K';return'₹'+Math.round(v);}
+
+/* ── Load data ── */
+function loadTags(){
+  google.script.run
+    .withFailureHandler(function(e){document.getElementById('rtSkeleton').remove();pmToast('Error loading data','error');})
+    .withSuccessHandler(function(tags){
+      allTags=tags;
+      document.getElementById('rtSkeleton').remove();
+      render();
+    })
+    .getRedTagData({zoneId:ZONE_ID||undefined});
+}
+
+/* ── Load zone list for create form ── */
+function loadZones(){
+  google.script.run
+    .withSuccessHandler(function(cfg){
+      zones=Object.keys(cfg||{});
+      var sel=document.getElementById('rtZone');
+      sel.innerHTML='';
+      zones.forEach(function(z){var o=document.createElement('option');o.value=z;o.textContent=cfg[z].name||z;sel.appendChild(o);});
+      if(ZONE_ID){sel.value=ZONE_ID;}
+    })
+    .getZoneConfig();
+}
+
+/* ── Filter & Render ── */
+function setFilter(el,f){
+  document.querySelectorAll('.rt-chip').forEach(function(c){c.classList.remove('active');});
+  el.classList.add('active');
+  currentFilter=f;
+  render();
+}
+
+function canonicalPhase(s){
+  // Treat legacy OPEN as IDENTIFIED
+  if(!s||s==='OPEN')return'IDENTIFIED';
+  return s;
+}
+
+function render(){
+  var list=document.getElementById('rtList');
+  var filtered=allTags.filter(function(t){
+    var ph=canonicalPhase(t.status);
+    return currentFilter==='ALL'||ph===currentFilter;
+  });
+  if(filtered.length===0){
+    list.innerHTML='<div class="rt-empty"><div class="rt-empty__icon">🏷️</div><div>No red tags found</div></div>';
+    return;
+  }
+  list.innerHTML=filtered.map(buildCard).join('');
+}
+
+function buildCard(t){
+  var ph=canonicalPhase(t.status);
+  var phIdx=PHASES.indexOf(ph);
+  var canAdvance=phIdx<3;
+  var canBack=phIdx>0&&ph!=='CLOSED';
+  var phaseBadge='<span class="rt-badge badge-'+escH(ph)+'">'+escH(PHASE_LABELS[ph]||ph)+'</span>';
+
+  var actions='';
+  if(canAdvance){
+    var nextLabel={IDENTIFIED:'Evaluate →',EVALUATED:'Dispose →',DISPOSED:'Close ✓'}[ph]||'Advance →';
+    actions+='<button class="rt-act-btn rt-act-btn--primary" onclick="openPhase(\''+escH(t.tagId)+'\',\''+PHASE_NEXT[ph]+'\',\''+ph+'\')">'+escH(nextLabel)+'</button>';
+  }
+  actions+='<button class="rt-act-btn" onclick="openEdit('+escH(JSON.stringify(t))+')">Edit ✎</button>';
+  if(ph!=='CLOSED'){
+    if(canBack){actions+='<button class="rt-act-btn" onclick="openPhase(\''+escH(t.tagId)+'\',\''+PHASE_PREV[ph]+'\',\''+ph+'\')">← Back</button>';}
+  }
+  actions+='<button class="rt-act-btn rt-act-btn--danger" onclick="deleteTag(\''+escH(t.tagId)+'\')">Delete</button>';
+
+  return '<div class="rt-card phase-'+escH(ph)+'">'
+    +'<div class="rt-card__phase-bar"></div>'
+    +'<div class="rt-card__body">'
+    +'<div class="rt-card__top"><span class="rt-card__id">'+escH(t.tagId)+'</span>'+phaseBadge+'</div>'
+    +'<div class="rt-card__desc">'+escH(t.itemDescription)+'</div>'
+    +'<div class="rt-card__meta">'
+    +'<span>📍 '+escH(t.zoneName||t.zoneId)+'</span>'
+    +'<span>📦 '+escH(t.itemCategory)+'</span>'
+    +'<span>'+formatMoney(t.estimatedValue)+'</span>'
+    +(t.owner?'<span>👤 '+escH(t.owner)+'</span>':'')
+    +(t.deadline?'<span>📅 '+escH(t.deadline)+'</span>':'')
+    +'</div>'
+    +'</div>'
+    +'<div class="rt-card__actions">'+actions+'</div>'
+    +'</div>';
+}
+
+/* ── Create ── */
+function openCreate(){
+  document.getElementById('rtEditId').value='';
+  document.getElementById('rtDrawerTitle').textContent='New Red Tag';
+  document.getElementById('rtDesc').value='';
+  document.getElementById('rtCat').value='Equipment';
+  document.getElementById('rtAct').value='Discard';
+  document.getElementById('rtVal').value='';
+  document.getElementById('rtOwner').value='';
+  document.getElementById('rtDeadline').value='';
+  document.getElementById('rtRemarks').value='';
+  if(ZONE_ID)document.getElementById('rtZone').value=ZONE_ID;
+  pmDrawer('rtDrawer',true);
+}
+
+/* ── Edit ── */
+function openEdit(t){
+  document.getElementById('rtEditId').value=t.tagId;
+  document.getElementById('rtDrawerTitle').textContent='Edit Red Tag';
+  document.getElementById('rtDesc').value=t.itemDescription||'';
+  document.getElementById('rtCat').value=t.itemCategory||'Equipment';
+  document.getElementById('rtAct').value=t.proposedAction||'Discard';
+  document.getElementById('rtVal').value=t.estimatedValue||'';
+  document.getElementById('rtOwner').value=t.owner||'';
+  document.getElementById('rtDeadline').value=t.deadline?isoDate(t.deadline):'';
+  document.getElementById('rtRemarks').value=t.remarks||'';
+  document.getElementById('rtZone').value=t.zoneId||'';
+  pmDrawer('rtDrawer',true);
+}
+
+function isoDate(d){
+  // Convert "01-Jan-2025" or similar to yyyy-mm-dd for <input type=date>
+  if(!d)return'';
+  try{var dt=new Date(d);if(!isNaN(dt))return dt.toISOString().slice(0,10);}catch(e){}
+  return'';
+}
+
+/* ── Save (create or edit) ── */
+function saveTag(){
+  var desc=document.getElementById('rtDesc').value.trim();
+  if(!desc){pmToast('Item description is required','error');return;}
+  if(!validatePhotoOnMobile_()){return;}
+  var btn=document.getElementById('rtSaveBtn');
+  btn.disabled=true;btn.textContent='Saving…';
+  var editId=document.getElementById('rtEditId').value;
+  var data={
+    zoneId:document.getElementById('rtZone').value,
+    itemDescription:desc,
+    itemCategory:document.getElementById('rtCat').value,
+    proposedAction:document.getElementById('rtAct').value,
+    estimatedValue:parseFloat(document.getElementById('rtVal').value)||0,
+    owner:document.getElementById('rtOwner').value.trim(),
+    deadline:document.getElementById('rtDeadline').value,
+    remarks:document.getElementById('rtRemarks').value.trim()
+  };
+  function done(r){
+    btn.disabled=false;btn.textContent='Save Red Tag';
+    if(r&&r.success){pmToast('✓ Submitted','success');pmDrawer('rtDrawer',false);reload();}
+    else{pmToast((r&&r.message)||'Save failed','error');}
+  }
+  if(editId){
+    google.script.run.withFailureHandler(function(e){btn.disabled=false;btn.textContent='Save Red Tag';pmToast(e.message,'error');}).withSuccessHandler(done).editRedTag(editId,data);
+  } else {
+    if(!navigator.onLine){
+      /* Plan G: queue offline */
+      if(typeof offlineQueue!=='undefined'){
+        offlineQueue.queueSubmission('redtag', data).then(function(){
+          btn.disabled=false;btn.textContent='Save Red Tag';
+          pmToast('Saved offline — will sync when online','info');
+          pmDrawer('rtDrawer',false);
+          updateQueueStatus_();
+        }).catch(function(e){btn.disabled=false;btn.textContent='Save Red Tag';pmToast('Failed to queue: '+e.message,'error');});
+      }else{pmToast('No network and offline queue unavailable','error');btn.disabled=false;btn.textContent='Save Red Tag';}
+      return;
+    }
+    google.script.run
+      .withFailureHandler(function(e){
+        btn.disabled=false;btn.textContent='Save Red Tag';
+        /* Plan G: fall back to queue on network failure */
+        if(typeof offlineQueue!=='undefined'){
+          offlineQueue.queueSubmission('redtag', data).then(function(){
+            pmToast('Saved offline — will sync when online','info');
+            pmDrawer('rtDrawer',false);
+            updateQueueStatus_();
+          }).catch(function(){pmToast(e.message,'error');});
+        }else{pmToast(e.message,'error');}
+      })
+      .withSuccessHandler(done)
+      .createRedTag(data);
+  }
+}
+
+/* ── Plan F: Form defaults, mobile detection, photo validation ── */
+function initFormDefaults_(){
+  var params=new URLSearchParams(window.location.search);
+  var today=new Date().toISOString().split('T')[0];
+  document.querySelectorAll('input[type="date"]').forEach(function(f){if(!f.value)f.value=today;});
+  var ownerField=document.getElementById('rtOwner');
+  if(ownerField&&params.get('currentUser')&&!ownerField.value){ownerField.value=params.get('currentUser');}
+  document.querySelectorAll('.form-section').forEach(function(el,idx){
+    el.classList.add('animate__animated','animate__fadeInUp');
+    el.style.animationDelay=(idx*0.08)+'s';
+  });
+  document.body.classList.add('has-sticky-submit');
+}
+
+function isMobileDevice_(){
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
+function validatePhotoOnMobile_(){
+  if(!isMobileDevice_())return true;
+  var photoInput=document.getElementById('photoInput')||document.querySelector('input[type="file"][accept*="image"]');
+  if(!photoInput||!photoInput.files||photoInput.files.length===0){
+    if(typeof pmToast==='function')pmToast('Photo required on mobile','warning');
+    return false;
+  }
+  return true;
+}
+
+/* ── Phase advance ── */
+function openPhase(tagId,toPhase,fromPhase){
+  document.getElementById('rtPhaseId').value=tagId;
+  document.getElementById('rtPhaseTarget').value=toPhase;
+  var labels={IDENTIFIED:'Identified',EVALUATED:'Evaluated',DISPOSED:'Disposed',CLOSED:'Closed'};
+  document.getElementById('rtPhaseTitle').textContent='→ '+labels[toPhase];
+  document.getElementById('rtPhaseNotes').value='';
+  // Build phase indicator
+  var html='';
+  PHASES.forEach(function(p,i){
+    var phIdx=PHASES.indexOf(fromPhase);
+    var isDone=i<phIdx;
+    var isActive=p===fromPhase;
+    html+='<div class="ph-step">';
+    html+='<div class="ph-step-wrap"><div class="ph-dot '+(isDone?'done':isActive?'active':'')+'">'+(isDone?'✓':(i+1))+'</div><div class="ph-label">'+labels[p]+'</div></div>';
+    if(i<PHASES.length-1)html+='<div class="ph-line '+(isDone?'done':'')+'"></div>';
+    html+='</div>';
+  });
+  document.getElementById('rtPhaseSteps').innerHTML=html;
+  pmDrawer('rtPhaseDrawer',true);
+}
+
+function confirmAdvance(){
+  var tagId=document.getElementById('rtPhaseId').value;
+  var toPhase=document.getElementById('rtPhaseTarget').value;
+  var notes=document.getElementById('rtPhaseNotes').value.trim();
+  google.script.run
+    .withFailureHandler(function(e){pmToast(e.message,'error');})
+    .withSuccessHandler(function(r){
+      pmDrawer('rtPhaseDrawer',false);
+      if(r&&r.success){pmToast('Phase advanced','success');reload();}
+      else{pmToast((r&&r.message)||'Failed','error');}
+    })
+    .advanceRedTagPhase(tagId,toPhase,notes);
+}
+
+/* ── Delete ── */
+function deleteTag(tagId){
+  if(!confirm('Delete this red tag? This cannot be undone.'))return;
+  google.script.run
+    .withFailureHandler(function(e){pmToast(e.message,'error');})
+    .withSuccessHandler(function(r){
+      if(r&&r.success){pmToast('Tag deleted','success');allTags=allTags.filter(function(t){return t.tagId!==tagId;});render();}
+      else{pmToast((r&&r.message)||'Delete failed','error');}
+    })
+    .deleteRedTag(tagId);
+}
+
+/* ── Reload ── */
+function reload(){
+  allTags=[];
+  var list=document.getElementById('rtList');
+  list.innerHTML='<div id="rtSkeleton"><div class="skeleton skeleton-card"></div><div class="skeleton skeleton-card"></div></div>';
+  loadTags();
+}
+
+loadTags();
+loadZones();
+document.addEventListener('DOMContentLoaded', initFormDefaults_);
+</script>
+</body>
+</html>

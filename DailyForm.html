@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Checksheet — PackMasters 5S</title>
+  <link rel="manifest" href="<?= deployUrl ?>?action=manifest">
+  <meta name="theme-color" content="#1a5276">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <?!= include('CommonStyles') ?>
+</head>
+<body class="lang-en">
+
+  <!-- ══════════ HEADER ══════════ -->
+  <div class="pm-header">
+    <div class="pm-header__row">
+      <div>
+        <a class="back-link" href="<?= deployUrl ?>?zone=<?= JSON.parse(data).zone.id ?>" style="color:var(--pm-primary);text-decoration:none;font-size:13px;opacity:0.8">← Back</a>
+        <div class="pm-header__brand" style="margin-top:2px;">Daily Checksheet</div>
+        <div class="pm-header__zone" id="headerZone"></div>
+        <div class="pm-header__date" id="headerDate"></div>
+      </div>
+      <div class="lang-toggle">
+        <button class="lang-toggle__btn active" onclick="setLang('en')" id="langEn">EN</button>
+        <button class="lang-toggle__btn" onclick="setLang('hi')" id="langHi">हिं</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="offline-banner" id="offlineBanner"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.56 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg> Offline — your submission will be queued</div>
+
+  <!-- ══════════ FORM VIEW ══════════ -->
+  <div class="pm-content" id="formView">
+    <!-- Duplicate Warning -->
+    <div id="dupWarning" class="pm-card hidden" style="background:var(--score-amber-bg);border:1px solid var(--score-amber);">
+      <div style="font-weight:700;color:var(--score-amber);margin-bottom:4px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> <span class="label-en">Already submitted today</span><span class="label-hi" style="display:none">आज पहले से सबमिट हो चुका है</span></div>
+      <div class="text-sm text-muted"><span class="label-en">You can still submit — it will be marked as a duplicate.</span><span class="label-hi" style="display:none">आप फिर भी सबमिट कर सकते हैं — इसे डुप्लिकेट के रूप में चिह्नित किया जाएगा।</span></div>
+    </div>
+
+    <!-- Progress Counter -->
+    <div class="pm-card text-center" id="progressCard">
+      <div class="text-sm text-muted"><span class="label-en">Criteria Completed</span><span class="label-hi" style="display:none">पूर्ण मानदंड</span></div>
+      <div style="font-size:var(--size-xl);font-weight:800;color:var(--pm-primary);margin:4px 0;" id="progressCount">0 / 0</div>
+    </div>
+
+    <!-- Pillar Sections -->
+    <div id="pillarsContainer"></div>
+
+    <!-- Remarks -->
+    <div class="pm-card">
+      <div class="pm-card__title"><span class="label-en">Remarks</span><span class="label-hi" style="display:none">टिप्पणियां</span></div>
+      <textarea class="pm-textarea" id="remarks" placeholder="Optional remarks..." maxlength="500"></textarea>
+    </div>
+
+    <!-- Photo -->
+    <div class="pm-card">
+      <div class="pm-card__title"><span class="label-en">Photo (Optional)</span><span class="label-hi" style="display:none">फोटो (वैकल्पिक)</span></div>
+      <label class="photo-upload" id="photoUploadArea">
+        <div class="photo-upload__icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
+        <div class="photo-upload__text"><span class="label-en">Tap to take photo</span><span class="label-hi" style="display:none">फोटो लेने के लिए टैप करें</span></div>
+        <input type="file" accept="image/*" capture="environment" id="photoInput" style="display:none">
+      </label>
+      <img class="photo-preview" id="photoPreview">
+      <div class="text-xs text-muted mt-2" id="photoStatus"></div>
+    </div>
+
+    <!-- Submit Button -->
+    <button class="pm-btn pm-btn--success pm-btn--lg" id="submitBtn" disabled onclick="submitForm()">
+      <span class="label-en">Submit Checksheet</span><span class="label-hi" style="display:none">चेकशीट सबमिट करें</span>
+    </button>
+  </div>
+
+  <!-- ══════════ SUCCESS VIEW ══════════ -->
+  <div class="pm-content hidden" id="successView">
+    <div class="success-screen">
+      <div class="success-screen__icon" id="successIcon"></div>
+      <div class="success-screen__title" id="successTitle">Submitted!</div>
+      <div class="success-screen__score" id="successScore"></div>
+      <div class="success-screen__detail" id="successDetail"></div>
+      <div class="success-screen__detail" id="successDupNote" class="hidden"></div>
+      <div style="margin-top:24px">
+        <a class="pm-btn pm-btn--primary" id="backToZoneBtn">← <span class="label-en">Back to Zone</span><span class="label-hi" style="display:none">ज़ोन पर वापस</span></a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ SCORE BAR ══════════ -->
+  <div class="score-bar" id="scoreBar">
+    <div class="score-bar__progress">
+      <div class="score-bar__fill" id="scoreBarFill" style="background:var(--score-red);"></div>
+    </div>
+    <div class="score-bar__text">
+      <span id="scoreBarLabel"><strong id="passCount">0 / 0</strong> <span class="label-en">answered</span><span class="label-hi" style="display:none">उत्तर दिया</span></span>
+      <span class="score-bar__value" id="scoreBarPct">0%</span>
+    </div>
+  </div>
+
+  <!-- ══════════ LOADING OVERLAY ══════════ -->
+  <div class="pm-overlay" id="loadingOverlay">
+    <div style="text-align:center;color:white;">
+      <div class="pm-spinner"></div>
+      <div style="margin-top:16px;font-size:var(--size-sm);" id="loadingText">Submitting...</div>
+    </div>
+  </div>
+
+  <!-- ══════════ TOAST ══════════ -->
+  <div class="pm-toast" id="toast"></div>
+
+  <script>
+    (function() {
+      // ── SERVER-INJECTED DATA (zero API calls) ──
+      var SERVER_DATA = <?!= data ?>;
+      var deployUrl = '<?= deployUrl ?>';
+      var zone = SERVER_DATA.zone;
+      var schema = SERVER_DATA.schema;
+
+      // ── STATE ──
+      var answers = {};      // { "S1-C1": 1, "S1-C2": 0, ... }
+      var totalCriteria = schema.criteria.length;
+      var photoUrl = "";
+      var photoFileId = "";
+      var submissionId = generateUUID();
+
+      // ── INIT HEADER ──
+      document.getElementById('headerZone').textContent = zone.id + ' — ' + zone.name;
+      document.getElementById('headerDate').textContent = new Date().toLocaleDateString('en-IN', {
+        weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
+      });
+      document.getElementById('backToZoneBtn').href = deployUrl + '?zone=' + zone.id;
+      document.getElementById('progressCount').textContent = '0 / ' + totalCriteria;
+
+      // ── BUILD PILLAR ACCORDIONS ──
+      var container = document.getElementById('pillarsContainer');
+
+      schema.pillars.forEach(function(pillar, pIdx) {
+        var pillarCriteria = schema.criteria.filter(function(c) { return c.pillar === pillar; });
+        var pillarName = schema.pillarNames[pillar];
+
+        var section = document.createElement('div');
+        section.className = 'pillar-section';
+
+        // Header
+        var header = document.createElement('div');
+        header.className = 'pillar-header' + (pIdx === 0 ? ' open' : '');
+        header.innerHTML =
+          '<div class="pillar-header__title">' +
+            '<span class="label-en">' + pillarName.en + '</span>' +
+            '<span class="label-hi" style="display:none">' + pillarName.hi + '</span>' +
+          '</div>' +
+          '<div style="display:flex;align-items:center;gap:8px;">' +
+            '<span class="pillar-header__badge" id="badge_' + pillar + '">0/' + pillarCriteria.length + '</span>' +
+            '<span class="pillar-header__arrow">▼</span>' +
+          '</div>';
+
+        header.addEventListener('click', function() {
+          var body = this.nextElementSibling;
+          var isOpen = body.classList.contains('open');
+          // Close all
+          document.querySelectorAll('.pillar-body').forEach(function(b) { b.classList.remove('open'); });
+          document.querySelectorAll('.pillar-header').forEach(function(h) { h.classList.remove('open'); });
+          // Toggle this one
+          if (!isOpen) {
+            body.classList.add('open');
+            this.classList.add('open');
+          }
+        });
+
+        // Body
+        var body = document.createElement('div');
+        body.className = 'pillar-body' + (pIdx === 0 ? ' open' : '');
+
+        pillarCriteria.forEach(function(criterion) {
+          var row = document.createElement('div');
+          row.className = 'criterion-row';
+          row.id = 'row_' + criterion.id;
+          row.innerHTML =
+            '<div class="criterion-label">' + criterion.id + ': ' + criterion.labelEn + '</div>' +
+            '<div class="criterion-label-hi">' + criterion.id + ': ' + criterion.labelHi + '</div>' +
+            '<div class="pf-toggle">' +
+              '<button class="pf-btn pf-btn--pass" data-cid="' + criterion.id + '" data-val="1" onclick="selectPF(this)"><span class="label-en">PASS</span><span class="label-hi" style="display:none">पास</span></button>' +
+              '<button class="pf-btn pf-btn--fail" data-cid="' + criterion.id + '" data-val="0" onclick="selectPF(this)"><span class="label-en">FAIL</span><span class="label-hi" style="display:none">फेल</span></button>' +
+            '</div>';
+          body.appendChild(row);
+        });
+
+        section.appendChild(header);
+        section.appendChild(body);
+        container.appendChild(section);
+      });
+
+      // ── PASS/FAIL SELECTION ──
+      window.selectPF = function(btn) {
+        var cid = btn.getAttribute('data-cid');
+        var val = parseInt(btn.getAttribute('data-val'), 10);
+
+        // Deselect siblings
+        var siblings = btn.parentElement.querySelectorAll('.pf-btn');
+        siblings.forEach(function(s) { s.classList.remove('selected'); });
+
+        // Select this one
+        btn.classList.add('selected');
+        answers[cid] = val;
+
+        updateProgress();
+      };
+
+      // ── UPDATE PROGRESS ──
+      function updateProgress() {
+        var answered = Object.keys(answers).length;
+        var passed = 0;
+        for (var k in answers) { if (answers[k] === 1) passed++; }
+
+        document.getElementById('progressCount').textContent = answered + ' / ' + totalCriteria;
+        document.getElementById('passCount').textContent = answered + ' / ' + totalCriteria;
+
+        var pct = totalCriteria > 0 ? Math.round((passed / totalCriteria) * 100) : 0;
+        document.getElementById('scoreBarPct').textContent = pct + '%';
+
+        var fill = document.getElementById('scoreBarFill');
+        fill.style.transform = 'scaleX(' + (totalCriteria > 0 ? (answered / totalCriteria) : 0) + ')';
+        fill.style.background = pct >= 80 ? 'var(--score-green)' : pct >= 60 ? 'var(--score-amber)' : 'var(--score-red)';
+
+        // Update pillar badges
+        schema.pillars.forEach(function(pillar) {
+          var pillarCriteria = schema.criteria.filter(function(c) { return c.pillar === pillar; });
+          var pillarAnswered = 0;
+          pillarCriteria.forEach(function(c) {
+            if (answers[c.id] !== undefined) pillarAnswered++;
+          });
+          var badge = document.getElementById('badge_' + pillar);
+          if (badge) badge.textContent = pillarAnswered + '/' + pillarCriteria.length;
+        });
+
+        // Enable submit when all answered
+        document.getElementById('submitBtn').disabled = (answered < totalCriteria);
+      }
+
+      // ── PHOTO HANDLING ──
+      document.getElementById('photoInput').addEventListener('change', function(e) {
+        var file = e.target.files[0];
+        if (!file) return;
+
+        // Preview
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+          var preview = document.getElementById('photoPreview');
+          preview.src = ev.target.result;
+          preview.classList.add('visible');
+
+          document.getElementById('photoStatus').textContent = 'Uploading...';
+
+          // Upload to Drive
+          var base64 = ev.target.result.split(',')[1];
+          var fileName = zone.id + '_daily_' + new Date().toISOString().slice(0,10) + '_' + Date.now() + '.jpg';
+
+          google.script.run
+            .withSuccessHandler(function(result) {
+              if (result.error) {
+                document.getElementById('photoStatus').textContent = 'Upload failed: ' + result.error;
+              } else {
+                photoUrl = result.url;
+                photoFileId = result.fileId;
+                document.getElementById('photoStatus').textContent = 'Photo uploaded';
+              }
+            })
+            .withFailureHandler(function(err) {
+              document.getElementById('photoStatus').textContent = 'Upload failed';
+            })
+            .uploadPhotoToDrive(base64, fileName, zone.id);
+        };
+        reader.readAsDataURL(file);
+      });
+
+      // ── SUBMIT ──
+      window.submitForm = function() {
+        if (Object.keys(answers).length < totalCriteria) return;
+
+        var submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+
+        var payload = {
+          submission_id: submissionId,
+          zone_id: zone.id,
+          submission_type: 'daily',
+          criteria: answers,
+          remarks: document.getElementById('remarks').value.trim(),
+          photo_url: photoUrl
+        };
+
+        // Check online status
+        if (!navigator.onLine) {
+          queueOfflineSubmission(payload);
+          showSuccess({ total_pass: countPassed(), total_criteria: totalCriteria, pct_score: calcPct(), is_duplicate: false }, true);
+          return;
+        }
+
+        showLoading('Submitting...');
+
+        google.script.run
+          .withSuccessHandler(function(responseText) {
+            hideLoading();
+            var response;
+            try {
+              response = JSON.parse(responseText);
+            } catch (e) {
+              response = responseText;
+            }
+            if (typeof response === 'string') {
+              try { response = JSON.parse(response); } catch(e2) { response = { success: true, total_pass: countPassed(), total_criteria: totalCriteria, pct_score: calcPct() }; }
+            }
+            showSuccess(response, false);
+          })
+          .withFailureHandler(function(err) {
+            hideLoading();
+            // Queue for offline retry
+            queueOfflineSubmission(payload);
+            showToast('Submit failed. Queued for retry.');
+            submitBtn.disabled = false;
+          })
+          .doPost({ postData: { contents: JSON.stringify(payload) } });
+      };
+
+      function countPassed() {
+        var p = 0;
+        for (var k in answers) { if (answers[k] === 1) p++; }
+        return p;
+      }
+      function calcPct() {
+        return totalCriteria > 0 ? Math.round((countPassed() / totalCriteria) * 10000) / 100 : 0;
+      }
+
+      // ── SUCCESS SCREEN ──
+      function showSuccess(response, isQueued) {
+        document.getElementById('formView').classList.add('hidden');
+        document.getElementById('scoreBar').classList.add('hidden');
+        document.getElementById('successView').classList.remove('hidden');
+
+        // Safely extract values — doPost returns ContentService.TextOutput which
+        // google.script.run cannot serialize; fall back to client-computed values.
+        var r = (response && typeof response === 'object') ? response : {};
+        var passed = (r.total_pass != null ? r.total_pass : null) || countPassed();
+        var total  = r.total_criteria || totalCriteria;
+        var pct    = (r.pct_score != null ? r.pct_score : null) || calcPct();
+
+        document.getElementById('successIcon').textContent = '✓';
+        document.getElementById('successTitle').textContent = isQueued ? 'Queued for Submit' : 'Submitted!';
+        document.getElementById('successScore').textContent = passed + ' / ' + total + ' (' + pct + '%)';
+        document.getElementById('successScore').style.color = pct >= 80 ? 'var(--score-green)' : pct >= 60 ? 'var(--score-amber)' : 'var(--score-red)';
+        document.getElementById('successDetail').textContent = zone.name + ' — ' + new Date().toLocaleDateString('en-IN');
+
+        if (response.is_duplicate) {
+          document.getElementById('successDupNote').textContent = 'Duplicate submission — recorded with duplicate flag.';
+          document.getElementById('successDupNote').classList.remove('hidden');
+        }
+      }
+
+      // ── OFFLINE QUEUE ──
+      function queueOfflineSubmission(payload) {
+        var queue = JSON.parse(localStorage.getItem('pm5s_offline_queue') || '[]');
+        payload._queued_at = new Date().toISOString();
+        queue.push(payload);
+        localStorage.setItem('pm5s_offline_queue', JSON.stringify(queue));
+        showToast('Saved offline. Will submit when online.');
+      }
+
+      // Flush offline queue when back online
+      window.addEventListener('online', function() {
+        var queue = JSON.parse(localStorage.getItem('pm5s_offline_queue') || '[]');
+        if (queue.length === 0) return;
+
+        queue.forEach(function(payload, idx) {
+          google.script.run
+            .withSuccessHandler(function() {
+              showToast('Offline submission ' + (idx + 1) + ' sent');
+            })
+            .withFailureHandler(function() {})
+            .doPost({ postData: { contents: JSON.stringify(payload) } });
+        });
+        localStorage.setItem('pm5s_offline_queue', '[]');
+      });
+
+      // ── LANGUAGE ──
+      window.setLang = function(lang) {
+        document.body.className = 'lang-' + lang;
+        document.querySelectorAll('.label-en').forEach(function(el) { el.style.display = lang === 'en' ? '' : 'none'; });
+        document.querySelectorAll('.label-hi').forEach(function(el) { el.style.display = lang === 'hi' ? '' : 'none'; });
+        document.getElementById('langEn').classList.toggle('active', lang === 'en');
+        document.getElementById('langHi').classList.toggle('active', lang === 'hi');
+        localStorage.setItem('pm5s_lang', lang);
+      };
+      setLang(localStorage.getItem('pm5s_lang') || 'en');
+
+      // ── UTILITY ──
+      function generateUUID() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        });
+      }
+
+      function showLoading(text) {
+        document.getElementById('loadingText').textContent = text || 'Loading...';
+        document.getElementById('loadingOverlay').classList.add('visible');
+      }
+      function hideLoading() {
+        document.getElementById('loadingOverlay').classList.remove('visible');
+      }
+
+      window.showToast = function(msg) {
+        var toast = document.getElementById('toast');
+        toast.textContent = msg;
+        toast.classList.add('visible');
+        setTimeout(function() { toast.classList.remove('visible'); }, 3000);
+      };
+
+      // Offline status
+      function updateOnline() {
+        document.getElementById('offlineBanner').classList.toggle('visible', !navigator.onLine);
+      }
+      window.addEventListener('online', updateOnline);
+      window.addEventListener('offline', updateOnline);
+      updateOnline();
+
+      // Service worker
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register(deployUrl + '?action=sw').catch(function(){});
+      }
+    })();
+  </script>
+
+<script>
+window.PM_TOUR_ID = 'dailyform';
+window.PM_TOUR_STEPS = [
+  { selector: '.pm-header',          title: 'Daily Checksheet',  body: 'Fill this form each morning to log the 5S status of your zone. It takes about 2 minutes.', pos: 'bottom' },
+  { selector: '#progressCard',        title: 'Progress Tracker',  body: 'Shows how many of the 20 criteria you have answered so far today.', pos: 'bottom' },
+  { selector: '.pillar-section',     title: '5S Pillar',         body: 'Criteria are grouped into 5 pillars: Sort, Set in Order, Shine, Standardise, and Sustain.', pos: 'bottom' },
+  { selector: '.pass-btn',           title: 'Pass / Fail',       body: 'Tap PASS if the criterion is met today, FAIL if it needs attention. Your answer is saved immediately.', pos: 'top' },
+  { selector: '.submit-btn,button[type="submit"]', title: 'Submit', body: 'Submit when all criteria are answered. Your score appears instantly on the success screen.', pos: 'top' }
+];
+</script>
+<?!= include('GuidedTour') ?>
+</body>
+</html>

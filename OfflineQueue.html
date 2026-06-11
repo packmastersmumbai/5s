@@ -1,0 +1,269 @@
+<script>
+/* ============================================================
+   OfflineQueue.html — Plan G: Offline Mode
+   IndexedDB queue for offline form submissions.
+   Included in CommonStyles.html via <?!= include('OfflineQueue') ?>
+   ============================================================ */
+
+var DB_NAME = 'pm5s';
+var STORE_SUBMISSIONS = 'submissions';
+var DB_VERSION = 1;
+
+function getOrCreateDB_() {
+  return new Promise(function(resolve, reject) {
+    var request = indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onerror = function() { reject(request.error); };
+    request.onsuccess = function() { resolve(request.result); };
+
+    request.onupgradeneeded = function(event) {
+      var db = event.target.result;
+      if (!db.objectStoreNames.contains(STORE_SUBMISSIONS)) {
+        var store = db.createObjectStore(STORE_SUBMISSIONS, {
+          keyPath: 'id',
+          autoIncrement: true
+        });
+        store.createIndex('status', 'status', { unique: false });
+        store.createIndex('timestamp', 'timestamp', { unique: false });
+        store.createIndex('formType', 'formType', { unique: false });
+        store.createIndex('zone', 'zone', { unique: false });
+      }
+    };
+  });
+}
+
+class OfflineQueueService {
+  constructor() {
+    this.db = null;
+    this.isOnline = navigator.onLine;
+    this._initOnlineListener();
+  }
+
+  async _initDB() {
+    if (!this.db) {
+      this.db = await getOrCreateDB_();
+    }
+    return this.db;
+  }
+
+  /* Queue a submission — formData must be a plain {} (not FormData) */
+  async queueSubmission(formType, plainData) {
+    try {
+      var db = await this._initDB();
+      var params = new URLSearchParams(window.location.search);
+      var ownerEl = document.getElementById('owner') ||
+                    document.getElementById('rtOwner') ||
+                    document.getElementById('walkerName') ||
+                    document.getElementById('kzName') ||
+                    document.querySelector('[name="owner"]');
+      var submission = {
+        status: 'pending',
+        formType: formType,
+        zone: plainData.zone || plainData.zoneId || params.get('zone') || '',
+        owner: (ownerEl && ownerEl.value) || params.get('currentUser') || 'unknown',
+        timestamp: Date.now(),
+        expiresAt: Date.now() + 86400000, // 24h
+        attemptCount: 0,
+        lastAttempt: null,
+        errorMessage: null,
+        data: plainData
+      };
+
+      var store = db.transaction(STORE_SUBMISSIONS, 'readwrite').objectStore(STORE_SUBMISSIONS);
+      var req = store.add(submission);
+
+      return new Promise(function(resolve, reject) {
+        req.onerror = function() { reject(req.error); };
+        req.onsuccess = function() {
+          console.log('[OfflineQueue] Queued ' + formType + ' (id=' + req.result + ')');
+          resolve(req.result);
+        };
+      });
+    } catch(e) {
+      console.error('[OfflineQueue] queueSubmission failed:', e);
+      throw e;
+    }
+  }
+
+  async getPendingSubmissions() {
+    try {
+      var db = await this._initDB();
+      var index = db.transaction(STORE_SUBMISSIONS, 'readonly')
+                    .objectStore(STORE_SUBMISSIONS)
+                    .index('status');
+      return new Promise(function(resolve, reject) {
+        var req = index.getAll('pending');
+        req.onerror = function() { reject(req.error); };
+        req.onsuccess = function() { resolve(req.result); };
+      });
+    } catch(e) {
+      console.error('[OfflineQueue] getPending failed:', e);
+      return [];
+    }
+  }
+
+  async markSynced(id) {
+    try {
+      var db = await this._initDB();
+      var store = db.transaction(STORE_SUBMISSIONS, 'readwrite').objectStore(STORE_SUBMISSIONS);
+      return new Promise(function(resolve, reject) {
+        var getReq = store.get(id);
+        getReq.onerror = function() { reject(getReq.error); };
+        getReq.onsuccess = function() {
+          var rec = getReq.result;
+          if (!rec) { resolve(null); return; }
+          rec.status = 'synced';
+          rec.syncedAt = Date.now();
+          var putReq = store.put(rec);
+          putReq.onerror = function() { reject(putReq.error); };
+          putReq.onsuccess = function() { resolve(rec); };
+        };
+      });
+    } catch(e) {
+      console.error('[OfflineQueue] markSynced failed:', e);
+    }
+  }
+
+  async markFailed(id, errorMessage) {
+    try {
+      var db = await this._initDB();
+      var store = db.transaction(STORE_SUBMISSIONS, 'readwrite').objectStore(STORE_SUBMISSIONS);
+      return new Promise(function(resolve, reject) {
+        var getReq = store.get(id);
+        getReq.onerror = function() { reject(getReq.error); };
+        getReq.onsuccess = function() {
+          var rec = getReq.result;
+          if (!rec) { resolve(null); return; }
+          rec.status = 'failed';
+          rec.errorMessage = errorMessage;
+          rec.attemptCount = (rec.attemptCount || 0) + 1;
+          rec.lastAttempt = Date.now();
+          var putReq = store.put(rec);
+          putReq.onerror = function() { reject(putReq.error); };
+          putReq.onsuccess = function() { resolve(rec); };
+        };
+      });
+    } catch(e) {
+      console.error('[OfflineQueue] markFailed failed:', e);
+    }
+  }
+
+  async cleanupExpired() {
+    try {
+      var db = await this._initDB();
+      var store = db.transaction(STORE_SUBMISSIONS, 'readwrite').objectStore(STORE_SUBMISSIONS);
+      var now = Date.now();
+      return new Promise(function(resolve, reject) {
+        var req = store.getAll();
+        req.onerror = function() { reject(req.error); };
+        req.onsuccess = function() {
+          var expired = req.result.filter(function(s) { return s.expiresAt < now; });
+          expired.forEach(function(s) { store.delete(s.id); });
+          resolve(expired.length);
+        };
+      });
+    } catch(e) {
+      console.error('[OfflineQueue] cleanupExpired failed:', e);
+      return 0;
+    }
+  }
+
+  async getQueueStats() {
+    try {
+      var db = await this._initDB();
+      var store = db.transaction(STORE_SUBMISSIONS, 'readonly').objectStore(STORE_SUBMISSIONS);
+      return new Promise(function(resolve, reject) {
+        var req = store.getAll();
+        req.onerror = function() { reject(req.error); };
+        req.onsuccess = function() {
+          var all = req.result;
+          var pending = all.filter(function(s) { return s.status === 'pending'; });
+          var failed  = all.filter(function(s) { return s.status === 'failed'; });
+          var synced  = all.filter(function(s) { return s.status === 'synced'; });
+          resolve({
+            total: all.length,
+            pending: pending.length,
+            failed: failed.length,
+            synced: synced.length,
+            oldestPending: pending.length > 0 ? pending[0].timestamp : null
+          });
+        };
+      });
+    } catch(e) {
+      console.error('[OfflineQueue] getQueueStats failed:', e);
+      return { total: 0, pending: 0, failed: 0, synced: 0 };
+    }
+  }
+
+  /* Sync all pending to GAS backend */
+  async syncToServer() {
+    if (!navigator.onLine) {
+      console.log('[OfflineQueue] Offline — skipping sync');
+      return;
+    }
+    try {
+      var pending = await this.getPendingSubmissions();
+      if (pending.length === 0) {
+        console.log('[OfflineQueue] Nothing to sync');
+        return;
+      }
+      console.log('[OfflineQueue] Syncing ' + pending.length + ' submissions');
+
+      /* Pass IDs alongside data so we can mark them after response */
+      var self = this;
+      google.script.run
+        .withSuccessHandler(async function(resp) {
+          if (!resp) return;
+          var synced = resp.synced || 0;
+          var failed = resp.failed || 0;
+          /* Mark each record based on server errors array */
+          var errMap = {};
+          (resp.errors || []).forEach(function(e) {
+            if (e.id) errMap[e.id] = e.message;
+          });
+          for (var i = 0; i < pending.length; i++) {
+            var sub = pending[i];
+            if (errMap[sub.id]) {
+              await self.markFailed(sub.id, errMap[sub.id]);
+            } else {
+              await self.markSynced(sub.id);
+            }
+          }
+          if (synced > 0) {
+            if (typeof pmToast === 'function') pmToast('Synced ' + synced + ' submission' + (synced > 1 ? 's' : ''), 'success');
+          }
+          if (failed > 0) {
+            if (typeof pmToast === 'function') pmToast(failed + ' submission(s) failed to sync', 'error');
+          }
+          updateQueueStatus_();
+        })
+        .withFailureHandler(function(e) {
+          console.error('[OfflineQueue] Server sync failed:', e);
+          if (typeof pmToast === 'function') pmToast('Sync failed — will retry when online', 'warning');
+        })
+        .syncOfflineSubmissions(JSON.stringify(pending));
+    } catch(e) {
+      console.error('[OfflineQueue] syncToServer failed:', e);
+    }
+  }
+
+  _initOnlineListener() {
+    var self = this;
+    window.addEventListener('online', function() {
+      console.log('[OfflineQueue] Online detected');
+      self.isOnline = true;
+      self.cleanupExpired();
+      self.syncToServer();
+      if (typeof updateOfflineIndicator_ === 'function') updateOfflineIndicator_();
+    });
+    window.addEventListener('offline', function() {
+      console.log('[OfflineQueue] Offline detected');
+      self.isOnline = false;
+      if (typeof updateOfflineIndicator_ === 'function') updateOfflineIndicator_();
+    });
+  }
+}
+
+/* Global singleton — available to all pages that include CommonStyles */
+var offlineQueue = new OfflineQueueService();
+</script>

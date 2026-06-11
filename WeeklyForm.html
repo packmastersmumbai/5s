@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weekly Audit — PackMasters 5S</title>
+  <link rel="manifest" href="<?= deployUrl ?>?action=manifest">
+  <meta name="theme-color" content="#1a5276">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <?!= include('CommonStyles') ?>
+  <style>
+    .auth-gate {
+      text-align: center;
+      padding: var(--sp-8) var(--sp-5);
+    }
+    .auth-gate__icon { font-size: 64px; margin-bottom: var(--sp-4); }
+    .auth-gate__title { font-size: var(--size-xl); font-weight: 700; color: var(--score-red); }
+    .auth-gate__msg { font-size: var(--size-sm); color: var(--text-secondary); margin-top: var(--sp-3); }
+    .auth-checking { text-align: center; padding: var(--sp-8); }
+    .auth-checking .pm-spinner { margin: 0 auto; border-top-color: var(--pm-primary); border-color: var(--border); border-top-color: var(--pm-primary); }
+  </style>
+</head>
+<body class="lang-en">
+
+  <!-- ══════════ HEADER ══════════ -->
+  <div class="pm-header">
+    <div class="pm-header__row">
+      <div>
+        <a class="back-link" href="<?= deployUrl ?>?zone=<?= JSON.parse(data).zone.id ?>" style="color:white;text-decoration:none;font-size:13px;opacity:0.8">← Back</a>
+        <div class="pm-header__brand" style="margin-top:2px;">Weekly Audit</div>
+        <div class="pm-header__zone" id="headerZone"></div>
+        <div class="pm-header__date" id="headerDate"></div>
+      </div>
+      <div class="lang-toggle">
+        <button class="lang-toggle__btn active" onclick="setLang('en')" id="langEn">EN</button>
+        <button class="lang-toggle__btn" onclick="setLang('hi')" id="langHi">हिं</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="offline-banner" id="offlineBanner"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.56 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg> Offline mode not available for weekly audit</div>
+
+  <!-- ══════════ AUTH CHECK ══════════ -->
+  <div class="pm-content" id="authCheckView">
+    <div class="auth-checking">
+      <div class="pm-spinner"></div>
+      <div class="mt-4 text-muted"><span class="label-en">Verifying auditor access...</span><span class="label-hi" style="display:none">ऑडिटर पहुंच सत्यापित हो रहा है...</span></div>
+    </div>
+  </div>
+
+  <!-- ══════════ AUTH DENIED ══════════ -->
+  <div class="pm-content hidden" id="authDeniedView">
+    <div class="auth-gate">
+      <div class="auth-gate__icon"></div>
+      <div class="auth-gate__title"><span class="label-en">Access Denied</span><span class="label-hi" style="display:none">पहुंच अस्वीकृत</span></div>
+      <div class="auth-gate__msg" id="authDeniedMsg"></div>
+      <a class="pm-btn pm-btn--outline mt-4" href="<?= deployUrl ?>?zone=<?= JSON.parse(data).zone.id ?>">← <span class="label-en">Back to Zone</span><span class="label-hi" style="display:none">ज़ोन पर वापस</span></a>
+    </div>
+  </div>
+
+  <!-- ══════════ AUDIT FORM ══════════ -->
+  <div class="pm-content hidden" id="formView">
+    <!-- Auditor Info -->
+    <div class="pm-card">
+      <div class="text-sm"><span class="label-en">Auditor</span><span class="label-hi" style="display:none">ऑडिटर</span>: <strong id="auditorEmail"></strong></div>
+    </div>
+
+    <!-- Scoring Guide -->
+    <div class="pm-card" style="padding:var(--sp-3);">
+      <div class="text-sm fw-bold mb-2"><span class="label-en">Scoring Guide</span><span class="label-hi" style="display:none">स्कोरिंग गाइड</span></div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;font-size:11px;">
+        <span class="badge badge--red">0 = N/A</span>
+        <span class="badge" style="background:#fef5e7;color:#e67e22;">1 = Poor</span>
+        <span class="badge" style="background:#fef9e7;color:#b7950b;">2 = Fair</span>
+        <span class="badge" style="background:#e8f8f5;color:#1e8449;">3 = Good</span>
+        <span class="badge badge--green">4 = Excellent</span>
+      </div>
+    </div>
+
+    <!-- Pillar Sections with Score Selectors -->
+    <div id="pillarsContainer"></div>
+
+    <!-- Photo Upload -->
+    <div class="pm-card">
+      <div class="pm-card__title"><span class="label-en">Audit Photos</span><span class="label-hi" style="display:none">ऑडिट फोटो</span></div>
+      <label class="photo-upload" id="photoUploadArea">
+        <div class="photo-upload__icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
+        <div class="photo-upload__text"><span class="label-en">Tap to add photos</span><span class="label-hi" style="display:none">फोटो जोड़ने के लिए टैप करें</span></div>
+        <input type="file" accept="image/*" capture="environment" id="photoInput" multiple style="display:none">
+      </label>
+      <div id="photoList" style="margin-top:8px;"></div>
+    </div>
+
+    <!-- Submit -->
+    <button class="pm-btn pm-btn--success pm-btn--lg" id="submitBtn" disabled onclick="submitAudit()">
+      <span class="label-en">Submit Audit</span><span class="label-hi" style="display:none">ऑडिट सबमिट करें</span>
+    </button>
+  </div>
+
+  <!-- ══════════ SUCCESS VIEW ══════════ -->
+  <div class="pm-content hidden" id="successView">
+    <div class="success-screen">
+      <div class="success-screen__icon" id="successIcon"></div>
+      <div class="success-screen__title" id="successTitle">Audit Submitted!</div>
+      <div class="success-screen__score" id="successScore"></div>
+      <div class="success-screen__detail" id="successNCs"></div>
+      <div class="success-screen__detail" id="successZone"></div>
+      <div style="margin-top:24px">
+        <a class="pm-btn pm-btn--primary" href="<?= deployUrl ?>?zone=<?= JSON.parse(data).zone.id ?>">← <span class="label-en">Back to Zone</span><span class="label-hi" style="display:none">ज़ोन पर वापस</span></a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ SCORE BAR (FIXED BOTTOM) ══════════ -->
+  <div class="score-bar hidden" id="scoreBar">
+    <div class="score-bar__progress">
+      <div class="score-bar__fill" id="scoreBarFill"></div>
+    </div>
+    <div class="score-bar__text">
+      <span><span class="label-en">Score</span><span class="label-hi" style="display:none">स्कोर</span>: <strong id="totalScore">0</strong>/<span id="maxScore">80</span></span>
+      <span class="score-bar__value" id="scoreBarPct">0%</span>
+    </div>
+  </div>
+
+  <!-- ══════════ LOADING OVERLAY ══════════ -->
+  <div class="pm-overlay" id="loadingOverlay">
+    <div style="text-align:center;color:white;">
+      <div class="pm-spinner"></div>
+      <div style="margin-top:16px;font-size:var(--size-sm);" id="loadingText">Submitting...</div>
+    </div>
+  </div>
+  <div class="pm-toast" id="toast"></div>
+
+  <script>
+    (function() {
+      var SERVER_DATA = <?!= data ?>;
+      var deployUrl = '<?= deployUrl ?>';
+      var zone = SERVER_DATA.zone;
+      var schema = SERVER_DATA.schema;
+
+      var scores = {};       // { "S1-C1": 3, "S1-C2": 4, ... }
+      var totalCriteria = schema.criteria.length;
+      var maxScoreTotal = schema.maxTotalScore || 80;
+      var ncThreshold = schema.ncThreshold || 1;
+      var auditorEmail = '';
+      var photoUrls = [];
+      var submissionId = generateUUID();
+
+      // ── HEADER ──
+      document.getElementById('headerZone').textContent = zone.id + ' — ' + zone.name;
+      document.getElementById('headerDate').textContent = new Date().toLocaleDateString('en-IN', {
+        weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
+      });
+      document.getElementById('maxScore').textContent = maxScoreTotal;
+
+      // ── AUTH CHECK ──
+      google.script.run
+        .withSuccessHandler(function(email) {
+          auditorEmail = email || '';
+          if (!auditorEmail) {
+            showAuthDenied('Unable to verify your identity. Please ensure you are signed into your Google account.');
+            return;
+          }
+          // Check whitelist
+          google.script.run
+            .withSuccessHandler(function(isAuth) {
+              if (isAuth) {
+                showAuditForm();
+              } else {
+                showAuthDenied('Your email (' + auditorEmail + ') is not in the authorized auditor list. Contact the Management Coordinator.');
+              }
+            })
+            .withFailureHandler(function(err) {
+              showAuthDenied('Auth check failed: ' + err.message);
+            })
+            .checkAuditorAuth(auditorEmail);
+        })
+        .withFailureHandler(function(err) {
+          showAuthDenied('Could not verify identity: ' + err.message);
+        })
+        .getCurrentUserEmail();
+
+      function showAuthDenied(msg) {
+        document.getElementById('authCheckView').classList.add('hidden');
+        document.getElementById('authDeniedView').classList.remove('hidden');
+        document.getElementById('authDeniedMsg').textContent = msg;
+      }
+
+      function showAuditForm() {
+        document.getElementById('authCheckView').classList.add('hidden');
+        document.getElementById('formView').classList.remove('hidden');
+        document.getElementById('scoreBar').classList.remove('hidden');
+        document.getElementById('auditorEmail').textContent = auditorEmail;
+        buildCriteriaForm();
+      }
+
+      // ── BUILD CRITERIA FORM ──
+      function buildCriteriaForm() {
+        var container = document.getElementById('pillarsContainer');
+
+        schema.pillars.forEach(function(pillar, pIdx) {
+          var pillarCriteria = schema.criteria.filter(function(c) { return c.pillar === pillar; });
+          var pillarName = schema.pillarNames[pillar];
+
+          var section = document.createElement('div');
+          section.className = 'pillar-section';
+
+          var header = document.createElement('div');
+          header.className = 'pillar-header' + (pIdx === 0 ? ' open' : '');
+          header.innerHTML =
+            '<div class="pillar-header__title">' +
+              '<span class="label-en">' + pillarName.en + '</span>' +
+              '<span class="label-hi" style="display:none">' + pillarName.hi + '</span>' +
+            '</div>' +
+            '<div style="display:flex;align-items:center;gap:8px;">' +
+              '<span class="pillar-header__badge" id="wbadge_' + pillar + '">0/' + (pillarCriteria.length * 4) + '</span>' +
+              '<span class="pillar-header__arrow">▼</span>' +
+            '</div>';
+
+          header.addEventListener('click', function() {
+            var body = this.nextElementSibling;
+            var isOpen = body.classList.contains('open');
+            document.querySelectorAll('.pillar-body').forEach(function(b) { b.classList.remove('open'); });
+            document.querySelectorAll('.pillar-header').forEach(function(h) { h.classList.remove('open'); });
+            if (!isOpen) { body.classList.add('open'); this.classList.add('open'); }
+          });
+
+          var body = document.createElement('div');
+          body.className = 'pillar-body' + (pIdx === 0 ? ' open' : '');
+
+          pillarCriteria.forEach(function(criterion) {
+            var row = document.createElement('div');
+            row.className = 'criterion-row';
+            row.innerHTML =
+              '<div class="criterion-label">' + criterion.id + ': ' + criterion.labelEn + '</div>' +
+              '<div class="criterion-label-hi">' + criterion.id + ': ' + criterion.labelHi + '</div>' +
+              '<div class="score-selector">' +
+                [0,1,2,3,4].map(function(s) {
+                  return '<button class="score-btn" data-cid="' + criterion.id + '" data-score="' + s + '" onclick="selectScore(this)">' + s + '</button>';
+                }).join('') +
+              '</div>' +
+              '<div class="nc-notice" id="nc_' + criterion.id + '">' +
+                '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> <span class="label-en">NC will be raised for this criterion</span>' +
+                '<span class="label-hi" style="display:none">इस मानदंड के लिए NC उठाया जाएगा</span>' +
+              '</div>';
+            body.appendChild(row);
+          });
+
+          section.appendChild(header);
+          section.appendChild(body);
+          container.appendChild(section);
+        });
+
+        // Apply saved language
+        setLang(localStorage.getItem('pm5s_lang') || 'en');
+      }
+
+      // ── SCORE SELECTION ──
+      window.selectScore = function(btn) {
+        var cid = btn.getAttribute('data-cid');
+        var score = parseInt(btn.getAttribute('data-score'), 10);
+
+        var siblings = btn.parentElement.querySelectorAll('.score-btn');
+        siblings.forEach(function(s) { s.classList.remove('selected'); });
+        btn.classList.add('selected');
+
+        scores[cid] = score;
+
+        // Show/hide NC notice
+        var ncNotice = document.getElementById('nc_' + cid);
+        if (ncNotice) {
+          ncNotice.classList.toggle('visible', score <= ncThreshold);
+        }
+
+        updateScoreBar();
+      };
+
+      function updateScoreBar() {
+        var answered = Object.keys(scores).length;
+        var total = 0;
+        var ncCount = 0;
+        for (var k in scores) {
+          total += scores[k];
+          if (scores[k] <= ncThreshold) ncCount++;
+        }
+
+        document.getElementById('totalScore').textContent = total;
+        var pct = maxScoreTotal > 0 ? Math.round((total / maxScoreTotal) * 100) : 0;
+        document.getElementById('scoreBarPct').textContent = pct + '%';
+
+        var fill = document.getElementById('scoreBarFill');
+        fill.style.transform = 'scaleX(' + (maxScoreTotal > 0 ? pct / 100 : 0) + ')';
+        fill.style.background = pct >= 80 ? 'var(--score-green)' : pct >= 60 ? 'var(--score-amber)' : 'var(--score-red)';
+
+        // Update pillar badges
+        schema.pillars.forEach(function(pillar) {
+          var pc = schema.criteria.filter(function(c) { return c.pillar === pillar; });
+          var pillarScore = 0;
+          var pillarMax = 0;
+          pc.forEach(function(c) {
+            pillarMax += c.maxScore;
+            if (scores[c.id] !== undefined) pillarScore += scores[c.id];
+          });
+          var badge = document.getElementById('wbadge_' + pillar);
+          if (badge) badge.textContent = pillarScore + '/' + pillarMax;
+        });
+
+        document.getElementById('submitBtn').disabled = (answered < totalCriteria);
+      }
+
+      // ── PHOTO HANDLING ──
+      document.getElementById('photoInput').addEventListener('change', function(e) {
+        var files = e.target.files;
+        for (var i = 0; i < files.length; i++) {
+          (function(file) {
+            var reader = new FileReader();
+            reader.onload = function(ev) {
+              var base64 = ev.target.result.split(',')[1];
+              var fn = zone.id + '_audit_' + Date.now() + '_' + i + '.jpg';
+              var statusEl = document.createElement('div');
+              statusEl.className = 'text-xs text-muted';
+              statusEl.textContent = 'Uploading ' + file.name + '...';
+              document.getElementById('photoList').appendChild(statusEl);
+
+              google.script.run
+                .withSuccessHandler(function(result) {
+                  if (result.error) {
+                    statusEl.textContent = file.name + ': ' + result.error;
+                  } else {
+                    photoUrls.push(result.url);
+                    statusEl.innerHTML = '<a href="' + result.url + '" target="_blank" style="color:var(--pm-primary)">' + file.name + '</a>';
+                  }
+                })
+                .withFailureHandler(function() {
+                  statusEl.textContent = file.name + ': upload failed';
+                })
+                .uploadPhotoToDrive(base64, fn, zone.id);
+            };
+            reader.readAsDataURL(file);
+          })(files[i]);
+        }
+      });
+
+      // ── SUBMIT AUDIT ──
+      window.submitAudit = function() {
+        if (Object.keys(scores).length < totalCriteria) return;
+
+        document.getElementById('submitBtn').disabled = true;
+        showLoading('Submitting audit...');
+
+        var payload = {
+          submission_id: submissionId,
+          zone_id: zone.id,
+          submission_type: 'weekly',
+          auditor_email: auditorEmail,
+          scores: scores,
+          photo_urls: JSON.stringify(photoUrls)
+        };
+
+        google.script.run
+          .withSuccessHandler(function(responseText) {
+            hideLoading();
+            var response;
+            try { response = JSON.parse(responseText); } catch(e) { response = responseText; }
+            if (typeof response === 'string') {
+              try { response = JSON.parse(response); } catch(e2) {
+                response = { success: true, total_score: calcTotal(), max_score: maxScoreTotal, pct_score: calcPctScore(), nc_count: calcNCs() };
+              }
+            }
+            showAuditSuccess(response);
+          })
+          .withFailureHandler(function(err) {
+            hideLoading();
+            showToast('Submission failed: ' + err.message);
+            document.getElementById('submitBtn').disabled = false;
+          })
+          .doPost({ postData: { contents: JSON.stringify(payload) } });
+      };
+
+      function calcTotal() { var t = 0; for (var k in scores) t += scores[k]; return t; }
+      function calcPctScore() { return maxScoreTotal > 0 ? Math.round((calcTotal() / maxScoreTotal) * 100) : 0; }
+      function calcNCs() { var n = 0; for (var k in scores) { if (scores[k] <= ncThreshold) n++; } return n; }
+
+      function showAuditSuccess(response) {
+        document.getElementById('formView').classList.add('hidden');
+        document.getElementById('scoreBar').classList.add('hidden');
+        document.getElementById('successView').classList.remove('hidden');
+
+        var total = response.total_score || calcTotal();
+        var max = response.max_score || maxScoreTotal;
+        var pct = response.pct_score || calcPctScore();
+        var ncs = response.nc_count || calcNCs();
+
+        document.getElementById('successIcon').textContent = '';
+        document.getElementById('successTitle').textContent = 'Audit Submitted!';
+        document.getElementById('successScore').textContent = total + ' / ' + max + ' (' + pct + '%)';
+        document.getElementById('successScore').style.color = pct >= 80 ? 'var(--score-green)' : pct >= 60 ? 'var(--score-amber)' : 'var(--score-red)';
+        document.getElementById('successNCs').textContent = ncs > 0 ? (ncs + ' Non-Conformances raised') : 'No Non-Conformances';
+        document.getElementById('successZone').textContent = zone.name + ' — ' + new Date().toLocaleDateString('en-IN');
+      }
+
+      // ── LANGUAGE ──
+      window.setLang = function(lang) {
+        document.body.className = 'lang-' + lang;
+        document.querySelectorAll('.label-en').forEach(function(el) { el.style.display = lang === 'en' ? '' : 'none'; });
+        document.querySelectorAll('.label-hi').forEach(function(el) { el.style.display = lang === 'hi' ? '' : 'none'; });
+        document.getElementById('langEn').classList.toggle('active', lang === 'en');
+        document.getElementById('langHi').classList.toggle('active', lang === 'hi');
+        localStorage.setItem('pm5s_lang', lang);
+      };
+
+      // ── UTILITY ──
+      function generateUUID() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          var r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+        });
+      }
+      function showLoading(t) { document.getElementById('loadingText').textContent = t; document.getElementById('loadingOverlay').classList.add('visible'); }
+      function hideLoading() { document.getElementById('loadingOverlay').classList.remove('visible'); }
+      window.showToast = function(m) { var t = document.getElementById('toast'); t.textContent = m; t.classList.add('visible'); setTimeout(function(){t.classList.remove('visible');}, 3000); };
+      function updateOnline() { document.getElementById('offlineBanner').classList.toggle('visible', !navigator.onLine); }
+      window.addEventListener('online', updateOnline);
+      window.addEventListener('offline', updateOnline);
+      updateOnline();
+    })();
+  </script>
+</body>
+</html>

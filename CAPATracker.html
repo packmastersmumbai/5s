@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>NC/CAPA Tracker — PackMasters 5S</title>
+  <?!= include('CommonStyles') ?>
+  <style>
+    .capa-card{background:var(--bg-card);border-radius:10px;padding:var(--sp-4);margin-bottom:var(--sp-3);box-shadow:var(--shadow);border-left:4px solid var(--border);}
+    .capa-card--open{border-left-color:var(--score-blue);}
+    .capa-card--in_progress{border-left-color:var(--score-amber);}
+    .capa-card--overdue{border-left-color:var(--score-red);}
+    .capa-card--closed{border-left-color:var(--score-green);}
+    .capa-card--repeat_nc{border-left-color:#8e44ad;}
+    .capa-id{font-weight:700;font-size:var(--size-sm);color:var(--pm-primary);}
+    .capa-criterion{font-size:var(--size-sm);margin:4px 0;}
+    .capa-meta{font-size:var(--size-xs);color:var(--text-secondary);display:flex;flex-wrap:wrap;gap:var(--sp-2);margin-top:var(--sp-2);}
+    .capa-status{display:inline-block;padding:2px 10px;border-radius:12px;font-size:11px;font-weight:700;}
+    .capa-status--open{background:var(--score-blue-bg);color:var(--score-blue);}
+    .capa-status--in_progress{background:var(--score-amber-bg);color:var(--score-amber);}
+    .capa-status--overdue{background:var(--score-red-bg);color:var(--score-red);}
+    .capa-status--closed{background:var(--score-green-bg);color:var(--score-green);}
+    .capa-status--repeat_nc{background:#f4ecf7;color:#8e44ad;}
+    .capa-days{font-weight:700;}
+    .capa-days.overdue{color:var(--score-red);}
+    .capa-days.ok{color:var(--score-green);}
+    .capa-actions{display:flex;gap:var(--sp-2);margin-top:var(--sp-3);}
+    .capa-actions button{flex:1;min-height:36px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;}
+    .filter-bar{display:flex;gap:var(--sp-2);margin-bottom:var(--sp-4);flex-wrap:wrap;}
+    .filter-btn{padding:6px 12px;border-radius:16px;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--bg-card);cursor:pointer;color:var(--text-secondary);}
+    .filter-btn.active{background:var(--pm-primary);color:white;border-color:var(--pm-primary);}
+    .update-modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;z-index:200;padding:20px;}
+    .update-modal.visible{display:flex;}
+    .update-modal__content{background:white;border-radius:12px;padding:20px;width:100%;max-width:400px;max-height:90vh;overflow-y:auto;}
+    .count-badge{display:inline-block;min-width:20px;text-align:center;padding:1px 6px;border-radius:10px;font-size:10px;font-weight:700;background:var(--score-red);color:white;margin-left:4px;}
+    /* ── Plan F: mobile-only ── */
+    .mobile-only { display: none; }
+    @media (max-width: 768px) {
+      .mobile-only { display: inline; color: var(--score-red, #EF4444); }
+    }
+  </style>
+</head>
+<body>
+  <div class="pm-header">
+    <div class="pm-header__row">
+      <div>
+        <a href="<?= JSON.parse(data).deployUrl ?>" style="color:white;text-decoration:none;font-size:13px;opacity:0.8">← Home</a>
+        <div class="pm-header__brand" style="margin-top:2px;">NC / CAPA Tracker</div>
+        <div class="pm-header__zone" id="headerSub"></div>
+      </div>
+    </div>
+  </div>
+  <div class="pm-content">
+    <!-- Summary -->
+    <div class="dash-grid" id="summaryGrid" style="margin-bottom:var(--sp-4);"></div>
+    <!-- Filters -->
+    <div class="filter-bar" id="filterBar"></div>
+    <!-- CAPA List -->
+    <div id="capaList"><div class="skeleton" style="height:80px;margin-bottom:8px;"></div><div class="skeleton" style="height:80px;margin-bottom:8px;"></div></div>
+  </div>
+
+  <!-- Update Modal -->
+  <div class="update-modal" id="updateModal">
+    <div class="update-modal__content">
+      <h3 style="color:var(--pm-primary);margin-bottom:12px;">Update CAPA Status</h3>
+      <input type="hidden" id="modalNcId">
+      <div style="margin-bottom:12px;"><label class="text-sm fw-bold">NC ID:</label><div id="modalNcIdDisplay" class="text-sm"></div></div>
+      <div style="margin-bottom:12px;"><label class="text-sm fw-bold">New Status:</label>
+        <select id="modalStatus" class="pm-input" style="min-height:40px;">
+          <option value="IN_PROGRESS">IN_PROGRESS</option><option value="CLOSED">CLOSED</option>
+        </select>
+      </div>
+      <div style="margin-bottom:12px;"><label class="text-sm fw-bold">Root Cause:</label><textarea class="pm-textarea" id="modalRCA" rows="2"></textarea></div>
+      <div style="margin-bottom:12px;"><label class="text-sm fw-bold">Corrective Action:</label><textarea class="pm-textarea" id="modalCA" rows="2"></textarea></div>
+      <div style="margin-bottom:12px;"><label class="text-sm fw-bold">Remarks:</label><textarea class="pm-textarea" id="modalRemarks" rows="2"></textarea></div>
+      <div class="form-section" style="margin-bottom:12px;">
+        <label class="text-sm fw-bold">Photo Evidence <span class="mobile-only">(required)</span></label>
+        <input type="file" id="photoInput" name="photoInput" accept="image/*" capture="environment" class="pm-input" style="padding:6px;margin-top:4px;">
+        <small style="color: var(--text-muted, #94A3B8);">Capture on-site evidence</small>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="pm-btn pm-btn--success" id="capaUpdateBtn" onclick="submitUpdate()" style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Update</button>
+        <button class="pm-btn pm-btn--outline" onclick="closeModal()" style="flex:1;">Cancel</button>
+      </div>
+    </div>
+  </div>
+  <div class="pm-overlay" id="loadingOverlay"><div style="text-align:center;color:white;"><div class="pm-spinner"></div><div style="margin-top:16px;">Updating...</div></div></div>
+  <div class="pm-toast" id="toast"></div>
+
+  <script>
+    (function(){
+      var SERVER_DATA=<?!= data ?>;
+      var deployUrl=SERVER_DATA.deployUrl;
+      var filterZone=SERVER_DATA.zoneId||'';
+      var allCapas=[];
+      var currentFilter='all';
+
+      document.getElementById('headerSub').textContent=filterZone?'Zone: '+filterZone:'All Zones';
+
+      loadData();
+      setInterval(loadData,300000); // Refresh every 5 minutes
+
+      function loadData(){
+        if(filterZone){
+          google.script.run.withSuccessHandler(render).getCAPAsByZone(filterZone);
+        }else{
+          google.script.run.withSuccessHandler(render).getOpenCAPAs();
+        }
+      }
+
+      function render(data){
+        allCapas=data||[];
+        renderSummary();
+        renderFilters();
+        renderList();
+      }
+
+      function renderSummary(){
+        var open=allCapas.filter(function(c){return s(c)==='OPEN';}).length;
+        var prog=allCapas.filter(function(c){return s(c)==='IN_PROGRESS';}).length;
+        var over=allCapas.filter(function(c){return s(c)==='OVERDUE';}).length;
+        var closed=allCapas.filter(function(c){return s(c)==='CLOSED';}).length;
+        var rep=allCapas.filter(function(c){return s(c)==='REPEAT_NC';}).length;
+        document.getElementById('summaryGrid').innerHTML=
+          '<div class="dash-stat"><div class="dash-stat__val" style="color:var(--score-blue);">'+open+'</div><div class="dash-stat__label">Open</div></div>'+
+          '<div class="dash-stat"><div class="dash-stat__val" style="color:var(--score-amber);">'+prog+'</div><div class="dash-stat__label">In Progress</div></div>'+
+          '<div class="dash-stat"><div class="dash-stat__val" style="color:var(--score-red);">'+(over+rep)+'</div><div class="dash-stat__label">Overdue/Repeat</div></div>'+
+          '<div class="dash-stat"><div class="dash-stat__val" style="color:var(--score-green);">'+closed+'</div><div class="dash-stat__label">Closed</div></div>';
+      }
+
+      function renderFilters(){
+        var counts={all:allCapas.length,OPEN:0,IN_PROGRESS:0,OVERDUE:0,CLOSED:0,REPEAT_NC:0};
+        allCapas.forEach(function(c){var st=s(c);if(counts[st]!==undefined)counts[st]++;});
+        var html='';
+        [{k:'all',l:'All'},{k:'OPEN',l:'Open'},{k:'IN_PROGRESS',l:'Progress'},{k:'OVERDUE',l:'Overdue'},{k:'CLOSED',l:'Closed'},{k:'REPEAT_NC',l:'Repeat'}].forEach(function(f){
+          html+='<button class="filter-btn'+(currentFilter===f.k?' active':'')+'" onclick="setFilter(\''+f.k+'\')">'+f.l;
+          if(counts[f.k]>0)html+='<span class="count-badge" style="'+(f.k==='CLOSED'?'background:var(--score-green);':'')+'">'+counts[f.k]+'</span>';
+          html+='</button>';
+        });
+        document.getElementById('filterBar').innerHTML=html;
+      }
+
+      function renderList(){
+        var filtered=currentFilter==='all'?allCapas:allCapas.filter(function(c){return s(c)===currentFilter;});
+        if(filtered.length===0){
+          document.getElementById('capaList').innerHTML='<div style="text-align:center;padding:40px;color:var(--text-secondary);">No CAPAs found.</div>';
+          return;
+        }
+        var html='';
+        filtered.forEach(function(c){
+          var st=s(c).toLowerCase();
+          var days=c._daysRemaining!==undefined?c._daysRemaining:0;
+          var daysText=days<0?Math.abs(days)+' days overdue':(days===0?'Due today':days+' days remaining');
+          var daysCls=days<0?'overdue':'ok';
+          html+='<div class="capa-card capa-card--'+st+'">'+
+            '<div style="display:flex;justify-content:space-between;align-items:center;">'+
+            '<span class="capa-id">'+c.nc_id+'</span>'+
+            '<span class="capa-status capa-status--'+st+'">'+s(c)+'</span></div>'+
+            '<div class="capa-criterion">'+c.criterion_label+'</div>'+
+            '<div class="capa-meta">'+
+            '<span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:2px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'+(c.zone_name||c.zone_id)+'</span>'+
+            '<span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:2px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'+c.responsible_person+'</span>'+
+            (s(c)!=='CLOSED'?'<span class="capa-days '+daysCls+'">'+daysText+'</span>':'')+
+            '</div>';
+          if(s(c)!=='CLOSED'){
+            html+='<div class="capa-actions">'+
+              '<button style="background:var(--pm-primary);color:white;" onclick="openUpdate(\''+c.nc_id+'\')">Update</button></div>';
+          }
+          html+='</div>';
+        });
+        document.getElementById('capaList').innerHTML=html;
+      }
+
+      function s(c){return String(c.status||'OPEN').toUpperCase();}
+
+      window.setFilter=function(f){currentFilter=f;renderFilters();renderList();};
+
+      window.openUpdate=function(ncId){
+        document.getElementById('modalNcId').value=ncId;
+        document.getElementById('modalNcIdDisplay').textContent=ncId;
+        document.getElementById('updateModal').classList.add('visible');
+      };
+      window.closeModal=function(){document.getElementById('updateModal').classList.remove('visible');};
+
+      window.isMobileDevice_=function(){
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      };
+
+      window.validatePhotoOnMobile_=function(){
+        if(!isMobileDevice_())return true;
+        var photoInput=document.getElementById('photoInput')||document.querySelector('input[type="file"][accept*="image"]');
+        if(!photoInput||!photoInput.files||photoInput.files.length===0){
+          if(typeof pmToast==='function')pmToast('Photo required on mobile','warning');
+          return false;
+        }
+        return true;
+      };
+
+      window.initFormDefaults_=function(){
+        var params=new URLSearchParams(window.location.search);
+        var today=new Date().toISOString().split('T')[0];
+        document.querySelectorAll('input[type="date"]').forEach(function(f){if(!f.value)f.value=today;});
+        document.querySelectorAll('.form-section').forEach(function(el,idx){
+          el.classList.add('animate__animated','animate__fadeInUp');
+          el.style.animationDelay=(idx*0.08)+'s';
+        });
+        document.body.classList.add('has-sticky-submit');
+      };
+
+      document.addEventListener('DOMContentLoaded', initFormDefaults_);
+
+      window.submitUpdate=function(){
+        if(!validatePhotoOnMobile_())return;
+        var ncId=document.getElementById('modalNcId').value;
+        var newStatus=document.getElementById('modalStatus').value;
+        var remarks=document.getElementById('modalRemarks').value;
+        var rca=document.getElementById('modalRCA').value;
+        var ca=document.getElementById('modalCA').value;
+        var btn=document.getElementById('capaUpdateBtn');
+        if(btn){btn.disabled=true;}
+
+        closeModal();
+        document.getElementById('loadingOverlay').classList.add('visible');
+
+        var capaPayload = {
+          ncId: ncId, zone: filterZone || '', status: newStatus,
+          remarks: remarks, root_cause: rca, corrective_action: ca
+        };
+
+        function queueCapaOffline_(reason) {
+          document.getElementById('loadingOverlay').classList.remove('visible');
+          if(btn){btn.disabled=false;}
+          if(typeof offlineQueue!=='undefined'){
+            offlineQueue.queueSubmission('capa', capaPayload).then(function(){
+              if(typeof pmToast==='function')pmToast('Saved offline — will sync when online','info');
+              if(typeof updateQueueStatus_==='function')updateQueueStatus_();
+            }).catch(function(e2){showToast('Failed to queue: '+e2.message);});
+          }else{showToast('Update failed: '+reason);}
+        }
+
+        if(!navigator.onLine){queueCapaOffline_('offline');return;}
+
+        google.script.run
+          .withSuccessHandler(function(){
+            document.getElementById('loadingOverlay').classList.remove('visible');
+            if(btn){btn.disabled=false;}
+            if(typeof pmToast==='function')pmToast('✓ Submitted','success');
+            else showToast('CAPA '+ncId+' updated to '+newStatus);
+            loadData();
+          })
+          .withFailureHandler(function(err){
+            queueCapaOffline_(err.message);
+          })
+          .updateCAPAStatus(ncId,newStatus,'',remarks,{root_cause:rca,corrective_action:ca});
+      };
+
+      window.showToast=function(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('visible');setTimeout(function(){t.classList.remove('visible');},3000);};
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Skills Matrix</title>
+<?!= include("CommonStyles") ?>
+<style>*{box-sizing:border-box;}body{font-family:Arial,sans-serif;background:#f5f5f5;padding:12px;}.header{background:linear-gradient(135deg,#8e44ad,#9b59b6);color:white;padding:16px;border-radius:10px;margin-bottom:12px;}table{width:100%;border-collapse:collapse;background:white;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.1);}th{background:#1a5276;color:white;padding:8px;font-size:12px;text-align:left;}td{padding:6px 8px;border-bottom:1px solid #eee;font-size:13px;}.status-badge{padding:2px 8px;border-radius:4px;font-size:11px;font-weight:bold;color:white;}.st-certified{background:#27ae60;}.st-trained{background:#2980b9;}.st-training{background:#f39c12;}.st-not{background:#e74c3c;}.st-expired{background:#95a5a6;}</style>
+</head><body>
+<div class="header"><h1 style="font-size:20px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg> Skills Matrix &amp; Training Tracker</h1></div>
+<div id="matrixContainer"><div style="padding:40px;text-align:center;color:#999;">Loading...</div></div>
+<script>
+
+function escHtml(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function loadMatrix(){google.script.run.withFailureHandler(function(e){console.error(e);var se=document.querySelector("[id$=Status]");if(se)se.innerHTML="<span style=color:#e74c3c>Error: "+escHtml(e.message)+"</span>";}).withSuccessHandler(renderMatrix).getSkillsMatrixData("");}
+function renderMatrix(records){var c=document.getElementById("matrixContainer");if(records.length===0){c.innerHTML='<div style="padding:40px;text-align:center;color:#999;">No training records found.</div>';return;}var html='<table><tr><th>Worker</th><th>Zone</th><th>Topic</th><th>Pillar</th><th>Status</th><th>Trained</th><th>Expires</th></tr>';records.forEach(function(r){var statusClass=r.status==="Certified"?"st-certified":r.status==="Trained"?"st-trained":r.status==="In Training"?"st-training":r.status==="Expired"?"st-expired":"st-not";html+='<tr><td>'+r.workerName+'</td><td>'+r.zoneId+'</td><td>'+r.topic+'</td><td>'+r.pillar+'</td><td><span class="status-badge '+statusClass+'">'+r.status+'</span></td><td>'+r.trainedDate+'</td><td>'+r.expiryDate+'</td></tr>';});html+='</table>';c.innerHTML=html;}
+loadMatrix();
+</script></body></html>

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Zone Dashboard — PackMasters 5S</title>
+  <?!= include('CommonStyles') ?>
+  <script src="https://www.gstatic.com/charts/loader.js"></script>
+  <style>
+    .dash-score-card{text-align:center;padding:var(--sp-6);margin-bottom:var(--sp-4);background:var(--bg-card);border-radius:14px;box-shadow:var(--shadow-lg);}
+    .dash-score-main{font-size:56px;font-weight:900;line-height:1;}
+    .dash-score-label{font-size:var(--size-sm);color:var(--text-secondary);margin-top:var(--sp-2);}
+    .dash-pill{display:inline-block;padding:4px 14px;border-radius:20px;font-size:var(--size-sm);font-weight:700;}
+    .dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3);margin-bottom:var(--sp-4);}
+    .dash-stat{background:var(--bg-card);border-radius:10px;padding:var(--sp-4);text-align:center;box-shadow:var(--shadow);}
+    .dash-stat__val{font-size:var(--size-xl);font-weight:800;}
+    .dash-stat__label{font-size:var(--size-xs);color:var(--text-secondary);margin-top:2px;}
+    .dash-chart-card{background:var(--bg-card);border-radius:12px;padding:var(--sp-4);margin-bottom:var(--sp-4);box-shadow:var(--shadow);}
+    .dash-chart-title{font-size:var(--size-base);font-weight:700;color:var(--pm-primary);margin-bottom:var(--sp-3);}
+    .pillar-bar{display:flex;align-items:center;gap:var(--sp-3);margin-bottom:var(--sp-2);}
+    .pillar-bar__label{width:40px;font-size:var(--size-sm);font-weight:700;flex-shrink:0;}
+    .pillar-bar__track{flex:1;height:24px;background:var(--border-light);border-radius:12px;overflow:hidden;position:relative;}
+    .pillar-bar__fill{height:100%;border-radius:12px;transition:width 0.6s ease;}
+    .pillar-bar__pct{width:40px;font-size:var(--size-sm);font-weight:700;text-align:right;flex-shrink:0;}
+    .nc-badge{display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-3);border-radius:8px;margin-bottom:var(--sp-2);}
+    .nc-badge--red{background:var(--score-red-bg);color:var(--score-red);}
+    .nc-badge--green{background:var(--score-green-bg);color:var(--score-green);}
+    .nc-badge--amber{background:var(--score-amber-bg);color:var(--score-amber);}
+    .skeleton{background:linear-gradient(90deg,#f0f0f0 25%,#e0e0e0 50%,#f0f0f0 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:8px;height:20px;margin:8px 0;}
+    @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+    .nav-pills{display:flex;gap:var(--sp-2);margin-bottom:var(--sp-4);flex-wrap:wrap;}
+    .nav-pill{padding:6px 14px;border-radius:20px;font-size:var(--size-sm);font-weight:600;text-decoration:none;border:1px solid var(--border);color:var(--text-secondary);background:var(--bg-card);}
+    .nav-pill.active{background:var(--pm-primary);color:white;border-color:var(--pm-primary);}
+  </style>
+</head>
+<body class="lang-en">
+  <div class="pm-header">
+    <div class="pm-header__row">
+      <div>
+        <a href="<?= JSON.parse(data).deployUrl ?>" style="color:white;text-decoration:none;font-size:13px;opacity:0.8">← Home</a>
+        <div class="pm-header__brand" style="margin-top:2px;" id="headerTitle">Zone Dashboard</div>
+        <div class="pm-header__zone" id="headerZone"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pm-content" style="padding-bottom:20px;">
+    <!-- Navigation Pills -->
+    <div class="nav-pills" id="navPills"></div>
+
+    <!-- Score Card (Skeleton until loaded) -->
+    <div class="dash-score-card" id="scoreCard">
+      <div class="skeleton" style="width:60%;margin:0 auto;height:56px;"></div>
+      <div class="skeleton" style="width:40%;margin:8px auto;height:16px;"></div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="dash-grid" id="statsGrid">
+      <div class="dash-stat"><div class="skeleton" style="height:28px;"></div><div class="dash-stat__label">Audits</div></div>
+      <div class="dash-stat"><div class="skeleton" style="height:28px;"></div><div class="dash-stat__label">Daily Rate</div></div>
+      <div class="dash-stat"><div class="skeleton" style="height:28px;"></div><div class="dash-stat__label">Open NCs</div></div>
+      <div class="dash-stat"><div class="skeleton" style="height:28px;"></div><div class="dash-stat__label">Overdue</div></div>
+    </div>
+
+    <!-- Pillar Scores -->
+    <div class="dash-chart-card" id="pillarCard">
+      <div class="dash-chart-title">5S Pillar Scores</div>
+      <div id="pillarBars">
+        <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+      </div>
+    </div>
+
+    <!-- Trend Chart -->
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">Monthly Trend</div>
+      <div id="trendChart" style="width:100%;height:250px;">
+        <div class="skeleton" style="height:200px;"></div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div style="display:flex;flex-direction:column;gap:var(--sp-3);margin-top:var(--sp-4);">
+      <a class="pm-btn pm-btn--primary" id="printBtn" style="display:inline-flex;align-items:center;gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Print Audit Report</a>
+      <a class="pm-btn pm-btn--outline" id="capaBtn">View NCs / CAPAs</a>
+      <a class="pm-btn pm-btn--outline" id="photoBtn">Photo Gallery</a>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      var SERVER_DATA = <?!= data ?>;
+      var zone = SERVER_DATA.zone;
+      var deployUrl = SERVER_DATA.deployUrl;
+
+      document.getElementById('headerZone').textContent = zone.id + ' — ' + zone.name;
+      document.getElementById('printBtn').href = deployUrl + '?action=print&zone=' + zone.id;
+      document.getElementById('capaBtn').href = deployUrl + '?action=dashboard&zone=' + zone.id + '&view=capa';
+      document.getElementById('photoBtn').href = deployUrl + '?action=dashboard&zone=' + zone.id + '&view=photos';
+
+      // Nav pills
+      var navHtml = '<a class="nav-pill active" href="' + deployUrl + '?action=dashboard&zone=' + zone.id + '">Overview</a>' +
+        '<a class="nav-pill" href="' + deployUrl + '?action=dashboard&zone=' + zone.id + '&view=capa">NCs</a>' +
+        '<a class="nav-pill" href="' + deployUrl + '?action=dashboard&zone=' + zone.id + '&view=photos">Photos</a>' +
+        '<a class="nav-pill" href="' + deployUrl + '?action=dashboard&view=plant">Plant</a>';
+      document.getElementById('navPills').innerHTML = navHtml;
+
+      // Load data asynchronously
+      google.script.run.withSuccessHandler(renderSummary).getZoneSummary(zone.id);
+      google.script.run.withSuccessHandler(renderTrend).getZoneTrend(zone.id, 6);
+
+      function renderSummary(d) {
+        if (!d || !d.hasData) {
+          document.getElementById('scoreCard').innerHTML = '<div style="padding:20px;color:var(--text-secondary);font-size:var(--size-sm);">No data available for this month.</div>';
+          return;
+        }
+        var pct = Math.round(Number(d.pct_score) || 0);
+        var color = pct >= 80 ? 'var(--score-green)' : pct >= 60 ? 'var(--score-amber)' : 'var(--score-red)';
+        var badgeClass = pct >= 80 ? 'badge--green' : pct >= 60 ? 'badge--amber' : 'badge--red';
+        var statusText = pct >= 80 ? 'On Target' : pct >= 60 ? 'Needs Improvement' : 'Below Target';
+
+        document.getElementById('scoreCard').innerHTML =
+          '<div class="dash-score-main" style="color:' + color + ';">' + pct + '%</div>' +
+          '<div class="dash-score-label">Overall 5S Score — ' + (d.month || '') + '</div>' +
+          '<div class="dash-pill ' + badgeClass + '" style="margin-top:8px;">' + statusText + '</div>';
+
+        // Stats grid
+        document.getElementById('statsGrid').innerHTML =
+          '<div class="dash-stat"><div class="dash-stat__val">' + (d.audit_count || 0) + '</div><div class="dash-stat__label">Audits</div></div>' +
+          '<div class="dash-stat"><div class="dash-stat__val">' + (d.daily_submission_rate || 0) + '%</div><div class="dash-stat__label">Daily Rate</div></div>' +
+          '<div class="dash-stat"><div class="dash-stat__val" style="color:' + (d.openNCCount > 0 ? 'var(--score-red)' : 'var(--score-green)') + ';">' + (d.openNCCount || 0) + '</div><div class="dash-stat__label">Open NCs</div></div>' +
+          '<div class="dash-stat"><div class="dash-stat__val" style="color:' + (d.overdueNCCount > 0 ? 'var(--score-red)' : 'var(--score-green)') + ';">' + (d.overdueNCCount || 0) + '</div><div class="dash-stat__label">Overdue</div></div>';
+
+        // Pillar bars
+        var pillars = [
+          { key: 's1_avg', label: 'S1' }, { key: 's2_avg', label: 'S2' },
+          { key: 's3_avg', label: 'S3' }, { key: 's4_avg', label: 'S4' },
+          { key: 's5_avg', label: 'S5' }
+        ];
+        var barsHtml = '';
+        pillars.forEach(function(p) {
+          var val = Math.round(Number(d[p.key]) || 0);
+          var c = val >= 80 ? 'var(--score-green)' : val >= 60 ? 'var(--score-amber)' : 'var(--score-red)';
+          barsHtml += '<div class="pillar-bar"><span class="pillar-bar__label">' + p.label + '</span>' +
+            '<div class="pillar-bar__track"><div class="pillar-bar__fill" style="width:' + val + '%;background:' + c + ';"></div></div>' +
+            '<span class="pillar-bar__pct" style="color:' + c + ';">' + val + '%</span></div>';
+        });
+        document.getElementById('pillarBars').innerHTML = barsHtml;
+      }
+
+      function renderTrend(trendData) {
+        if (!trendData || trendData.length === 0) {
+          document.getElementById('trendChart').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary);">No trend data available.</div>';
+          return;
+        }
+        google.charts.load('current', { packages: ['corechart'] });
+        google.charts.setOnLoadCallback(function() {
+          var chartData = [['Month', 'Score %', { role: 'style' }]];
+          trendData.forEach(function(t) {
+            var pct = Math.round(Number(t.pct_score) || 0);
+            var color = pct >= 80 ? '#27ae60' : pct >= 60 ? '#f39c12' : '#e74c3c';
+            chartData.push([t.month.substring(5), pct, color]);
+          });
+          var dt = google.visualization.arrayToDataTable(chartData);
+          var options = {
+            legend: 'none', bar: { groupWidth: '60%' },
+            vAxis: { minValue: 0, maxValue: 100, gridlines: { count: 5 }, title: 'Score %' },
+            hAxis: { title: 'Month' },
+            chartArea: { left: 50, right: 20, top: 20, bottom: 50 },
+            colors: ['#1a5276'],
+            animation: { startup: true, duration: 600 }
+          };
+          var chart = new google.visualization.ColumnChart(document.getElementById('trendChart'));
+          chart.draw(dt, options);
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

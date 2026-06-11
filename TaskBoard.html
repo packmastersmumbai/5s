@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>5S Task Board</title>
+<?!= include("CommonStyles") ?>
+<style>
+/* ── Page layout ── */
+.tb-hdr {
+  background: var(--pm-primary);
+  color: #fff;
+  padding: 14px 16px 12px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tb-hdr__back {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: rgba(255,255,255,.15); border: none; color: #fff;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 20px; flex-shrink: 0;
+}
+.tb-hdr__title { font-family: var(--font-display); font-size: 18px; font-weight: 700; flex: 1; }
+.tb-hdr__add {
+  background: rgba(255,255,255,.2); border: 1.5px solid rgba(255,255,255,.5);
+  color: #fff; padding: 6px 14px; border-radius: 20px; font-size: 13px;
+  font-weight: 600; cursor: pointer; min-height: 36px;
+}
+
+/* ── Column tabs (mobile) ── */
+.tb-tabs {
+  display: flex;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-light);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.tb-tabs::-webkit-scrollbar { display: none; }
+.tb-tab {
+  flex: 1; min-width: 80px; padding: 10px 8px 8px;
+  text-align: center; font-size: 12px; font-weight: 600; cursor: pointer;
+  color: var(--text-muted); border-bottom: 3px solid transparent; white-space: nowrap;
+  transition: var(--trans);
+}
+.tb-tab.active { color: var(--pm-primary); border-color: var(--pm-primary); }
+.tb-tab__count {
+  display: inline-block; background: var(--border-light); color: var(--text-secondary);
+  border-radius: 10px; font-size: 10px; padding: 0 6px; margin-left: 4px;
+}
+.tb-tab.active .tb-tab__count { background: var(--pm-primary-soft); color: var(--pm-primary); }
+
+/* ── Board — horizontal scroll on desktop, single column on mobile ── */
+.tb-board-wrap {
+  overflow-x: auto;
+  padding-bottom: 120px;
+  -webkit-overflow-scrolling: touch;
+}
+.tb-board {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  min-height: calc(100vh - 120px);
+  /* snap on mobile */
+  scroll-snap-type: x mandatory;
+}
+
+.tb-col {
+  min-width: 270px;
+  flex: 1;
+  background: var(--bg-card-2);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  scroll-snap-align: start;
+}
+
+.tb-col__hdr {
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+}
+.tb-col__name {
+  font-family: var(--font-display);
+  font-size: 13px; font-weight: 700;
+  display: flex; align-items: center; gap: 6px;
+}
+.tb-col__dot {
+  width: 8px; height: 8px; border-radius: 50%;
+}
+.tb-col__cnt {
+  font-size: 11px; font-weight: 600; padding: 1px 7px;
+  border-radius: 10px; background: var(--bg-card); color: var(--text-secondary);
+}
+
+.tb-col__body {
+  padding: 8px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 100px;
+}
+
+/* ── Cards ── */
+.tb-card {
+  background: var(--bg-card);
+  border-radius: var(--r);
+  padding: 10px 12px 8px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border-light);
+  border-left: 4px solid var(--border);
+  box-shadow: var(--shadow);
+}
+.tb-card.pri-CRITICAL { border-left-color: var(--score-red); }
+.tb-card.pri-HIGH     { border-left-color: var(--score-amber); }
+.tb-card.pri-MEDIUM   { border-left-color: var(--pm-primary); }
+.tb-card.pri-LOW      { border-left-color: var(--border); }
+
+.tb-card__title { font-size: 13px; font-weight: 600; line-height: 1.4; margin-bottom: 5px; }
+.tb-card__meta  { font-size: 11px; color: var(--text-muted); line-height: 1.7; }
+.tb-card__pri   { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 8px; margin-right: 4px; }
+.pri-chip-CRITICAL { background: var(--score-red-bg);   color: var(--score-red); }
+.pri-chip-HIGH     { background: var(--score-amber-bg); color: var(--score-amber); }
+.pri-chip-MEDIUM   { background: var(--pm-primary-soft); color: var(--pm-primary); }
+.pri-chip-LOW      { background: var(--bg-card-2);       color: var(--text-muted); }
+
+.tb-card__actions { display: flex; gap: 4px; margin-top: 8px; flex-wrap: wrap; }
+.tc-btn {
+  padding: 4px 9px; border-radius: 16px; font-size: 11px; font-weight: 600;
+  border: 1.5px solid var(--border); background: var(--bg-card-2);
+  cursor: pointer; min-height: 26px; color: var(--text-secondary);
+  transition: var(--trans);
+}
+.tc-btn:active { transform: scale(.94); }
+.tc-btn--fwd  { background: var(--pm-primary-soft); border-color: var(--pm-primary); color: var(--pm-primary); }
+.tc-btn--del  { border-color: var(--score-red-bg);  background: var(--score-red-bg); color: var(--score-red); }
+
+/* ── Mobile: only show active column ── */
+@media (max-width: 560px) {
+  .tb-col { display: none; }
+  .tb-col.active { display: flex; flex: none; width: calc(100vw - 24px); }
+}
+
+/* ── Drawer fields ── */
+.drw-field  { margin-bottom: 14px; }
+.drw-label  { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 5px; display: block; }
+.drw-row    { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.tb-empty {
+  text-align: center; padding: 32px 12px; color: var(--text-muted); font-size: 13px;
+}
+</style>
+</head>
+<body>
+
+<div class="tb-hdr">
+  <button class="tb-hdr__back" onclick="history.back()">&#8592;</button>
+  <span class="tb-hdr__title">Task Board</span>
+  <button class="tb-hdr__add" onclick="openCreate()">+ New Task</button>
+</div>
+
+<!-- Mobile column tabs -->
+<div class="tb-tabs" id="tbTabs">
+  <div class="tb-tab active" data-col="BACKLOG"     onclick="switchCol(this,'BACKLOG')">Backlog <span class="tb-tab__count" id="cnt-BACKLOG">0</span></div>
+  <div class="tb-tab"       data-col="THIS_WEEK"   onclick="switchCol(this,'THIS_WEEK')">This Week <span class="tb-tab__count" id="cnt-THIS_WEEK">0</span></div>
+  <div class="tb-tab"       data-col="IN_PROGRESS" onclick="switchCol(this,'IN_PROGRESS')">In Progress <span class="tb-tab__count" id="cnt-IN_PROGRESS">0</span></div>
+  <div class="tb-tab"       data-col="DONE"        onclick="switchCol(this,'DONE')">Done <span class="tb-tab__count" id="cnt-DONE">0</span></div>
+</div>
+
+<div class="tb-board-wrap">
+  <div class="tb-board" id="tbBoard">
+    <!-- Skeleton -->
+    <div class="tb-col active">
+      <div class="tb-col__hdr"><div class="skeleton skeleton-text short" style="margin:0;width:80px;"></div></div>
+      <div class="tb-col__body">
+        <div class="skeleton skeleton-card"></div>
+        <div class="skeleton skeleton-card"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Create / Edit Drawer ─── -->
+<div class="pm-drawer-backdrop" id="tbDrawerBackdrop" onclick="pmDrawer('tbDrawer',false)"></div>
+<div class="pm-drawer" id="tbDrawer">
+  <div class="pm-drawer__handle"></div>
+  <div class="pm-drawer__header">
+    <span class="pm-drawer__title" id="tbDrawerTitle">New Task</span>
+    <button class="pm-drawer__close" onclick="pmDrawer('tbDrawer',false)">&#215;</button>
+  </div>
+  <div class="pm-drawer__body">
+    <input type="hidden" id="tbEditId">
+    <div class="drw-field">
+      <label class="drw-label" for="tbTitle">Task Title *</label>
+      <input class="pm-input" id="tbTitle" placeholder="What needs to be done?">
+    </div>
+    <div class="drw-field">
+      <label class="drw-label" for="tbDesc">Description</label>
+      <textarea class="pm-textarea" id="tbDesc" rows="2" placeholder="Optional details..."></textarea>
+    </div>
+    <div class="drw-row">
+      <div class="drw-field">
+        <label class="drw-label" for="tbZone">Zone *</label>
+        <select class="pm-input" id="tbZone"></select>
+      </div>
+      <div class="drw-field">
+        <label class="drw-label" for="tbPriority">Priority</label>
+        <select class="pm-input" id="tbPriority">
+          <option value="LOW">Low</option>
+          <option value="MEDIUM" selected>Medium</option>
+          <option value="HIGH">High</option>
+          <option value="CRITICAL">Critical</option>
+        </select>
+      </div>
+    </div>
+    <div class="drw-row">
+      <div class="drw-field">
+        <label class="drw-label" for="tbAssign">Assigned To</label>
+        <input class="pm-input" id="tbAssign" placeholder="Name">
+      </div>
+      <div class="drw-field">
+        <label class="drw-label" for="tbDue">Due Date</label>
+        <input class="pm-input" type="date" id="tbDue">
+      </div>
+    </div>
+    <div class="drw-field">
+      <label class="drw-label" for="tbRemarks">Remarks</label>
+      <input class="pm-input" id="tbRemarks" placeholder="Optional notes">
+    </div>
+    <button class="pm-btn pm-btn--primary" id="tbSaveBtn" onclick="saveTask()">Save Task</button>
+  </div>
+</div>
+
+<script>
+// Auth guard — read from URL param first (GAS iframe navigation), then localStorage
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var urlToken = params.get('token');
+  if (urlToken) localStorage.setItem('pm5s_token', urlToken);
+  var token = localStorage.getItem('pm5s_token');
+  if (!token) {
+    window.top.location.href = '<?= deployUrl ?>?v2=1&action=login';
+    return;
+  }
+  window.PM5S_TOKEN = token;
+})();
+
+var DU = '<?= deployUrl ?>';
+var ZONE_ID = '<?= zoneId ?>';
+var allTasks = [];
+var activeCol = 'BACKLOG';
+
+var COLS = [
+  {key:'BACKLOG',     label:'Backlog',     dot:'#9CA3AF'},
+  {key:'THIS_WEEK',   label:'This Week',   dot:'#1864AB'},
+  {key:'IN_PROGRESS', label:'In Progress', dot:'#E67700'},
+  {key:'DONE',        label:'Done',        dot:'#2F9E44'}
+];
+
+function escH(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+/* ── Load ── */
+function loadTasks(){
+  google.script.run
+    .withFailureHandler(function(e){pmToast('Error loading tasks','error');})
+    .withSuccessHandler(function(tasks){
+      allTasks=tasks;
+      render();
+    })
+    .getTaskBoardData({zoneId:ZONE_ID||undefined});
+}
+
+function loadZones(){
+  google.script.run
+    .withSuccessHandler(function(cfg){
+      var sel=document.getElementById('tbZone');
+      sel.innerHTML='';
+      Object.keys(cfg||{}).forEach(function(z){
+        var o=document.createElement('option');
+        o.value=z;o.textContent=(cfg[z].name||z);
+        sel.appendChild(o);
+      });
+      if(ZONE_ID)sel.value=ZONE_ID;
+    })
+    .getZoneConfig();
+}
+
+/* ── Switch column (mobile) ── */
+function switchCol(el, colKey){
+  document.querySelectorAll('.tb-tab').forEach(function(t){t.classList.remove('active');});
+  el.classList.add('active');
+  activeCol=colKey;
+  document.querySelectorAll('.tb-col').forEach(function(c){
+    c.classList.toggle('active', c.dataset.col===colKey);
+  });
+}
+
+/* ── Render ── */
+function render(){
+  var board=document.getElementById('tbBoard');
+  board.innerHTML='';
+  COLS.forEach(function(col){
+    var tasks=allTasks.filter(function(t){return t.status===col.key;});
+    // update tab count
+    var cnt=document.getElementById('cnt-'+col.key);
+    if(cnt)cnt.textContent=tasks.length;
+
+    var div=document.createElement('div');
+    div.className='tb-col'+(col.key===activeCol?' active':'');
+    div.dataset.col=col.key;
+
+    var body=tasks.length===0
+      ? '<div class="tb-empty">No tasks here</div>'
+      : tasks.map(function(t){return buildCard(t,col);}).join('');
+
+    div.innerHTML=
+      '<div class="tb-col__hdr">'
+      +'<span class="tb-col__name"><span class="tb-col__dot" style="background:'+col.dot+'"></span>'+escH(col.label)+'</span>'
+      +'<span class="tb-col__cnt">'+tasks.length+'</span>'
+      +'</div>'
+      +'<div class="tb-col__body">'+body+'</div>';
+    board.appendChild(div);
+  });
+}
+
+function buildCard(t, col){
+  var colIdx=COLS.findIndex(function(c){return c.key===col.key;});
+  var canPrev=colIdx>0;
+  var canNext=colIdx<COLS.length-1;
+  var pri=t.priority||'MEDIUM';
+  var overdueHtml='';
+  if(t.dueDate){
+    try{var dd=new Date(t.dueDate);if(!isNaN(dd)&&dd<new Date()&&col.key!=='DONE')overdueHtml='<span style="color:var(--score-red);font-size:10px;font-weight:700;"> ⚠ Overdue</span>';}catch(e){}
+  }
+  return '<div class="tb-card pri-'+escH(pri)+'">'
+    +'<div class="tb-card__title">'+escH(t.title)+'</div>'
+    +'<div class="tb-card__meta">'
+    +'<span class="tb-card__pri pri-chip-'+escH(pri)+'">'+escH(pri)+'</span>'
+    +escH(t.zoneName||t.zoneId)
+    +(t.assignedTo?' · '+escH(t.assignedTo):'')
+    +(t.dueDate?' · '+escH(t.dueDate)+overdueHtml:'')
+    +'</div>'
+    +'<div class="tb-card__actions">'
+    +(canNext?'<button class="tc-btn tc-btn--fwd" onclick="moveTask(\''+escH(t.taskId)+'\',\''+COLS[colIdx+1].key+'\')">▶ '+escH(COLS[colIdx+1].label)+'</button>':'')
+    +(canPrev?'<button class="tc-btn" onclick="moveTask(\''+escH(t.taskId)+'\',\''+COLS[colIdx-1].key+'\')">◀</button>':'')
+    +'<button class="tc-btn" onclick="openEdit('+escH(JSON.stringify(t))+')">✎ Edit</button>'
+    +'<button class="tc-btn tc-btn--del" onclick="deleteTask(\''+escH(t.taskId)+'\')">✕</button>'
+    +'</div>'
+    +'</div>';
+}
+
+/* ── Move ── */
+function moveTask(taskId, newStatus){
+  google.script.run
+    .withFailureHandler(function(e){pmToast(e.message,'error');})
+    .withSuccessHandler(function(r){
+      if(r&&r.success){
+        allTasks.forEach(function(t){if(t.taskId===taskId)t.status=newStatus;});
+        render();
+      } else { pmToast((r&&r.message)||'Move failed','error'); }
+    })
+    .updateTaskStatus(taskId,newStatus,'');
+}
+
+/* ── Create ── */
+function openCreate(){
+  document.getElementById('tbEditId').value='';
+  document.getElementById('tbDrawerTitle').textContent='New Task';
+  document.getElementById('tbTitle').value='';
+  document.getElementById('tbDesc').value='';
+  document.getElementById('tbPriority').value='MEDIUM';
+  document.getElementById('tbAssign').value='';
+  document.getElementById('tbDue').value='';
+  document.getElementById('tbRemarks').value='';
+  if(ZONE_ID)document.getElementById('tbZone').value=ZONE_ID;
+  pmDrawer('tbDrawer',true);
+}
+
+/* ── Edit ── */
+function openEdit(t){
+  document.getElementById('tbEditId').value=t.taskId;
+  document.getElementById('tbDrawerTitle').textContent='Edit Task';
+  document.getElementById('tbTitle').value=t.title||'';
+  document.getElementById('tbDesc').value=t.description||'';
+  document.getElementById('tbPriority').value=t.priority||'MEDIUM';
+  document.getElementById('tbAssign').value=t.assignedTo||'';
+  document.getElementById('tbDue').value=t.dueDate?isoDate(t.dueDate):'';
+  document.getElementById('tbRemarks').value=t.remarks||'';
+  document.getElementById('tbZone').value=t.zoneId||'';
+  pmDrawer('tbDrawer',true);
+}
+
+function isoDate(d){
+  if(!d)return'';
+  try{var dt=new Date(d);if(!isNaN(dt))return dt.toISOString().slice(0,10);}catch(e){}
+  return'';
+}
+
+/* ── Save ── */
+function saveTask(){
+  var title=document.getElementById('tbTitle').value.trim();
+  if(!title){pmToast('Task title is required','error');return;}
+  var btn=document.getElementById('tbSaveBtn');
+  btn.disabled=true; btn.textContent='Saving…';
+  var editId=document.getElementById('tbEditId').value;
+  var data={
+    title:title,
+    description:document.getElementById('tbDesc').value.trim(),
+    zoneId:document.getElementById('tbZone').value,
+    priority:document.getElementById('tbPriority').value,
+    assignedTo:document.getElementById('tbAssign').value.trim(),
+    dueDate:document.getElementById('tbDue').value,
+    remarks:document.getElementById('tbRemarks').value.trim()
+  };
+  function done(r){
+    btn.disabled=false; btn.textContent='Save Task';
+    if(r&&r.success){pmDrawer('tbDrawer',false);pmToast(editId?'Task updated':'Task created','success');loadTasks();}
+    else{pmToast((r&&r.message)||'Save failed','error');}
+  }
+  if(editId){
+    google.script.run.withFailureHandler(function(e){btn.disabled=false;btn.textContent='Save Task';pmToast(e.message,'error');}).withSuccessHandler(done).editTask(editId,data);
+  } else {
+    google.script.run.withFailureHandler(function(e){btn.disabled=false;btn.textContent='Save Task';pmToast(e.message,'error');}).withSuccessHandler(done).createTask(data);
+  }
+}
+
+/* ── Delete ── */
+function deleteTask(taskId){
+  if(!confirm('Delete this task?'))return;
+  google.script.run
+    .withFailureHandler(function(e){pmToast(e.message,'error');})
+    .withSuccessHandler(function(r){
+      if(r&&r.success){pmToast('Task deleted','success');allTasks=allTasks.filter(function(t){return t.taskId!==taskId;});render();}
+      else{pmToast((r&&r.message)||'Delete failed','error');}
+    })
+    .deleteTask(taskId);
+}
+
+loadTasks();
+loadZones();
+// Auto-refresh every 5 min
+setInterval(loadTasks, 300000);
+</script>
+</body>
+</html>

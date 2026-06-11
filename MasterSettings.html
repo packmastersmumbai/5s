@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Master Settings — PackMasters 5S</title>
+<?!= include('CommonStyles') ?>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-main);
+  background: var(--bg-page);
+  color: var(--text-primary);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── HEADER ────────────────────────────────── */
+.ms-hdr {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 18px;
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 200;
+}
+.ms-back {
+  width: 34px; height: 34px; border-radius: 8px;
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); text-decoration: none; flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent; transition: background 0.15s;
+}
+.ms-back svg { width: 18px; height: 18px; }
+.ms-back:active { background: var(--bg-card-2); }
+.ms-title {
+  font-family: var(--font-display); font-weight: 700;
+  font-size: 16px; color: var(--text-primary); flex: 1;
+}
+
+/* ── TAB BAR ───────────────────────────────── */
+.ms-tabs {
+  display: flex; background: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 61px; z-index: 190;
+}
+.ms-tab-btn {
+  flex: 1; padding: 11px 8px; background: none; border: none;
+  border-bottom: 2px solid transparent; cursor: pointer;
+  font-size: 12px; font-weight: 600; color: var(--text-muted);
+  font-family: inherit; -webkit-tap-highlight-color: transparent;
+  transition: color .15s, border-color .15s;
+}
+.ms-tab-btn.active { color: var(--pm-primary); border-bottom-color: var(--pm-primary); }
+
+/* ── PANELS ────────────────────────────────── */
+.ms-panel { display: none; padding: 14px 14px 110px; }
+.ms-panel.active { display: block; }
+
+.ms-loading {
+  display: flex; align-items: center; justify-content: center;
+  gap: 10px; padding: 48px 16px;
+  color: var(--text-muted); font-size: 14px;
+}
+.ms-spin { animation: spin 0.9s linear infinite; }
+
+/* ── FORM PRIMITIVES ───────────────────────── */
+.form-label {
+  display: block; font-family: var(--font-mono);
+  font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text-muted); font-weight: 600; margin-bottom: 5px;
+}
+.form-input {
+  width: 100%; background: var(--bg-page); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 10px; font-size: 13px;
+  font-family: inherit; color: var(--text-primary);
+  -webkit-appearance: none; appearance: none;
+}
+.form-input:focus { outline: none; border-color: var(--pm-primary); box-shadow: 0 0 0 3px rgba(30,58,95,.09); }
+
+/* ── ZONE ACCORDION ────────────────────────── */
+.zone-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 12px; margin-bottom: 10px; overflow: hidden;
+}
+.zone-card-hdr {
+  display: flex; align-items: center; gap: 10px; padding: 13px 16px;
+  cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent;
+}
+.zone-badge {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  color: var(--pm-primary); background: rgba(30,58,95,.08);
+  border-radius: 5px; padding: 3px 7px; flex-shrink: 0;
+}
+.zone-card-name { font-size: 13px; font-weight: 600; flex: 1; }
+.chevron-icon { width: 18px; height: 18px; color: var(--text-muted); transition: transform .2s; flex-shrink: 0; }
+.zone-card.open .chevron-icon { transform: rotate(180deg); }
+.zone-card-body { display: none; padding: 0 16px 16px; }
+.zone-card.open .zone-card-body { display: block; }
+
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.form-group { display: flex; flex-direction: column; }
+
+/* ── ZONE CRITERIA SECTION ─────────────────── */
+.zcrit-section {
+  margin-top: 16px; border-top: 1px solid var(--border); padding-top: 14px;
+}
+.zcrit-section-hdr {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
+}
+.zcrit-section-title {
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--text-muted); font-weight: 700;
+}
+
+/* ── PILLAR ACCORDION ──────────────────────── */
+.pillar-card {
+  background: var(--bg-card-2, var(--bg-page)); border: 1px solid var(--border);
+  border-radius: 10px; margin-bottom: 8px; overflow: hidden;
+}
+.pillar-hdr {
+  display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.pillar-badge {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+  padding: 3px 8px; border-radius: 5px; flex-shrink: 0;
+}
+.p-s1 .pillar-badge { background: #fff3e0; color: #e65100; }
+.p-s2 .pillar-badge { background: #e8f5e9; color: #1b5e20; }
+.p-s3 .pillar-badge { background: #e3f2fd; color: #0d47a1; }
+.p-s4 .pillar-badge { background: #f3e5f5; color: #4a148c; }
+.p-s5 .pillar-badge { background: #fce4ec; color: #880e4f; }
+.pillar-name { font-size: 12px; font-weight: 600; flex: 1; }
+.pillar-count {
+  font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); flex-shrink: 0;
+}
+.pillar-body { display: none; padding: 0 14px 12px; }
+.pillar-body.open { display: block; }
+.pillar-card.open .chevron-icon { transform: rotate(180deg); }
+
+/* ── CRITERION ROW ─────────────────────────── */
+.cr-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.cr-item {
+  display: grid; grid-template-columns: 36px 1fr auto;
+  gap: 6px; align-items: start; background: var(--bg-card);
+  border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+}
+.cr-item-id {
+  font-family: var(--font-mono); font-size: 9px; font-weight: 700;
+  color: var(--text-muted); text-align: center; padding-top: 9px;
+}
+.cr-item-fields { display: flex; flex-direction: column; gap: 5px; }
+.cr-input {
+  width: 100%; background: var(--bg-page); border: 1px solid var(--border);
+  border-radius: 6px; padding: 6px 8px; font-size: 12px;
+  font-family: inherit; color: var(--text-primary);
+  -webkit-appearance: none; appearance: none;
+}
+.cr-input:focus { outline: none; border-color: var(--pm-primary); }
+.cr-del-btn {
+  width: 26px; height: 26px; border-radius: 6px; border: none;
+  background: #fff0f0; color: #c62828; cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent; margin-top: 6px;
+}
+.cr-del-btn svg { width: 14px; height: 14px; }
+.cr-del-btn:active { opacity: .7; }
+
+.cr-add-btn {
+  width: 100%; padding: 7px; border-radius: 8px;
+  border: 1px dashed var(--border); background: none;
+  font-size: 12px; color: var(--pm-primary); font-family: inherit;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background .15s;
+}
+.cr-add-btn:active { background: rgba(30,58,95,.06); }
+
+/* ── SYSTEM PANEL ──────────────────────────── */
+.sys-section { margin-bottom: 20px; }
+.sys-section-title {
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--text-muted);
+  padding-bottom: 6px; border-bottom: 1px solid var(--border); margin-bottom: 12px;
+}
+.sys-fields { display: flex; flex-direction: column; gap: 12px; }
+
+.deploy-warn {
+  background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px;
+  padding: 10px 12px; font-size: 11px; color: #5d4037; line-height: 1.6; margin-top: 10px;
+}
+
+/* ── ADD ZONE BUTTON ───────────────────────── */
+.add-zone-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 12px; margin-bottom: 14px;
+  border: 2px dashed var(--pm-primary); border-radius: 12px; background: none;
+  font-size: 13px; font-weight: 600; color: var(--pm-primary);
+  font-family: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background .15s;
+}
+.add-zone-btn:active { background: rgba(30,58,95,.06); }
+
+/* ── ADD ZONE MODAL ────────────────────────── */
+.az-overlay {
+  display: none; position: fixed; inset: 0; z-index: 300;
+  background: rgba(0,0,0,.45); align-items: flex-end; justify-content: center;
+}
+.az-overlay.open { display: flex; }
+.az-sheet {
+  background: var(--bg-card); border-radius: 18px 18px 0 0;
+  padding: 20px 18px 32px; width: 100%; max-width: 480px;
+}
+.az-sheet-title {
+  font-family: var(--font-display); font-size: 15px; font-weight: 700;
+  margin-bottom: 16px;
+}
+.az-fields { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+.az-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.az-actions { display: flex; gap: 10px; }
+.az-cancel-btn {
+  flex: 1; padding: 11px; border-radius: 10px;
+  border: 1px solid var(--border); background: none;
+  font-size: 13px; font-weight: 600; color: var(--text-muted);
+  font-family: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.az-confirm-btn {
+  flex: 2; padding: 11px; border-radius: 10px; border: none;
+  background: var(--pm-primary); color: #fff;
+  font-size: 13px; font-weight: 700;
+  font-family: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.az-err { font-size: 11px; color: #c62828; margin-top: -6px; display: none; }
+
+/* ── SAVE BAR ──────────────────────────────── */
+.ms-save-bar {
+  position: fixed; bottom: 72px; left: 0; right: 0;
+  background: var(--bg-header); border-top: 1px solid var(--border);
+  padding: 10px 16px; display: flex; align-items: center; gap: 12px; z-index: 145;
+}
+.ms-status { flex: 1; font-size: 12px; color: var(--text-muted); transition: color .3s; }
+.ms-status.ok  { color: #2e7d32; }
+.ms-status.err { color: #c62828; }
+.ms-save-btn {
+  background: var(--pm-primary); color: #fff; border: none;
+  border-radius: 10px; padding: 10px 22px; font-size: 13px; font-weight: 700;
+  font-family: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: opacity .15s;
+}
+.ms-save-btn:disabled { opacity: .45; cursor: not-allowed; }
+.ms-save-btn:active:not(:disabled) { opacity: .75; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════ HEADER ══════════════ -->
+<header class="ms-hdr">
+  <a class="ms-back" href="<?= deployUrl ?>" title="Back to Home">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="15 18 9 12 15 6"/>
+    </svg>
+  </a>
+  <div class="ms-title">Master Settings</div>
+</header>
+
+<!-- ══════════════ TAB BAR ══════════════ -->
+<div class="ms-tabs">
+  <button class="ms-tab-btn active" data-tab="zones">Zones &amp; Criteria</button>
+  <button class="ms-tab-btn" data-tab="system">System</button>
+</div>
+
+<!-- ══════════════ PANELS ══════════════ -->
+
+<!-- ZONES panel -->
+<div id="panelZones" class="ms-panel active">
+  <div class="ms-loading" id="loadZones">
+    <svg class="ms-spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+    </svg>
+    Loading zones…
+  </div>
+  <div id="zonesContent" style="display:none"></div>
+</div>
+
+<!-- SYSTEM panel -->
+<div id="panelSystem" class="ms-panel">
+  <div class="ms-loading" id="loadSystem">
+    <svg class="ms-spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+    </svg>
+    Loading system settings…
+  </div>
+  <div id="systemContent" style="display:none"></div>
+</div>
+
+<!-- ══════════════ ADD ZONE MODAL ══════════════ -->
+<div class="az-overlay" id="azOverlay">
+  <div class="az-sheet">
+    <div class="az-sheet-title">Add New Zone</div>
+    <div class="az-fields">
+      <div class="az-row">
+        <div class="form-group">
+          <label class="form-label">Zone ID</label>
+          <input class="form-input" id="az_id" placeholder="e.g. Z-09" maxlength="6">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Zone Name</label>
+          <input class="form-input" id="az_name" placeholder="e.g. Dispatch">
+        </div>
+      </div>
+      <div class="az-row">
+        <div class="form-group">
+          <label class="form-label">Hindi Name</label>
+          <input class="form-input" id="az_namehi" placeholder="e.g. डिस्पैच">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Department</label>
+          <input class="form-input" id="az_dept" placeholder="e.g. Logistics">
+        </div>
+      </div>
+      <div class="az-row">
+        <div class="form-group">
+          <label class="form-label">Leader</label>
+          <input class="form-input" id="az_leader" placeholder="Name">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Leader Email</label>
+          <input class="form-input" type="email" id="az_email" placeholder="email@co.com">
+        </div>
+      </div>
+      <div class="az-err" id="azErr">Zone ID already exists or is empty.</div>
+    </div>
+    <div class="az-actions">
+      <button class="az-cancel-btn" id="azCancelBtn">Cancel</button>
+      <button class="az-confirm-btn" id="azConfirmBtn">Add Zone</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ SAVE BAR ══════════════ -->
+<div class="ms-save-bar">
+  <span class="ms-status" id="msStatus">Loading settings…</span>
+  <button class="ms-save-btn" id="msSaveBtn" disabled>Save All</button>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  var DU = '<?= deployUrl ?>';
+
+  /* ─ Helpers ─────────────────────────────────── */
+  function esc(s) {
+    if (s === null || s === undefined) return '';
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  var CHEVRON_SVG = '<svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+  var DEL_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
+
+  var PILLAR_LABELS = {
+    S1: 'Sort (Seiri)',
+    S2: 'Set in Order (Seiton)',
+    S3: 'Shine (Seiso)',
+    S4: 'Standardize (Seiketsu)',
+    S5: 'Sustain (Shitsuke)'
+  };
+  var PILLARS = ['S1','S2','S3','S4','S5'];
+  var AUDIT_DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+  /* ─ Tab switching ────────────────────────────── */
+  var tabBtns = document.querySelectorAll('.ms-tab-btn');
+  var panelMap = { zones: 'panelZones', system: 'panelSystem' };
+
+  tabBtns.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      tabBtns.forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      var key = btn.getAttribute('data-tab');
+      Object.keys(panelMap).forEach(function(k) {
+        var panel = document.getElementById(panelMap[k]);
+        if (panel) panel.classList.toggle('active', k === key);
+      });
+    });
+  });
+
+  /* ─ Status helpers ───────────────────────────── */
+  function setStatus(msg, cls) {
+    var el = document.getElementById('msStatus');
+    el.textContent = msg;
+    el.className = 'ms-status' + (cls ? ' ' + cls : '');
+  }
+
+  /* ─ Stored data ──────────────────────────────── */
+  var _data = null;
+  // zoneCriteria[zoneId] = [{id, pillar, labelEn, labelHi, maxScore}, ...]
+  var _zoneCriteria = {};
+
+  /* ─ Criteria render helpers ──────────────────── */
+  function nextCrId(zoneId, pillar) {
+    var list = _zoneCriteria[zoneId] || [];
+    var prefix = pillar + '-';
+    var nums = list
+      .filter(function(c) { return c.pillar === pillar; })
+      .map(function(c) { return parseInt((c.id || '').replace(prefix, ''), 10) || 0; });
+    return prefix + (nums.length ? Math.max.apply(null, nums) + 1 : 1);
+  }
+
+  function renderPillarBody(zoneId, pillar, container) {
+    var list = (_zoneCriteria[zoneId] || []).filter(function(c) { return c.pillar === pillar; });
+    var rows = list.map(function(c) {
+      return '<div class="cr-item" data-zone="' + esc(zoneId) + '" data-pillar="' + esc(pillar) + '" data-crid="' + esc(c.id) + '">' +
+        '<span class="cr-item-id">' + esc(c.id) + '</span>' +
+        '<div class="cr-item-fields">' +
+          '<input class="cr-input cr-en" placeholder="English label" value="' + esc(c.labelEn) + '">' +
+          '<input class="cr-input cr-hi" placeholder="Hindi label" value="' + esc(c.labelHi) + '">' +
+        '</div>' +
+        '<button class="cr-del-btn" title="Delete">' + DEL_SVG + '</button>' +
+      '</div>';
+    }).join('');
+
+    container.innerHTML =
+      '<div class="cr-list">' + rows + '</div>' +
+      '<button class="cr-add-btn" data-zone="' + esc(zoneId) + '" data-pillar="' + esc(pillar) + '">+ Add criterion</button>';
+
+    container.querySelectorAll('.cr-del-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var item = btn.closest('.cr-item');
+        var crid = item.getAttribute('data-crid');
+        var zid = item.getAttribute('data-zone');
+        _zoneCriteria[zid] = (_zoneCriteria[zid] || []).filter(function(c) { return c.id !== crid; });
+        item.remove();
+        updatePillarCount(zid, pillar, container.closest('.pillar-card'));
+      });
+    });
+
+    container.querySelector('.cr-add-btn').addEventListener('click', function() {
+      var zid = this.getAttribute('data-zone');
+      var pil = this.getAttribute('data-pillar');
+      var newId = nextCrId(zid, pil);
+      var newCrit = { id: newId, pillar: pil, labelEn: '', labelHi: '', maxScore: 4 };
+      _zoneCriteria[zid] = _zoneCriteria[zid] || [];
+      _zoneCriteria[zid].push(newCrit);
+      // re-render the pillar body
+      renderPillarBody(zid, pil, container);
+      // focus the new row's English input
+      var inputs = container.querySelectorAll('.cr-en');
+      if (inputs.length) inputs[inputs.length - 1].focus();
+      updatePillarCount(zid, pil, container.closest('.pillar-card'));
+    });
+  }
+
+  function updatePillarCount(zoneId, pillar, pillarCard) {
+    var count = (_zoneCriteria[zoneId] || []).filter(function(c) { return c.pillar === pillar; }).length;
+    var countEl = pillarCard && pillarCard.querySelector('.pillar-count');
+    if (countEl) countEl.textContent = count;
+  }
+
+  function renderZoneCriteria(zoneId, container) {
+    var html = '';
+    PILLARS.forEach(function(p) {
+      var count = (_zoneCriteria[zoneId] || []).filter(function(c) { return c.pillar === p; }).length;
+      html +=
+        '<div class="pillar-card p-' + p.toLowerCase() + '" id="pc_' + zoneId.replace('-','') + '_' + p + '">' +
+          '<div class="pillar-hdr">' +
+            '<span class="pillar-badge">' + p + '</span>' +
+            '<span class="pillar-name">' + (PILLAR_LABELS[p] || p) + '</span>' +
+            '<span class="pillar-count">' + count + '</span>' +
+            CHEVRON_SVG +
+          '</div>' +
+          '<div class="pillar-body" id="pb_' + zoneId.replace('-','') + '_' + p + '"></div>' +
+        '</div>';
+    });
+    container.innerHTML = html;
+
+    PILLARS.forEach(function(p) {
+      var card = document.getElementById('pc_' + zoneId.replace('-','') + '_' + p);
+      var body = document.getElementById('pb_' + zoneId.replace('-','') + '_' + p);
+      if (!card || !body) return;
+
+      card.querySelector('.pillar-hdr').addEventListener('click', function() {
+        var isOpen = body.classList.contains('open');
+        if (!isOpen) {
+          // lazy-render on first open
+          renderPillarBody(zoneId, p, body);
+          body.classList.add('open');
+          card.classList.add('open');
+        } else {
+          body.classList.remove('open');
+          card.classList.remove('open');
+        }
+      });
+    });
+  }
+
+  /* ─ ZONES render ─────────────────────────────── */
+  function renderZones(zones) {
+    var html = '';
+    zones.forEach(function(z, i) {
+      // seed _zoneCriteria
+      _zoneCriteria[z.id] = (z.criteria || []).map(function(c) {
+        return { id: c.id, pillar: c.pillar, labelEn: c.labelEn || '', labelHi: c.labelHi || '', maxScore: c.maxScore || 4 };
+      });
+
+      var dayOpts = AUDIT_DAYS.map(function(d) {
+        return '<option value="' + d + '"' + (z.auditDay === d ? ' selected' : '') + '>' + d + '</option>';
+      }).join('');
+
+      html +=
+        '<div class="zone-card" id="zcard_' + i + '">' +
+          '<div class="zone-card-hdr" onclick="this.parentElement.classList.toggle(\'open\')">' +
+            '<span class="zone-badge">' + esc(z.id) + '</span>' +
+            '<span class="zone-card-name" id="zname_lbl_' + i + '">' + esc(z.name) + '</span>' +
+            CHEVRON_SVG +
+          '</div>' +
+          '<div class="zone-card-body">' +
+            '<div class="form-row">' +
+              '<div class="form-group"><label class="form-label">Zone Name</label>' +
+                '<input class="form-input" id="z_name_' + i + '" value="' + esc(z.name) + '" oninput="document.getElementById(\'zname_lbl_' + i + '\').textContent=this.value||' + "'" + esc(z.id) + "'" + '"></div>' +
+              '<div class="form-group"><label class="form-label">Leader</label>' +
+                '<input class="form-input" id="z_leader_' + i + '" value="' + esc(z.leader) + '"></div>' +
+            '</div>' +
+            '<div class="form-row">' +
+              '<div class="form-group"><label class="form-label">Email</label>' +
+                '<input class="form-input" type="email" id="z_email_' + i + '" value="' + esc(z.email) + '"></div>' +
+              '<div class="form-group"><label class="form-label">Department</label>' +
+                '<input class="form-input" id="z_dept_' + i + '" value="' + esc(z.department) + '"></div>' +
+            '</div>' +
+            '<div class="form-row">' +
+              '<div class="form-group"><label class="form-label">Audit Day</label>' +
+                '<select class="form-input" id="z_day_' + i + '">' + dayOpts + '</select></div>' +
+              '<div class="form-group"><label class="form-label">Target Score %</label>' +
+                '<input class="form-input" type="number" min="0" max="100" id="z_score_' + i + '" value="' + (z.targetScore !== undefined ? z.targetScore : 70) + '"></div>' +
+            '</div>' +
+            '<div class="form-row">' +
+              '<div class="form-group"><label class="form-label">Hindi Name</label>' +
+                '<input class="form-input" id="z_namehi_' + i + '" value="' + esc(z.nameHi) + '"></div>' +
+              '<div class="form-group"><label class="form-label">Drive Folder ID</label>' +
+                '<input class="form-input" id="z_drive_' + i + '" value="' + esc(z.driveFolderId) + '"></div>' +
+            '</div>' +
+            '<div class="zcrit-section">' +
+              '<div class="zcrit-section-hdr">' +
+                '<span class="zcrit-section-title">5S Criteria</span>' +
+              '</div>' +
+              '<div id="zcrit_' + esc(z.id) + '"></div>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+    });
+
+    var container = document.getElementById('zonesContent');
+    container.innerHTML = html +
+      '<button class="add-zone-btn" id="addZoneBtn">' +
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
+        'Add New Zone' +
+      '</button>';
+    container.style.display = 'block';
+    document.getElementById('loadZones').style.display = 'none';
+
+    // render criteria accordions for each zone
+    zones.forEach(function(z) {
+      var critContainer = document.getElementById('zcrit_' + z.id);
+      if (critContainer) renderZoneCriteria(z.id, critContainer);
+    });
+
+    document.getElementById('addZoneBtn').addEventListener('click', function() {
+      document.getElementById('az_id').value = '';
+      document.getElementById('az_name').value = '';
+      document.getElementById('az_namehi').value = '';
+      document.getElementById('az_dept').value = '';
+      document.getElementById('az_leader').value = '';
+      document.getElementById('az_email').value = '';
+      document.getElementById('azErr').style.display = 'none';
+      document.getElementById('azOverlay').classList.add('open');
+      document.getElementById('az_id').focus();
+    });
+  }
+
+  /* ─ SYSTEM render ────────────────────────────── */
+  function renderSystem(system) {
+    var html =
+      '<div class="sys-section">' +
+        '<div class="sys-section-title">Company</div>' +
+        '<div class="sys-fields">' +
+          '<div class="form-group"><label class="form-label">Company Name</label>' +
+            '<input class="form-input" id="sys_company" value="' + esc(system.companyName) + '"></div>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="sys-section">' +
+        '<div class="sys-section-title">Notifications</div>' +
+        '<div class="sys-fields">' +
+          '<div class="form-group"><label class="form-label">Management Committee (MC) Email</label>' +
+            '<input class="form-input" type="email" id="sys_mc" value="' + esc(system.mcEmail) + '"></div>' +
+          '<div class="form-group"><label class="form-label">Top Management Email</label>' +
+            '<input class="form-input" type="email" id="sys_top" value="' + esc(system.topEmail) + '"></div>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="sys-section">' +
+        '<div class="sys-section-title">5S Thresholds</div>' +
+        '<div class="sys-fields">' +
+          '<div class="form-group"><label class="form-label">NC Threshold (weekly score ≤ this triggers a Non-Conformance)</label>' +
+            '<input class="form-input" type="number" min="0" max="80" id="sys_nc" value="' + (system.ncThreshold !== undefined ? system.ncThreshold : 1) + '"></div>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="sys-section">' +
+        '<div class="sys-section-title">Deployment</div>' +
+        '<div class="sys-fields">' +
+          '<div class="form-group"><label class="form-label">Deploy ID</label>' +
+            '<input class="form-input" id="sys_deployid" value="' + esc(system.deployId) + '"></div>' +
+        '</div>' +
+        '<div class="deploy-warn">' +
+          '<strong>Warning:</strong> Changing the Deploy ID updates all in-app links. Only change this if you have created a new deployment and have the correct new deployment ID. Incorrect values will break navigation.' +
+        '</div>' +
+      '</div>';
+
+    var container = document.getElementById('systemContent');
+    container.innerHTML = html;
+    container.style.display = 'block';
+    document.getElementById('loadSystem').style.display = 'none';
+  }
+
+  /* ─ Add Zone modal ───────────────────────────── */
+  document.getElementById('azCancelBtn').addEventListener('click', function() {
+    document.getElementById('azOverlay').classList.remove('open');
+  });
+  document.getElementById('azOverlay').addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('open');
+  });
+
+  document.getElementById('azConfirmBtn').addEventListener('click', function() {
+    var rawId   = document.getElementById('az_id').value.trim().toUpperCase();
+    var name    = document.getElementById('az_name').value.trim();
+    var nameHi  = document.getElementById('az_namehi').value.trim();
+    var dept    = document.getElementById('az_dept').value.trim();
+    var leader  = document.getElementById('az_leader').value.trim();
+    var email   = document.getElementById('az_email').value.trim();
+    var errEl   = document.getElementById('azErr');
+
+    if (!rawId || !name) {
+      errEl.textContent = 'Zone ID and Name are required.';
+      errEl.style.display = 'block';
+      return;
+    }
+    var exists = _data.zones.some(function(z) { return z.id === rawId; });
+    if (exists) {
+      errEl.textContent = 'Zone ID "' + rawId + '" already exists.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    var newZone = {
+      id: rawId, name: name, nameHi: nameHi,
+      leader: leader, email: email, department: dept,
+      auditDay: 'Monday', auditDayNum: 1, targetScore: 70,
+      driveFolderId: '', criteria: []
+    };
+    _data.zones.push(newZone);
+    _zoneCriteria[rawId] = [];
+
+    document.getElementById('azOverlay').classList.remove('open');
+    renderZones(_data.zones);
+    // scroll to new zone card
+    var cards = document.querySelectorAll('.zone-card');
+    if (cards.length) cards[cards.length - 1].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  /* ─ Collect on save ──────────────────────────── */
+  function collectZones() {
+    return _data.zones.map(function(z, i) {
+      var dayVal = document.getElementById('z_day_' + i).value;
+      var dayNum = AUDIT_DAYS.indexOf(dayVal);
+      if (dayNum < 0) dayNum = 1;
+
+      // Collect live criteria from _zoneCriteria (already updated by add/delete handlers)
+      // Also sync any edited text fields from open pillar bodies
+      var criteria = (_zoneCriteria[z.id] || []).map(function(c) {
+        return { id: c.id, pillar: c.pillar, labelEn: c.labelEn, labelHi: c.labelHi, maxScore: c.maxScore || 4 };
+      });
+
+      // Walk rendered cr-items to capture any edits made in open pillar bodies
+      var critContainer = document.getElementById('zcrit_' + z.id);
+      if (critContainer) {
+        critContainer.querySelectorAll('.cr-item').forEach(function(item) {
+          var crid = item.getAttribute('data-crid');
+          var enVal = item.querySelector('.cr-en') ? item.querySelector('.cr-en').value : '';
+          var hiVal = item.querySelector('.cr-hi') ? item.querySelector('.cr-hi').value : '';
+          var found = criteria.find(function(c) { return c.id === crid; });
+          if (found) { found.labelEn = enVal; found.labelHi = hiVal; }
+          // Also sync back to _zoneCriteria for consistency
+          var mem = (_zoneCriteria[z.id] || []).find(function(c) { return c.id === crid; });
+          if (mem) { mem.labelEn = enVal; mem.labelHi = hiVal; }
+        });
+      }
+
+      return {
+        id:            z.id,
+        name:          document.getElementById('z_name_'   + i).value,
+        nameHi:        document.getElementById('z_namehi_' + i).value,
+        leader:        document.getElementById('z_leader_' + i).value,
+        email:         document.getElementById('z_email_'  + i).value,
+        auditDay:      dayVal,
+        auditDayNum:   dayNum,
+        department:    document.getElementById('z_dept_'   + i).value,
+        driveFolderId: document.getElementById('z_drive_'  + i).value,
+        targetScore:   parseFloat(document.getElementById('z_score_' + i).value) || 70,
+        criteria:      criteria
+      };
+    });
+  }
+
+  function collectSystem() {
+    return {
+      companyName: document.getElementById('sys_company').value,
+      mcEmail:     document.getElementById('sys_mc').value,
+      topEmail:    document.getElementById('sys_top').value,
+      ncThreshold: parseInt(document.getElementById('sys_nc').value, 10) || 1,
+      deployId:    document.getElementById('sys_deployid').value
+    };
+  }
+
+  /* ─ Load data ────────────────────────────────── */
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (!res || !res.success) {
+        setStatus('Load error: ' + (res && res.message ? res.message : 'Unknown error'), 'err');
+        return;
+      }
+      _data = res;
+      renderZones(res.zones);
+      renderSystem(res.system);
+      document.getElementById('msSaveBtn').disabled = false;
+      setStatus('Ready — edit and tap Save All to apply changes', '');
+    })
+    .withFailureHandler(function(err) {
+      setStatus('Load failed: ' + (err && err.message ? err.message : String(err)), 'err');
+    })
+    .getMasterSettingsData();
+
+  /* ─ Save ─────────────────────────────────────── */
+  document.getElementById('msSaveBtn').addEventListener('click', function() {
+    if (!_data) return;
+    var btn = this;
+    btn.disabled = true;
+    setStatus('Saving all settings…', '');
+
+    var payload = {
+      zones:  collectZones(),
+      system: collectSystem()
+    };
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        btn.disabled = false;
+        if (res && res.success) {
+          setStatus(res.message || 'Settings saved!', 'ok');
+        } else {
+          setStatus('Save error: ' + (res && res.message ? res.message : 'Unknown'), 'err');
+        }
+      })
+      .withFailureHandler(function(err) {
+        btn.disabled = false;
+        setStatus('Save failed: ' + (err && err.message ? err.message : String(err)), 'err');
+      })
+      .saveMasterSettings(payload);
+  });
+
+})();
+</script>
+</body>
+</html>

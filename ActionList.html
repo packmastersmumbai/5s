@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Action List — PackMasters 5S</title>
+<?!= include("CommonStyles") ?>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-main);
+  background: var(--bg-page);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+/* ── HEADER ────────────────────────────── */
+.header {
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  position: sticky; top: 0; z-index: 100;
+}
+
+.header h1 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--pm-primary);
+  letter-spacing: .2px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.header h1::before {
+  content: '';
+  display: block;
+  width: 3px;
+  height: 18px;
+  background: var(--score-red);
+  border-radius: 2px;
+}
+
+.badge {
+  background: var(--bg-card-2);
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* ── SUMMARY BAR ───────────────────────── */
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+}
+
+.summary .item {
+  text-align: center;
+  padding: 14px 8px;
+  border-right: 1px solid var(--border);
+}
+.summary .item:last-child { border-right: none; }
+
+.summary .num {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text-muted);
+}
+.summary .num.crit { color: var(--score-red); }
+.summary .num.high { color: var(--score-amber); }
+.summary .num.med  { color: #B45309; }
+
+.summary .lbl {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 4px;
+}
+
+/* ── FILTER BAR ────────────────────────── */
+.filter-bar {
+  padding: 8px 16px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+}
+
+.filter-btn {
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-card);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all .15s;
+}
+.filter-btn:hover {
+  background: var(--pm-primary-soft);
+  color: var(--pm-primary);
+  border-color: var(--pm-primary);
+}
+.filter-btn.active {
+  background: var(--pm-primary);
+  color: #fff;
+  border-color: var(--pm-primary);
+}
+
+/* ── ACTIONS LIST ──────────────────────── */
+.actions-list {
+  max-width: 700px;
+  margin: 14px auto;
+  padding: 0 14px;
+}
+
+.action-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--border);
+  border-radius: var(--r);
+  margin-bottom: 8px;
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+  transition: box-shadow .2s;
+}
+.action-item:hover { box-shadow: var(--shadow-lg); }
+
+.action-item.CRITICAL { border-left-color: var(--score-red); }
+.action-item.HIGH     { border-left-color: var(--score-amber); }
+.action-item.MEDIUM   { border-left-color: #F59E0B; }
+
+.action-item .top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.action-item .title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--pm-primary);
+  flex: 1;
+  line-height: 1.3;
+}
+
+.badge-urg {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 700;
+  white-space: nowrap;
+  letter-spacing: .5px;
+}
+.badge-urg.CRITICAL { background: var(--score-red-bg);   color: var(--score-red); }
+.badge-urg.HIGH     { background: var(--score-amber-bg); color: var(--score-amber); }
+.badge-urg.MEDIUM   { background: #FFF8E1;               color: #B45309; }
+
+.action-item .detail {
+  font-size: 12px;
+  color: var(--score-red);
+  font-weight: 500;
+  margin-top: 5px;
+}
+
+.action-item .meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.action-item .meta span {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.empty {
+  text-align: center;
+  padding: 60px 24px;
+  color: var(--score-green);
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* ── NO CONTENT ────────────────────────── */
+.loading-msg {
+  text-align: center;
+  padding: 60px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+
+/* ── ACTION BUTTONS ────────────────────── */
+.action-btns {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.action-btn {
+  padding: 5px 13px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  letter-spacing: .3px;
+  transition: opacity .15s, transform .1s;
+  -webkit-tap-highlight-color: transparent;
+}
+.action-btn:active:not(:disabled) { transform: scale(.94); }
+.action-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+.action-btn.start { background: var(--pm-primary-soft); color: var(--pm-primary);   border: 1px solid var(--pm-primary); }
+.action-btn.close { background: var(--score-green-bg);  color: var(--score-green);  border: 1px solid var(--score-green); }
+.action-btn.done  { background: var(--score-green-bg);  color: var(--score-green);  border: 1px solid var(--score-green); }
+.action-btn.disp  { background: var(--score-amber-bg);  color: var(--score-amber);  border: 1px solid var(--score-amber); }
+.action-item.resolved { opacity: .35; pointer-events: none; transition: opacity .4s; }
+
+/* Create button */
+.create-btn {
+  background: var(--pm-primary);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 16px;
+  font-family: var(--font-main);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s;
+  white-space: nowrap;
+}
+.create-btn:hover { opacity: 0.9; }
+.create-btn:active { transform: scale(.97); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>DO NOW — Action List</h1>
+  <div style="display:flex; gap:8px; align-items:center;">
+    <div class="badge" id="genTime"></div>
+    <button id="createBtn" class="create-btn" onclick="openCreateForm()" title="Create NC, Task, or Red Tag">+ Create</button>
+  </div>
+</div>
+
+<div class="summary" id="summary"></div>
+<div class="filter-bar" id="filters"></div>
+<div id="content"><div class="loading-msg">Loading actions…</div></div>
+
+<script>
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+var allActions = [], currentFilter = 'ALL';
+
+// Zone ID injected server-side (works inside GAS sandboxed iframe)
+var _ZONE_ID = '<?= (typeof params !== "undefined" && params && params.zone) ? String(params.zone).replace(/['"<>&]/g,"") : "" ?>';
+
+function getZoneId() {
+  if (_ZONE_ID) return _ZONE_ID;
+  try { return new URLSearchParams(window.location.search).get('zone') || ''; } catch(e) { return ''; }
+}
+
+function load(forceRefresh) {
+  var zid = getZoneId();
+  var cacheKey = 'actionlist_' + (zid || 'ALL');
+  var cached = PM5SCache.get(cacheKey);
+  if (!cached) {
+    document.getElementById('content').innerHTML = '<div class="loading-msg">Loading actions…</div>';
+  }
+  PM5SCache.load(cacheKey, function(onFresh, onError) {
+    google.script.run
+      .withSuccessHandler(onFresh)
+      .withFailureHandler(onError)
+      .getAutoActionList(zid || undefined);
+  }, function(data, isStale) {
+    render(data, isStale);
+  }, { ttl: 3 * 60 * 1000, forceRefresh: !!forceRefresh,
+    onError: function(e) {
+      if (!cached) document.getElementById('content').innerHTML =
+        '<div class="loading-msg" style="color:var(--score-red)">' + escHtml(e.message) + '</div>';
+    }
+  });
+}
+
+function render(data, isStale) {
+  if (!data) return;
+  allActions = data.actions || [];
+  document.getElementById('genTime').textContent = data.generated + (isStale ? ' (cached)' : '');
+
+  /* Display timeout warning if data is partial */
+  if (data.isPartial && data.warnings && data.warnings.length > 0) {
+    data.warnings.forEach(function(w) {
+      if (typeof pmToast === 'function') {
+        pmToast(w, 'warning', 8000);
+      } else {
+        console.warn(w);
+      }
+    });
+  }
+
+  var s = data.summary || {};
+  document.getElementById('summary').innerHTML =
+    '<div class="item"><div class="num crit">' + (s.critical||0) + '</div><div class="lbl">Critical</div></div>' +
+    '<div class="item"><div class="num high">' + (s.high||0)     + '</div><div class="lbl">High</div></div>' +
+    '<div class="item"><div class="num med">'  + (s.medium||0)   + '</div><div class="lbl">Medium</div></div>' +
+    '<div class="item"><div class="num">'      + (s.total||0)    + '</div><div class="lbl">Total</div></div>';
+
+  /* Zone filters */
+  var zones = {};
+  allActions.forEach(function(a) { zones[a.zone] = true; });
+  var fhtml = '<button class="filter-btn active" onclick="filterBy(\'ALL\',this)">All</button>';
+  Object.keys(zones).forEach(function(z) {
+    fhtml += '<button class="filter-btn" onclick="filterBy(\'' + escHtml(z) + '\',this)">' + escHtml(z) + '</button>';
+  });
+  document.getElementById('filters').innerHTML = fhtml;
+
+  renderList(allActions);
+}
+
+function filterBy(zone, btn) {
+  currentFilter = zone;
+  document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  var filtered = zone === 'ALL' ? allActions : allActions.filter(function(a) { return a.zone === zone; });
+  renderList(filtered);
+}
+
+function renderList(actions) {
+  if (actions.length === 0) {
+    document.getElementById('content').innerHTML = '<div class="empty">All clear — no outstanding actions</div>';
+    return;
+  }
+  var html = '<div class="actions-list">';
+  actions.forEach(function(a) {
+    html += '<div class="action-item ' + escHtml(a.urgency) + '">';
+    html += '<div class="top"><div class="title">' + escHtml(a.title) + '</div>' +
+            '<span class="badge-urg ' + escHtml(a.urgency) + '">' + escHtml(a.urgency) + '</span></div>';
+    html += '<div class="detail">' + escHtml(a.detail) + '</div>';
+    html += '<div class="meta">' +
+            '<span>' + escHtml(a.zone) + '</span>' +
+            '<span>' + escHtml(a.assigned) + '</span>' +
+            '<span>' + escHtml(a.dueDate || 'No date') + '</span>' +
+            '<span>' + escHtml(a.type) + ' ' + escHtml(a.id) + '</span>' +
+            '</div>';
+
+    /* Action buttons — wired to server update functions */
+    html += '<div class="action-btns">';
+    if (a.type === 'NC/CAPA') {
+      if (a.status !== 'IN_PROGRESS' && a.status !== 'CLOSED') {
+        html += '<button class="action-btn start" onclick="doAction(\'NC_CAPA\',\'' + escHtml(a.id) + '\',\'start\',this)">→ In Progress</button>';
+      }
+      html += '<button class="action-btn close" onclick="doAction(\'NC_CAPA\',\'' + escHtml(a.id) + '\',\'close\',this)">✓ Close</button>';
+    } else if (a.type === 'TASK') {
+      html += '<button class="action-btn done" onclick="doAction(\'TASK\',\'' + escHtml(a.id) + '\',\'done\',this)">✓ Mark Done</button>';
+    } else if (a.type === 'RED_TAG') {
+      html += '<button class="action-btn disp" onclick="doAction(\'RED_TAG\',\'' + escHtml(a.id) + '\',\'dispose\',this)">✓ Dispose</button>';
+    }
+    html += '</div>';
+
+    html += '</div>';
+  });
+  html += '</div>';
+  document.getElementById('content').innerHTML = html;
+}
+
+load();
+
+function doAction(type, id, act, btn) {
+  /* Find the parent .action-item card */
+  var card = btn;
+  while (card && !card.classList.contains('action-item')) card = card.parentElement;
+
+  /* Optimistic UI: mark resolved immediately */
+  if (card) card.classList.add('resolved');
+  var origIndex = -1;
+  var origAction = null;
+  for (var i = allActions.length - 1; i >= 0; i--) {
+    if (allActions[i].id === id) { origIndex = i; origAction = allActions[i]; break; }
+  }
+  /* Remove from list optimistically */
+  if (origIndex >= 0) allActions.splice(origIndex, 1);
+  PM5SCache.invalidatePrefix('actionlist_');
+  setTimeout(function() {
+    var filtered = currentFilter === 'ALL' ? allActions
+      : allActions.filter(function(a) { return a.zone === currentFilter; });
+    renderList(filtered);
+  }, 350);
+
+  /* Disable buttons while syncing */
+  var btns = card ? card.querySelectorAll('.action-btn') : [btn];
+  btns.forEach(function(b) { b.disabled = true; });
+  var origText = btn.textContent;
+  btn.textContent = '…';
+
+  function rollback_() {
+    if (origAction) {
+      var stillMissing = !allActions.some(function(x) { return x.id === origAction.id; });
+      if (stillMissing) allActions.push(origAction);
+    }
+  }
+
+  function onSuccess(result) {
+    if (result && result.success) {
+      if (typeof pmToast === 'function') pmToast('Done', 'success', 2000);
+    } else {
+      rollback_();
+      if (card) card.classList.remove('resolved');
+      btns.forEach(function(b) { b.disabled = false; });
+      btn.textContent = origText;
+      var msg = result ? result.message : 'Action failed — please try again.';
+      if (typeof pmToast === 'function') pmToast(msg, 'error');
+      else alert(msg);
+    }
+  }
+
+  function onFailure(e) {
+    rollback_();
+    if (card) card.classList.remove('resolved');
+    btns.forEach(function(b) { b.disabled = false; });
+    btn.textContent = origText;
+    if (typeof pmToast === 'function') pmToast('Error: ' + e.message, 'error');
+    else alert('Error: ' + e.message);
+  }
+
+  if (type === 'NC_CAPA') {
+    var newStatus = (act === 'start') ? 'IN_PROGRESS' : 'CLOSED';
+    google.script.run
+      .withSuccessHandler(onSuccess)
+      .withFailureHandler(onFailure)
+      .updateCAPAKanbanStatus(id, newStatus, '');
+  } else if (type === 'TASK') {
+    google.script.run
+      .withSuccessHandler(onSuccess)
+      .withFailureHandler(onFailure)
+      .updateTaskStatus(id, 'DONE', '');
+  } else if (type === 'RED_TAG') {
+    google.script.run
+      .withSuccessHandler(onSuccess)
+      .withFailureHandler(onFailure)
+      .updateRedTagStatus(id, 'CLOSED', 'Disposed via Action List', '');
+  }
+}
+
+// ── Create action handlers ──
+var DU = '<?= deployUrl ?>';
+
+function openCreateForm() {
+  document.getElementById('quickCreateModal').classList.add('open');
+  // Load zones into dropdown
+  loadZonesDropdown();
+}
+
+function closeQuickCreate() {
+  document.getElementById('quickCreateModal').classList.remove('open');
+  document.getElementById('qcType').value = 'nc';
+  document.getElementById('qcDesc').value = '';
+}
+
+function loadZonesDropdown() {
+  var select = document.getElementById('qcZone');
+  if (select.options.length > 1) return; // Already loaded
+
+  try {
+    var zoneConfig = JSON.parse('<?= config.zoneConfig || "{}" ?>');
+    Object.keys(zoneConfig || {}).sort().forEach(function(zoneId) {
+      var opt = document.createElement('option');
+      opt.value = zoneId;
+      opt.textContent = zoneConfig[zoneId].name || zoneId;
+      select.appendChild(opt);
+    });
+  } catch(e) {
+    if (typeof pmToast === 'function') pmToast('Could not load zones', 'error');
+  }
+}
+
+function submitQuickCreate() {
+  var type = document.getElementById('qcType').value;
+  var zone = document.getElementById('qcZone').value;
+  var desc = document.getElementById('qcDesc').value.trim();
+
+  if (!zone) { pmToast('Zone is required', 'error'); return; }
+  if (!desc) { pmToast('Description is required', 'error'); return; }
+
+  // Log the quick action and then navigate
+  google.script.run.withSuccessHandler(function(result) {
+    if (result && result.success) {
+      closeQuickCreate();
+      var action = type === 'nc' ? 'capa' : type === 'task' ? 'taskboard' : 'redtag';
+      var url = DU + '?v2=1&action=' + action + '&zone=' + encodeURIComponent(zone) +
+                '&prefilled=' + encodeURIComponent(desc);
+      window.top.location.href = url;
+    } else {
+      pmToast('Failed to log action', 'error');
+    }
+  }).withFailureHandler(function(e) {
+    pmToast('Error: ' + e.message, 'error');
+  }).logQuickAction(type, zone, desc);
+}
+</script>
+
+<script>
+window.PM_TOUR_ID = 'actionlist';
+window.PM_TOUR_STEPS = [
+  { selector: '.summary',           title: 'Summary Bar',   body: 'Shows the total count of Critical, High, and Medium actions plant-wide.', pos: 'bottom' },
+  { selector: '.filter-bar',        title: 'Zone Filter',   body: 'Tap a zone button to filter action cards to that zone only. Tap All to see every zone.', pos: 'bottom' },
+  { selector: '.action-item',       title: 'Action Card',   body: 'Each card is an overdue NC, CAPA, or Red Tag that needs immediate attention.', pos: 'bottom' },
+  { selector: '.action-item .meta', title: 'Card Details',  body: 'Shows the zone, assigned person, due date, and the source record type and ID.', pos: 'top' }
+];
+</script>
+<?!= include('GuidedTour') ?>
+
+<!-- Quick Create Modal -->
+<div class="pm-drawer-backdrop" id="qcBackdrop" onclick="closeQuickCreate()"></div>
+<div class="pm-drawer" id="quickCreateModal">
+  <div class="pm-drawer__handle"></div>
+  <div class="pm-drawer__header">
+    <span class="pm-drawer__title">Create Item</span>
+    <button class="pm-drawer__close" onclick="closeQuickCreate()">✕</button>
+  </div>
+  <div class="pm-drawer__body">
+    <div class="drw-field">
+      <label class="drw-label">Item Type *</label>
+      <select id="qcType" class="pm-input">
+        <option value="nc">NC / CAPA (Non-Conformance)</option>
+        <option value="task">Task</option>
+        <option value="redtag">Red Tag (Sort & Dispose)</option>
+      </select>
+    </div>
+    <div class="drw-field">
+      <label class="drw-label">Zone *</label>
+      <select id="qcZone" class="pm-input">
+        <option value="">— Select Zone —</option>
+      </select>
+    </div>
+    <div class="drw-field">
+      <label class="drw-label">Brief Description *</label>
+      <textarea id="qcDesc" class="pm-input" rows="3" placeholder="What is the issue or action needed?"></textarea>
+    </div>
+    <button class="pm-btn pm-btn--primary" style="width: 100%;" onclick="submitQuickCreate()">Create & Continue</button>
+  </div>
+</div>
+
+</body>
+</html>

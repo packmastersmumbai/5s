@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>System Setup — PackMasters 5S</title>
+<?!= include("CommonStyles") ?>
+<style>
+body { background: var(--bg-page); }
+.wiz-wrap {
+  max-width: 540px;
+  margin: 0 auto;
+  padding: 0 0 80px;
+}
+
+/* ── Header ── */
+.wiz-hdr {
+  background: var(--pm-primary);
+  color: #fff;
+  padding: 18px 20px 14px;
+  text-align: center;
+}
+.wiz-hdr__title {
+  font-family: var(--font-display);
+  font-size: 20px; font-weight: 800;
+  letter-spacing: .3px;
+}
+.wiz-hdr__sub { font-size: 13px; opacity: .75; margin-top: 3px; }
+
+/* ── Progress steps ── */
+.wiz-steps {
+  display: flex;
+  align-items: center;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-light);
+  padding: 14px 20px;
+  gap: 0;
+}
+.ws { display: flex; align-items: center; flex: 1; }
+.ws-dot {
+  width: 30px; height: 30px; border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--bg-card);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; flex-shrink: 0;
+  transition: var(--trans);
+  color: var(--text-muted);
+}
+.ws-dot.active { background: var(--pm-primary); border-color: var(--pm-primary); color: #fff; }
+.ws-dot.done   { background: var(--pm-accent);  border-color: var(--pm-accent);  color: #fff; }
+.ws-label { font-size: 11px; font-weight: 600; margin-left: 6px; color: var(--text-muted); }
+.ws-label.active { color: var(--pm-primary); }
+.ws-label.done   { color: var(--pm-accent); }
+.ws-line { flex: 1; height: 2px; background: var(--border); margin: 0 4px; }
+.ws-line.done { background: var(--pm-accent); }
+
+/* ── Screen body ── */
+.wiz-screen { display: none; padding: 20px; }
+.wiz-screen.active { display: block; }
+
+.wiz-section-title {
+  font-family: var(--font-display);
+  font-size: 16px; font-weight: 700;
+  color: var(--pm-primary);
+  margin-bottom: 14px;
+}
+
+/* ── Health check list ── */
+.check-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0; border-bottom: 1px solid var(--border-light);
+  font-size: 13px;
+}
+.check-item:last-child { border-bottom: none; }
+.check-icon { font-size: 16px; flex-shrink: 0; }
+.check-name { flex: 1; }
+.check-rows { font-size: 11px; color: var(--text-muted); }
+
+/* ── Fields ── */
+.wf { margin-bottom: 16px; }
+.wl { display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 5px; }
+.wf small { font-size: 11px; color: var(--text-muted); display: block; margin-top: 3px; }
+
+/* ── Execution log ── */
+.exec-log {
+  background: var(--bg-card-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  max-height: 240px;
+  overflow-y: auto;
+  line-height: 1.9;
+}
+.log-ok   { color: var(--pm-accent); }
+.log-err  { color: var(--score-red); }
+.log-wait { color: var(--text-muted); }
+
+/* ── Nav buttons ── */
+.wiz-nav {
+  position: sticky;
+  bottom: 0;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-light);
+  padding: 12px 20px;
+  display: flex;
+  gap: 10px;
+}
+
+.wiz-success {
+  text-align: center;
+  padding: 32px 20px;
+  display: none;
+}
+.wiz-success__icon { font-size: 56px; }
+.wiz-success__title {
+  font-family: var(--font-display);
+  font-size: 22px; font-weight: 800;
+  color: var(--pm-accent);
+  margin: 12px 0 6px;
+}
+.wiz-success__sub { font-size: 14px; color: var(--text-secondary); margin-bottom: 20px; }
+</style>
+</head>
+<body>
+<div class="wiz-wrap">
+
+  <!-- Header -->
+  <div class="wiz-hdr">
+    <div class="wiz-hdr__title">⚙️ System Setup</div>
+    <div class="wiz-hdr__sub">PackMasters 5S — First-time initialization</div>
+  </div>
+
+  <!-- Progress -->
+  <div class="wiz-steps" id="wizSteps">
+    <div class="ws">
+      <div class="ws-dot active" id="sd1">1</div>
+      <span class="ws-label active" id="sl1">System Check</span>
+    </div>
+    <div class="ws-line" id="sl12"></div>
+    <div class="ws">
+      <div class="ws-dot" id="sd2">2</div>
+      <span class="ws-label" id="sl2">Configure</span>
+    </div>
+    <div class="ws-line" id="sl23"></div>
+    <div class="ws">
+      <div class="ws-dot" id="sd3">3</div>
+      <span class="ws-label" id="sl3">Initialize</span>
+    </div>
+  </div>
+
+  <!-- Screen 1: System Check -->
+  <div class="wiz-screen active" id="wiz-s1">
+    <div class="wiz-section-title">📋 Required Sheets &amp; Config</div>
+    <div id="checkList">
+      <div class="skeleton skeleton-text full"></div>
+      <div class="skeleton skeleton-text full" style="margin-bottom:8px"></div>
+      <div class="skeleton skeleton-text wide"></div>
+    </div>
+    <div id="checkNote" style="margin-top:14px;font-size:13px;color:var(--text-secondary);"></div>
+  </div>
+
+  <!-- Screen 2: Configuration -->
+  <div class="wiz-screen" id="wiz-s2">
+    <div class="wiz-section-title">🔧 System Configuration</div>
+    <div class="wf">
+      <label class="wl" for="wDeployUrl">Web App Deployment URL</label>
+      <input class="pm-input" id="wDeployUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec">
+      <small>From Apps Script → Deploy → Manage Deployments</small>
+    </div>
+    <div class="wf">
+      <label class="wl" for="wMCEmail">Manufacturing Controller Email</label>
+      <input class="pm-input" id="wMCEmail" type="email" placeholder="mc@company.com">
+    </div>
+    <div class="wf">
+      <label class="wl" for="wMgmtEmail">Top Management Email</label>
+      <input class="pm-input" id="wMgmtEmail" type="email" placeholder="gm@company.com">
+    </div>
+    <div class="wf">
+      <label class="wl" for="wAuditors">Auditor Whitelist (comma-separated emails)</label>
+      <textarea class="pm-textarea" id="wAuditors" rows="2" placeholder="auditor1@co.com, auditor2@co.com"></textarea>
+    </div>
+    <div class="wf">
+      <label class="wl" for="wTarget">Zone Target Score (%)</label>
+      <input class="pm-input" id="wTarget" type="number" value="70" min="0" max="100">
+    </div>
+  </div>
+
+  <!-- Screen 3: Execute -->
+  <div class="wiz-screen" id="wiz-s3">
+    <div class="wiz-section-title" id="s3Title">🚀 Initialize System</div>
+    <div class="exec-log" id="execLog">
+      <span class="log-wait">Ready to initialize. Press "Initialize System" to begin.</span>
+    </div>
+    <div class="wiz-success" id="wizSuccess">
+      <div class="wiz-success__icon">🎉</div>
+      <div class="wiz-success__title">Setup Complete!</div>
+      <div class="wiz-success__sub">All sheets, folders, QR codes and triggers are ready.</div>
+      <a id="qrPrintLink" href="#" target="_blank" class="pm-btn pm-btn--primary" style="margin-bottom:12px;text-decoration:none;">🖨️ Open QR Print Sheet</a>
+      <button class="pm-btn pm-btn--outline" onclick="google.script.host.close()">Close Wizard</button>
+    </div>
+  </div>
+
+  <!-- Nav -->
+  <div class="wiz-nav" id="wizNav">
+    <button class="pm-btn pm-btn--outline" id="btnBack" style="display:none;width:auto;padding:0 24px;" onclick="goStep(currentStep-1)">← Back</button>
+    <button class="pm-btn pm-btn--primary" id="btnNext" onclick="nextStep()">Next →</button>
+  </div>
+
+</div>
+
+<script>
+var currentStep = 1;
+var checkResults = null;
+var initRunning = false;
+
+/* ── Step navigation ── */
+function goStep(n) {
+  document.getElementById('wiz-s'+currentStep).classList.remove('active');
+  currentStep = n;
+  document.getElementById('wiz-s'+n).classList.add('active');
+  updateProgress();
+  if(n===1) loadSystemCheck();
+  if(n===3) updateS3Buttons();
+}
+
+function nextStep() {
+  if(currentStep===1) { goStep(2); return; }
+  if(currentStep===2) { goStep(3); return; }
+  if(currentStep===3) { runInit(); return; }
+}
+
+function updateProgress() {
+  for(var i=1;i<=3;i++){
+    var dot=document.getElementById('sd'+i);
+    var lbl=document.getElementById('sl'+i);
+    dot.className='ws-dot'+(i<currentStep?' done':i===currentStep?' active':'');
+    lbl.className='ws-label'+(i<currentStep?' done':i===currentStep?' active':'');
+  }
+  document.getElementById('sl12').className='ws-line'+(currentStep>1?' done':'');
+  document.getElementById('sl23').className='ws-line'+(currentStep>2?' done':'');
+  document.getElementById('btnBack').style.display=currentStep>1?'inline-flex':'none';
+  var next=document.getElementById('btnNext');
+  if(currentStep===3){next.textContent='🚀 Initialize System';next.className='pm-btn pm-btn--success';}
+  else{next.textContent='Next →';next.className='pm-btn pm-btn--primary';}
+}
+
+function updateS3Buttons(){
+  document.getElementById('btnNext').style.display=initRunning?'none':'inline-flex';
+}
+
+/* ── Screen 1: System check ── */
+function loadSystemCheck() {
+  var list=document.getElementById('checkList');
+  list.innerHTML='<div class="skeleton skeleton-text full"></div><div class="skeleton skeleton-text full" style="margin-bottom:8px"></div><div class="skeleton skeleton-text wide"></div>';
+  google.script.run
+    .withFailureHandler(function(e){list.innerHTML='<div style="color:var(--score-red);font-size:13px;">Error: '+esc(e.message)+'</div>';})
+    .withSuccessHandler(function(result){renderCheck(result);})
+    .v2HealthCheck();
+}
+
+function renderCheck(result){
+  checkResults=result;
+  var list=document.getElementById('checkList');
+  var sheets=result.checks.filter(function(c){return c.name.indexOf('Config:')===-1&&c.name.indexOf('constants')===-1&&c.name!=='V2_PROFILER';});
+  var missing=sheets.filter(function(c){return!c.exists;}).length;
+  list.innerHTML=sheets.map(function(c){
+    var icon=c.exists?'<span class="check-icon">✅</span>':'<span class="check-icon">⚠️</span>';
+    var rows=c.exists&&c.rows!==undefined?'<span class="check-rows">'+c.rows+' rows</span>':'<span class="check-rows" style="color:var(--score-amber)">missing</span>';
+    return '<div class="check-item">'+icon+'<span class="check-name">'+esc(c.name)+'</span>'+rows+'</div>';
+  }).join('');
+  var note=document.getElementById('checkNote');
+  if(missing===0){
+    note.innerHTML='<span style="color:var(--pm-accent);font-weight:600;">✅ All sheets found. You can re-run initialization safely — existing data is preserved.</span>';
+  } else {
+    note.innerHTML='<span style="color:var(--score-amber);font-weight:600;">⚠️ '+missing+' sheet(s) missing. Initialization will create them.</span>';
+  }
+}
+
+/* ── Screen 3: Execute ── */
+function runInit(){
+  if(initRunning)return;
+  initRunning=true;
+  document.getElementById('btnNext').style.display='none';
+  document.getElementById('btnBack').style.display='none';
+  var log=document.getElementById('execLog');
+  log.innerHTML='<span class="log-wait">⏳ Starting initialization…</span>';
+
+  var config={
+    deployUrl:document.getElementById('wDeployUrl').value.trim(),
+    mcEmail:document.getElementById('wMCEmail').value.trim(),
+    mgmtEmail:document.getElementById('wMgmtEmail').value.trim(),
+    auditorEmails:document.getElementById('wAuditors').value.trim(),
+    targetScore:parseInt(document.getElementById('wTarget').value)||70
+  };
+
+  google.script.run
+    .withFailureHandler(function(e){
+      log.innerHTML+='<div class="log-err">❌ Fatal error: '+esc(e.message)+'</div>';
+      initRunning=false;
+      document.getElementById('btnNext').style.display='none';
+      document.getElementById('btnBack').style.display='inline-flex';
+    })
+    .withSuccessHandler(function(result){
+      log.innerHTML='';
+      result.steps.forEach(function(s){
+        log.innerHTML+='<div class="'+(s.ok?'log-ok':'log-err')+'">'+(s.ok?'✅':'❌')+' '+esc(s.name)+' — '+esc(s.msg)+'</div>';
+      });
+      log.scrollTop=log.scrollHeight;
+      if(result.success){
+        document.getElementById('s3Title').textContent='✅ Initialization Complete';
+        var wizSuccess=document.getElementById('wizSuccess');
+        wizSuccess.style.display='block';
+        if(result.qrPrintUrl){
+          document.getElementById('qrPrintLink').href=result.qrPrintUrl;
+        } else {
+          document.getElementById('qrPrintLink').style.display='none';
+        }
+      } else {
+        log.innerHTML+='<div class="log-err" style="margin-top:8px;font-weight:700;">Setup completed with errors. See details above.</div>';
+        document.getElementById('btnBack').style.display='inline-flex';
+      }
+      initRunning=false;
+    })
+    .runFullSystemInit(config);
+}
+
+function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// Initialize
+loadSystemCheck();
+updateProgress();
+</script>
+</body>
+</html>

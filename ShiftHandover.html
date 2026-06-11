@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shift Handover — PackMasters 5S</title>
+<?!= include("CommonStyles") ?>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-main);
+  background: var(--bg-page);
+  color: var(--text-primary);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── HEADER ─────────────────────────────── */
+.hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 20px;
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 100;
+  gap: 10px;
+}
+
+.hdr-left { display: flex; align-items: center; gap: 12px; }
+
+.back-btn {
+  width: 32px; height: 32px; border-radius: var(--r);
+  background: var(--bg-card-2);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  text-decoration: none; color: var(--text-primary); font-size: 16px;
+  transition: background var(--trans);
+  flex-shrink: 0;
+}
+.back-btn:active { background: var(--border); }
+
+.hdr-title {
+  font-family: var(--font-display);
+  font-weight: 700; font-size: 17px; letter-spacing: 0.3px;
+  color: var(--pm-primary); line-height: 1;
+}
+.hdr-sub {
+  font-family: var(--font-mono);
+  font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text-muted); margin-top: 3px;
+}
+
+.shift-pill {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-card-2);
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+/* ── CONTAINER ──────────────────────────── */
+.container {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 16px 16px 40px;
+}
+
+/* ── SECTIONS ───────────────────────────── */
+.section {
+  background: var(--bg-card);
+  border-radius: var(--r-lg);
+  margin-bottom: var(--sp-3);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border-light);
+}
+
+.section-header {
+  padding: 12px 16px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--size-sm);
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--text-primary);
+}
+
+.section-header.warn {
+  background: var(--score-amber-bg);
+  color: var(--score-amber);
+  border-bottom-color: rgba(230,119,0,.2);
+}
+.section-header.good {
+  background: var(--score-green-bg);
+  color: var(--score-green);
+  border-bottom-color: rgba(47,158,68,.2);
+}
+
+.count-badge {
+  background: var(--pm-primary-soft);
+  color: var(--pm-primary);
+  padding: 2px 9px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+.section-header.warn .count-badge { background: rgba(230,119,0,.15); color: var(--score-amber); }
+.section-header.good .count-badge { background: rgba(47,158,68,.15);  color: var(--score-green); }
+
+.section-body { padding: 4px 0; }
+
+.item-row {
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--border-light);
+  font-size: var(--size-sm);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.item-row:last-child { border-bottom: none; }
+
+.item-left { flex: 1; line-height: 1.4; }
+.item-right { color: var(--text-muted); font-size: var(--size-xs); text-align: right; flex-shrink: 0; }
+
+.tag {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  letter-spacing: .2px;
+}
+.tag.open { background: var(--score-red-bg);   color: var(--score-red); }
+.tag.done { background: var(--score-green-bg); color: var(--score-green); }
+
+.missing-list {
+  padding: 6px 16px 10px;
+  font-size: var(--size-xs);
+  color: var(--score-red);
+  font-weight: 500;
+}
+
+.empty-msg {
+  padding: 12px 16px;
+  color: var(--text-muted);
+  font-size: var(--size-sm);
+}
+
+/* ── LOADING / ERROR ────────────────────── */
+.loading-state {
+  display: flex; align-items: center; justify-content: center;
+  height: 50vh; flex-direction: column; gap: 14px;
+}
+.spin {
+  width: 32px; height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--pm-primary);
+  border-radius: 50%;
+  animation: pm-spin .9s linear infinite;
+}
+@keyframes pm-spin { to { transform: rotate(360deg); } }
+.loading-label {
+  font-family: var(--font-mono);
+  font-size: 11px; letter-spacing: 1.5px;
+  color: var(--text-muted); text-transform: uppercase;
+}
+.action-btn {
+  background: var(--pm-primary);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity .2s;
+}
+.action-btn:hover { opacity: 0.9; }
+.action-btn:active { transform: scale(.97); }
+</style>
+</head>
+<body>
+
+<!-- ══════════ HEADER ══════════ -->
+<header class="hdr">
+  <div class="hdr-left">
+    <a class="back-btn" href="<?= deployUrl ?>" target="_top" title="Home">←</a>
+    <div>
+      <div class="hdr-title">Shift Handover</div>
+      <div class="hdr-sub">End-of-shift summary</div>
+    </div>
+  </div>
+  <span class="shift-pill" id="shiftPill">Loading…</span>
+</header>
+
+<!-- ══════════ CONTENT ══════════ -->
+<div class="container" id="content">
+  <div class="loading-state">
+    <div class="spin"></div>
+    <div class="loading-label">Generating handover</div>
+  </div>
+</div>
+
+<script>
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+google.script.run
+  .withSuccessHandler(function(d) {
+    if (!d) {
+      document.getElementById('content').innerHTML =
+        '<div class="loading-state"><div class="loading-label">No handover data available</div></div>';
+      return;
+    }
+
+    document.getElementById('shiftPill').textContent =
+      d.period.date + ' · ' + d.shift.toUpperCase() + ' shift (' + d.period.from + '–' + d.period.to + ')';
+
+    var h = '';
+
+    // ── Audits
+    var aCls = d.audits.missingZones.length > 0 ? 'warn' : 'good';
+    h += '<div class="section">' +
+      '<div class="section-header ' + aCls + '">Audits Completed <span class="count-badge">' +
+        d.audits.completedCount + '/' + d.audits.totalZones +
+      '</span></div>' +
+      '<div class="section-body">';
+    if (d.audits.completed.length) {
+      d.audits.completed.forEach(function(a) {
+        h += '<div class="item-row">' +
+          '<div class="item-left">' + escHtml(a.zoneName) + ' — ' + escHtml(a.auditor) + '</div>' +
+          '<div class="item-right">' +
+            '<span style="margin-right:8px">' + Math.round(a.score) + '%</span>' +
+            '<button class="action-btn" onclick="viewAudit(\'' + escHtml(a.zone) + '\')">View</button>' +
+          '</div>' +
+          '</div>';
+      });
+    }
+    if (d.audits.missingZones.length) {
+      h += '<div class="missing-list">Missing: ' + d.audits.missingZones.map(escHtml).join(', ') + '</div>';
+    }
+    h += '</div></div>';
+
+    // ── NCs Raised
+    h += '<div class="section">' +
+      '<div class="section-header">NCs Raised <span class="count-badge">' + d.ncsRaised.length + '</span></div>' +
+      '<div class="section-body">';
+    if (d.ncsRaised.length) {
+      d.ncsRaised.forEach(function(n) {
+        h += '<div class="item-row">' +
+          '<div class="item-left">' + escHtml(n.ncId) + ' — ' + escHtml(n.zone) + ' · ' + escHtml(n.criterion) + '</div>' +
+          '<div class="item-right">' +
+            '<span class="tag open" style="margin-right:8px">' + escHtml(n.status) + '</span>' +
+            '<button class="action-btn" onclick="viewNC(\'' + escHtml(n.ncId) + '\')">View</button>' +
+          '</div>' +
+          '</div>';
+      });
+    } else {
+      h += '<div class="empty-msg">No NCs raised this shift</div>';
+    }
+    h += '</div></div>';
+
+    // ── Red Tags
+    h += '<div class="section">' +
+      '<div class="section-header">Red Tags Created <span class="count-badge">' + d.redTags.length + '</span></div>' +
+      '<div class="section-body">';
+    if (d.redTags.length) {
+      d.redTags.forEach(function(r) {
+        h += '<div class="item-row">' +
+          '<div class="item-left">' + escHtml(r.tagId) + ' — ' + escHtml(r.item) + '</div>' +
+          '<div class="item-right">' +
+            '<span style="margin-right:8px">₹' + Math.round(r.value).toLocaleString() + '</span>' +
+            '<button class="action-btn" onclick="viewRedTag(\'' + escHtml(r.tagId) + '\')">View</button>' +
+          '</div>' +
+          '</div>';
+      });
+    } else {
+      h += '<div class="empty-msg">No Red Tags created</div>';
+    }
+    h += '</div></div>';
+
+    // ── Carried Forward
+    var cfCls = d.carriedForward.length ? 'warn' : 'good';
+    h += '<div class="section">' +
+      '<div class="section-header ' + cfCls + '">Carried Forward <span class="count-badge">' + d.carriedForward.length + '</span></div>' +
+      '<div class="section-body">';
+    if (d.carriedForward.length) {
+      d.carriedForward.forEach(function(c) {
+        h += '<div class="item-row">' +
+          '<div class="item-left">' + escHtml(c.title) + ' (' + escHtml(c.zone) + ')</div>' +
+          '<div class="item-right">Due: ' + escHtml(c.dueDate) + '</div>' +
+          '</div>';
+      });
+    } else {
+      h += '<div class="empty-msg">No items carried forward</div>';
+    }
+    h += '</div></div>';
+
+    // ── Kaizen
+    if (d.kaizens && d.kaizens.length) {
+      h += '<div class="section">' +
+        '<div class="section-header">Kaizen Suggestions <span class="count-badge">' + d.kaizens.length + '</span></div>' +
+        '<div class="section-body">';
+      d.kaizens.forEach(function(k) {
+        h += '<div class="item-row">' +
+          '<div class="item-left">' + escHtml(k.title) + '</div>' +
+          '<div class="item-right">' + escHtml(k.zone) + '</div>' +
+          '</div>';
+      });
+      h += '</div></div>';
+    }
+
+    document.getElementById('content').innerHTML = h;
+  })
+  .withFailureHandler(function(e) {
+    document.getElementById('content').innerHTML =
+      '<div class="loading-state"><div class="loading-label" style="color:var(--score-red)">Error: ' + escHtml(e.message) + '</div></div>';
+  })
+  .getShiftHandoverData();
+
+// ── Action handlers ──
+var DU = '<?= deployUrl ?>';
+
+function viewAudit(zone) {
+  if (DU) window.top.location.href = DU + '?v2=1&action=quickaudit&zone=' + encodeURIComponent(zone);
+}
+
+function viewNC(ncId) {
+  if (DU) window.top.location.href = DU + '?v2=1&action=capa&id=' + encodeURIComponent(ncId);
+}
+
+function viewRedTag(tagId) {
+  if (DU) window.top.location.href = DU + '?v2=1&action=redtag&id=' + encodeURIComponent(tagId);
+}
+</script>
+
+<script>
+window.PM_TOUR_ID = 'shifthandover';
+window.PM_TOUR_STEPS = [
+  { selector: '.hdr',      title: 'Shift Handover',    body: 'A plant-wide summary for the outgoing shift leader. Data is auto-generated from the current shift.', pos: 'bottom' },
+  { selector: '#content',  title: 'Handover Sections', body: 'Scroll through sections: Audits completed, Open NCs, Carried-forward actions, and Kaizen suggestions.', pos: 'bottom' },
+  { selector: '.section',  title: 'Handover Section',  body: 'Each section highlights what happened this shift. Green header = all clear, amber = items need attention.', pos: 'bottom' }
+];
+</script>
+<?!= include('GuidedTour') ?>
+</body>
+</html>

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Historical Comparison — PackMasters 5S</title>
+  <?!= include('CommonStyles') ?>
+  <script src="https://www.gstatic.com/charts/loader.js"></script>
+  <style>
+    .fy-card{background:var(--bg-card);border-radius:12px;padding:var(--sp-5);margin-bottom:var(--sp-4);box-shadow:var(--shadow);}
+    .fy-label{font-size:var(--size-sm);color:var(--text-secondary);}
+    .fy-row{display:flex;justify-content:space-around;gap:var(--sp-4);margin:var(--sp-4) 0;}
+    .fy-item{text-align:center;}
+    .fy-item__val{font-size:var(--size-2xl);font-weight:800;}
+    .fy-item__label{font-size:var(--size-xs);color:var(--text-secondary);}
+  </style>
+</head>
+<body>
+  <div class="pm-header">
+    <div class="pm-header__row">
+      <div>
+        <a href="<?= JSON.parse(data).deployUrl ?>" style="color:white;text-decoration:none;font-size:13px;opacity:0.8">← Home</a>
+        <div class="pm-header__brand" style="margin-top:2px;">Historical Comparison</div>
+        <div class="pm-header__zone" id="headerSub"></div>
+      </div>
+    </div>
+  </div>
+  <div class="pm-content">
+    <div class="fy-card"><div class="fy-row" id="fySummary"><div class="skeleton" style="height:60px;flex:1;"></div></div></div>
+    <div class="dash-chart-card"><div class="dash-chart-title">Year-on-Year Comparison</div><div id="yoyChart" style="width:100%;height:300px;"><div class="skeleton" style="height:250px;"></div></div></div>
+  </div>
+
+  <script>
+    (function(){
+      var SERVER_DATA=<?!= data ?>;
+      var zoneId=SERVER_DATA.zoneId||'';
+      document.getElementById('headerSub').textContent=zoneId?'Zone: '+zoneId:'Plant-Wide';
+
+      google.charts.load('current',{packages:['corechart']});
+      google.script.run.withSuccessHandler(function(d){
+        if(!d)return;
+        // Summary
+        var currentMonths=d.comparison.filter(function(c){return c.currentPct!==null;});
+        var priorMonths=d.comparison.filter(function(c){return c.priorPct!==null;});
+        var currentAvg=currentMonths.length>0?Math.round(currentMonths.reduce(function(s,c){return s+c.currentPct;},0)/currentMonths.length):0;
+        var priorAvg=priorMonths.length>0?Math.round(priorMonths.reduce(function(s,c){return s+c.priorPct;},0)/priorMonths.length):0;
+        var change=currentAvg-priorAvg;
+        var changeColor=change>=0?'var(--score-green)':'var(--score-red)';
+        var changeIcon=change>=0?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>';
+
+        document.getElementById('fySummary').innerHTML=
+          '<div class="fy-item"><div class="fy-item__val" style="color:var(--pm-primary);">'+currentAvg+'%</div><div class="fy-item__label">FY '+d.currentFY+'</div></div>'+
+          '<div class="fy-item"><div class="fy-item__val" style="color:var(--text-secondary);">'+priorAvg+'%</div><div class="fy-item__label">FY '+d.priorFY+'</div></div>'+
+          '<div class="fy-item"><div class="fy-item__val" style="color:'+changeColor+';">'+changeIcon+' '+(change>=0?'+':'')+change+'%</div><div class="fy-item__label">Change</div></div>';
+
+        // Chart
+        google.charts.setOnLoadCallback(function(){
+          var chartData=[['Month','FY '+d.currentFY,'FY '+d.priorFY]];
+          d.comparison.forEach(function(c){
+            chartData.push([c.monthLabel,c.currentPct,c.priorPct]);
+          });
+          new google.visualization.LineChart(document.getElementById('yoyChart'))
+            .draw(google.visualization.arrayToDataTable(chartData),{
+              vAxis:{minValue:0,maxValue:100,title:'Score %'},
+              hAxis:{title:'Month (Apr-Mar)'},
+              colors:['#1a5276','#bdc3c7'],
+              curveType:'function',
+              pointSize:5,
+              legend:{position:'top'},
+              chartArea:{left:50,right:20,top:40,bottom:50},
+              animation:{startup:true,duration:600}
+            });
+        });
+      }).getHistoricalComparison(zoneId);
+    })();
+  </script>
+</body>
+</html>

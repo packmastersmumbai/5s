@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Quick Audit — PackMasters 5S</title>
+<?!= include("CommonStyles") ?>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-main);
+  background: var(--bg-page);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+/* ── TOP BAR ───────────────────────────── */
+.top-bar {
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky; top: 0; z-index: 100;
+}
+.top-bar h1 {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--pm-primary);
+}
+.top-bar .info {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.top-bar .timer {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+/* ── PROGRESS BAR ──────────────────────── */
+.progress {
+  background: var(--border);
+  height: 3px;
+  position: sticky;
+  top: 52px;
+  z-index: 99;
+}
+.progress-fill {
+  height: 100%;
+  width: 100%;
+  background: var(--score-green);
+  transform-origin: left;
+  transform: scaleX(0);
+  transition: transform .3s ease-out;
+}
+
+/* ── CARD CONTAINER ────────────────────── */
+.card-container {
+  max-width: 500px;
+  margin: 16px auto;
+  padding: 0 12px;
+}
+
+/* ── AUDIT CARDS ───────────────────────── */
+.audit-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow);
+  margin-bottom: 12px;
+  overflow: hidden;
+  transition: all .3s;
+}
+.audit-card.scored {
+  opacity: .6;
+  max-height: 60px;
+  overflow: hidden;
+}
+.audit-card.active {
+  box-shadow: var(--shadow-lg);
+  border-color: var(--pm-primary);
+}
+
+/* Pillar color bands */
+.card-pillar {
+  padding: 7px 14px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #fff;
+}
+/* 5S pillar taxonomy colors */
+.card-pillar.S1 { background: var(--5s-sort); }
+.card-pillar.S2 { background: var(--5s-set); }
+.card-pillar.S3 { background: var(--5s-shine); }
+.card-pillar.S4 { background: var(--5s-standard); }
+.card-pillar.S5 { background: var(--5s-sustain); }
+.card-pillar.S6 { background: var(--score-red); }
+.card-pillar.E1 { background: #0D7A5F; }
+.card-pillar.E2 { background: var(--5s-shine); }
+.card-pillar.E3 { background: var(--5s-set); }
+.card-pillar.E4 { background: var(--5s-standard); }
+
+/* Card body */
+.card-body { padding: 14px; }
+
+.card-body .criterion {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 14px;
+  line-height: 1.4;
+}
+
+/* ── SCORE BUTTONS ─────────────────────── */
+.score-btns {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+.score-btn {
+  padding: 14px 0;
+  border: 2px solid var(--border);
+  border-radius: var(--r);
+  background: var(--bg-card);
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all .15s;
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.score-btn:active { transform: scale(.93); }
+
+/* Unselected color hints */
+.score-btn.s0 { color: var(--score-0); }
+.score-btn.s1 { color: var(--score-1); }
+.score-btn.s2 { color: var(--score-2); }
+.score-btn.s3 { color: var(--score-3); }
+.score-btn.s4 { color: var(--score-4); }
+
+/* Selected state */
+.score-btn.selected {
+  color: #fff;
+  transform: scale(1.06);
+  box-shadow: 0 2px 8px rgba(0,0,0,.12);
+}
+.score-btn.selected.s0 { background: var(--score-0); border-color: var(--score-0); }
+.score-btn.selected.s1 { background: var(--score-1); border-color: var(--score-1); }
+.score-btn.selected.s2 { background: var(--score-2); border-color: var(--score-2); }
+.score-btn.selected.s3 { background: var(--score-3); border-color: var(--score-3); }
+.score-btn.selected.s4 { background: var(--score-4); border-color: var(--score-4); }
+
+/* ── WDGLL REFERENCE ───────────────────── */
+.wdgll-ref {
+  margin-top: 8px;
+  background: var(--bg-card-2);
+  border-radius: var(--r);
+  padding: 8px;
+  display: none;
+}
+.wdgll-ref.show { display: block; }
+.wdgll-ref img {
+  width: 100%;
+  border-radius: var(--r-sm);
+  max-height: 160px;
+  object-fit: cover;
+}
+.wdgll-ref .label {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.wdgll-toggle {
+  font-size: 11px;
+  color: var(--pm-primary);
+  cursor: pointer;
+  margin-top: 6px;
+  display: inline-block;
+}
+
+/* ── SUBMIT AREA ───────────────────────── */
+.submit-area {
+  position: sticky;
+  bottom: 0;
+  background: var(--bg-card);
+  padding: 14px 16px;
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -2px 12px rgba(0,0,0,.06);
+  text-align: center;
+}
+
+.score-summary {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.submit-btn {
+  background: var(--pm-primary);
+  color: #fff;
+  border: none;
+  padding: 14px 40px;
+  border-radius: var(--r);
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+  max-width: 500px;
+  transition: background .2s, transform .15s;
+}
+.submit-btn:hover { background: var(--pm-primary-light); }
+.submit-btn:disabled {
+  background: var(--border);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+.submit-btn:active:not(:disabled) { transform: scale(.97); }
+
+/* ── ZONE PICKER (shown when no zone param) ────────────────────────────── */
+.zone-pick-list {
+  max-width: 480px;
+  margin: 20px auto;
+  padding: 0 12px;
+}
+.zone-pick-title {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--pm-primary);
+  text-align: center;
+  margin-bottom: 14px;
+}
+.zone-pick-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--pm-primary);
+  border-radius: var(--r);
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: var(--shadow);
+  transition: box-shadow .2s, border-left-color .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.zone-pick-btn:hover { box-shadow: var(--shadow-lg); border-left-color: var(--pm-accent); }
+.zone-pick-btn:active { transform: scale(.98); }
+.zone-pick-btn .zpb-id {
+  font-family: var(--font-mono);
+  font-size: 9px; font-weight: 700; letter-spacing: 2px;
+  color: var(--pm-primary); margin-bottom: 3px;
+}
+.zone-pick-btn .zpb-name {
+  font-family: var(--font-display);
+  font-size: 15px; font-weight: 700; color: var(--text-primary);
+}
+.zone-pick-btn .zpb-leader {
+  font-size: 11px; color: var(--text-muted); margin-top: 2px;
+}
+
+/* ── Plan F: mobile-only ── */
+.mobile-only { display: none; }
+@media (max-width: 768px) {
+  .mobile-only { display: inline; color: var(--score-red, #EF4444); }
+}
+
+/* ── ALREADY DONE NOTICE ───────────────── */
+.already-done {
+  background: var(--score-amber-bg);
+  border: 1px solid var(--score-amber);
+  padding: 12px 16px;
+  border-radius: var(--r);
+  margin: 12px 12px 0;
+  color: var(--score-amber);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* ── SUCCESS SCREEN ────────────────────── */
+.success-screen {
+  text-align: center;
+  padding: 60px 20px;
+}
+.success-screen .check {
+  margin-bottom: 16px;
+  display: block;
+}
+.success-screen .check svg {
+  width: 72px;
+  height: 72px;
+  color: var(--pm-primary);
+}
+.success-screen h2 {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--pm-primary);
+  margin-bottom: 8px;
+}
+.success-screen .score {
+  font-family: var(--font-display);
+  font-size: 60px;
+  font-weight: 800;
+  color: var(--score-green);
+  margin: 16px 0;
+  line-height: 1;
+}
+.success-screen .score.a { color: var(--score-amber); }
+.success-screen .score.r { color: var(--score-red); }
+.success-screen .actions-note {
+  font-size: 13px;
+  color: var(--score-amber);
+  background: var(--score-amber-bg);
+  border: 1px solid var(--score-amber);
+  border-radius: var(--r);
+  padding: 10px 16px;
+  display: inline-block;
+  margin-top: 12px;
+}
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div>
+    <h1>Quick Audit</h1>
+    <div class="info" id="auditInfo">Loading...</div>
+  </div>
+  <div class="timer" id="timer">0:00</div>
+</div>
+<div class="progress">
+  <div class="progress-fill" id="progressBar"></div>
+</div>
+
+<div id="content">
+  <div style="text-align:center;padding:60px;color:var(--text-muted);font-family:var(--font-mono);font-size:12px">
+    Loading audit form…
+  </div>
+</div>
+
+<script>
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+var scores = {}, totalCriteria = 0, timerStart = null, timerInterval = null;
+
+// Zone ID injected server-side (works inside GAS sandboxed iframe)
+var _ZONE_ID = '<?= (typeof params !== "undefined" && params && params.zone) ? String(params.zone).replace(/['"<>&]/g,"") : "" ?>';
+// Zone selected via the picker UI (overrides the injected value)
+var _SELECTED_ZONE = '';
+
+function getZoneId() {
+  if (_SELECTED_ZONE) return _SELECTED_ZONE;
+  if (_ZONE_ID)       return _ZONE_ID;
+  try { return new URLSearchParams(window.location.search).get('zone') || ''; } catch(e) { return ''; }
+}
+
+function loadAudit() {
+  var zid = getZoneId();
+  if (!zid) {
+    // No zone in URL — show zone picker instead of error
+    document.getElementById('auditInfo').textContent = 'Select a zone to audit';
+    document.getElementById('content').innerHTML =
+      '<div style="text-align:center;padding:40px;color:var(--text-muted);font-family:var(--font-mono);font-size:11px">Loading zones…</div>';
+    google.script.run
+      .withSuccessHandler(renderZonePicker)
+      .withFailureHandler(function(e) {
+        document.getElementById('content').innerHTML =
+          '<div style="text-align:center;padding:40px;color:var(--score-red);font-size:12px">' +
+          'Could not load zones: ' + escHtml(e.message) + '</div>';
+      })
+      .getMapEditorData();
+    return;
+  }
+  google.script.run
+    .withSuccessHandler(renderAudit)
+    .withFailureHandler(function(e) {
+      document.getElementById('content').innerHTML =
+        '<div style="text-align:center;padding:40px;color:var(--score-red)">' + escHtml(e.message) + '</div>';
+    })
+    .getQuickAuditConfig(zid);
+}
+
+function renderAudit(cfg) {
+  if (!cfg || !cfg.criteria) {
+    document.getElementById('content').innerHTML =
+      '<div style="text-align:center;padding:40px">No criteria found</div>';
+    return;
+  }
+
+  document.getElementById('auditInfo').textContent =
+    cfg.zoneName + ' · ' + cfg.dateDisplay + ' · ' + cfg.auditor;
+  totalCriteria = cfg.criteria.length;
+
+  var html = '';
+  if (cfg.alreadyAudited) {
+    html += '<div class="already-done">This zone was already audited today. Submitting will add another record.</div>';
+  }
+
+  html += '<div class="card-container">';
+  cfg.criteria.forEach(function(c, idx) {
+    html += '<div class="audit-card" id="card-' + idx + '">';
+    html += '<div class="card-pillar ' + escHtml(c.pillar) + '">' +
+            escHtml(c.pillarName) + ' (' + escHtml(c.pillar) + ')</div>';
+    html += '<div class="card-body">';
+    html += '<div class="criterion">' + escHtml(c.label) + '</div>';
+
+    /* Score buttons */
+    html += '<div class="score-btns">';
+    for (var s = 0; s <= c.maxScore; s++) {
+      html += '<button class="score-btn s' + s + '" ' +
+              'onclick="setScore(\'' + escHtml(c.criterionId) + '\',' + s + ',' + idx + ')" ' +
+              'id="btn-' + idx + '-' + s + '">' + s + '</button>';
+    }
+    html += '</div>';
+
+    /* WDGLL reference */
+    if (c.wdgllPhotos && c.wdgllPhotos.length > 0) {
+      html += '<span class="wdgll-toggle" onclick="toggleWDGLL(' + idx + ')">Show Standard</span>';
+      html += '<div class="wdgll-ref" id="wdgll-' + idx + '">';
+      html += '<img src="' + escHtml(c.wdgllPhotos[0].photoUrl) + '" alt="Standard" ' +
+              'onerror="this.style.display=\'none\'">';
+      html += '<div class="label">Standard: ' + escHtml(c.wdgllPhotos[0].description) + '</div>';
+      html += '</div>';
+    }
+
+    html += '</div></div>';
+  });
+  html += '</div>';
+
+  /* Photo evidence section */
+  html += '<div class="card-container">';
+  html += '<div class="form-section" style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;margin-bottom:12px;">';
+  html += '<label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:5px;">Photo Evidence <span class="mobile-only">(required)</span></label>';
+  html += '<input type="file" id="photoInput" name="photoInput" accept="image/*" capture="environment" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:var(--r);">';
+  html += '<small style="color:var(--text-muted,#94A3B8);">Capture on-site evidence</small>';
+  html += '</div></div>';
+
+  /* Submit area */
+  html += '<div class="submit-area">';
+  html += '<div class="score-summary" id="scoreSummary">0/' + totalCriteria + ' scored</div>';
+  html += '<button class="submit-btn" id="submitBtn" disabled onclick="submitAudit()">Complete Audit</button>';
+  html += '</div>';
+
+  document.getElementById('content').innerHTML = html;
+  initFormDefaults_();
+
+  /* Start timer */
+  timerStart = Date.now();
+  timerInterval = setInterval(function() {
+    var elapsed = Math.floor((Date.now() - timerStart) / 1000);
+    var m = Math.floor(elapsed / 60), s = elapsed % 60;
+    document.getElementById('timer').textContent = m + ':' + (s < 10 ? '0' : '') + s;
+  }, 1000);
+
+  /* Focus first card */
+  var first = document.getElementById('card-0');
+  if (first) first.classList.add('active');
+}
+
+function setScore(criterionId, score, idx) {
+  scores[criterionId] = score;
+
+  /* Update buttons */
+  for (var s = 0; s <= 4; s++) {
+    var btn = document.getElementById('btn-' + idx + '-' + s);
+    if (btn) btn.classList.toggle('selected', s === score);
+  }
+
+  /* Update card state */
+  var card = document.getElementById('card-' + idx);
+  if (card) { card.classList.add('scored'); card.classList.remove('active'); }
+
+  /* Activate next unscored */
+  var next = document.getElementById('card-' + (idx + 1));
+  if (next && !next.classList.contains('scored')) {
+    next.classList.add('active');
+    next.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  /* Update progress */
+  var scored = Object.keys(scores).length;
+  document.getElementById('progressBar').style.transform = 'scaleX(' + (totalCriteria > 0 ? scored / totalCriteria : 0) + ')';
+  document.getElementById('scoreSummary').textContent = scored + '/' + totalCriteria + ' scored';
+  document.getElementById('submitBtn').disabled = (scored < totalCriteria);
+}
+
+function toggleWDGLL(idx) {
+  var el = document.getElementById('wdgll-' + idx);
+  if (el) el.classList.toggle('show');
+}
+
+function submitAudit() {
+  if (!validatePhotoOnMobile_()) return;
+  var btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Submitting…';
+  clearInterval(timerInterval);
+
+  var auditPayload = { zoneId: getZoneId(), zone: getZoneId(), scores: scores, remarks: '' };
+
+  function queueAuditOffline_(reason) {
+    if (typeof offlineQueue !== 'undefined') {
+      offlineQueue.queueSubmission('audit', auditPayload).then(function() {
+        btn.disabled = false;
+        btn.textContent = 'Complete Audit';
+        if (typeof pmToast === 'function') pmToast('Saved offline — will sync when online', 'info');
+        if (typeof updateQueueStatus_ === 'function') updateQueueStatus_();
+      }).catch(function(e2) {
+        btn.disabled = false;
+        btn.textContent = 'Complete Audit';
+        if (typeof pmToast === 'function') pmToast('Error: ' + e2.message, 'error');
+      });
+    } else {
+      btn.disabled = false;
+      btn.textContent = 'Complete Audit';
+      if (typeof pmToast === 'function') pmToast(reason || 'Submission failed', 'error');
+    }
+  }
+
+  if (!navigator.onLine) { queueAuditOffline_('offline'); return; }
+
+  google.script.run
+    .withSuccessHandler(function(result) {
+      if (result && result.success) {
+        if (typeof pmToast === 'function') pmToast('✓ Submitted', 'success');
+        var elapsed = Math.floor((Date.now() - timerStart) / 1000);
+        var pct = result.percentage;
+        var sc  = pct >= 80 ? '' : pct >= 60 ? ' a' : ' r';
+        var html = '<div class="success-screen">';
+        html += '<span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>';
+        html += '<h2>Audit Complete</h2>';
+        html += '<div class="score' + sc + '">' + pct + '%</div>';
+        html += '<p style="font-size:14px;color:var(--text-secondary)">Score: ' + result.totalScore + '/' + result.maxScore + '</p>';
+        html += '<p style="font-size:12px;color:var(--text-muted);margin-top:6px">Completed in ' +
+                Math.floor(elapsed / 60) + 'm ' + elapsed % 60 + 's</p>';
+        if (result.actionsGenerated > 0) {
+          html += '<div class="actions-note">' + result.actionsGenerated + ' action(s) auto-generated for low scores</div>';
+        }
+        html += '<p style="margin-top:24px"><a href="javascript:history.back()" ' +
+                'style="color:var(--pm-primary);font-family:var(--font-display);font-weight:600">' +
+                '← Back to Dashboard</a></p>';
+        html += '</div>';
+        document.getElementById('content').innerHTML = html;
+        document.querySelector('.submit-area').style.display = 'none';
+        document.querySelector('.progress').style.display  = 'none';
+      } else {
+        btn.disabled = false;
+        btn.textContent = 'Complete Audit';
+        alert(result ? result.message : 'Submission failed');
+      }
+    })
+    .withFailureHandler(function(e) {
+      /* Plan G: queue on failure */
+      queueAuditOffline_(e.message);
+    })
+    .submitQuickAudit(auditPayload);
+}
+
+/* Renders a zone selection list when no zone param is in the URL */
+function renderZonePicker(data) {
+  var zones = (data && data.zones) ? data.zones : {};
+  var zoneIds = Object.keys(zones).sort();
+  if (zoneIds.length === 0) {
+    document.getElementById('content').innerHTML =
+      '<div style="text-align:center;padding:40px;color:var(--text-muted)">No zones configured yet.</div>';
+    return;
+  }
+  var html = '<div class="zone-pick-list">';
+  html += '<div class="zone-pick-title">Select Zone to Audit</div>';
+  zoneIds.forEach(function(zid) {
+    var z = zones[zid] || {};
+    html += '<button class="zone-pick-btn" onclick="selectZone(\'' + escHtml(zid) + '\')">' +
+            '<div class="zpb-id">' + escHtml(zid) + '</div>' +
+            '<div class="zpb-name">' + escHtml(z.name || zid) + '</div>' +
+            (z.leader ? '<div class="zpb-leader">' + escHtml(z.leader) + '</div>' : '') +
+            '</button>';
+  });
+  html += '</div>';
+  document.getElementById('content').innerHTML = html;
+}
+
+/* ── Plan F: Form defaults, mobile detection, photo validation ── */
+function initFormDefaults_() {
+  var params = new URLSearchParams(window.location.search);
+  var today = new Date().toISOString().split('T')[0];
+  document.querySelectorAll('input[type="date"]').forEach(function(f) { if (!f.value) f.value = today; });
+  document.querySelectorAll('.form-section').forEach(function(el, idx) {
+    el.classList.add('animate__animated', 'animate__fadeInUp');
+    el.style.animationDelay = (idx * 0.08) + 's';
+  });
+  document.body.classList.add('has-sticky-submit');
+}
+
+function isMobileDevice_() {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
+function validatePhotoOnMobile_() {
+  if (!isMobileDevice_()) return true;
+  var photoInput = document.getElementById('photoInput') || document.querySelector('input[type="file"][accept*="image"]');
+  if (!photoInput || !photoInput.files || photoInput.files.length === 0) {
+    if (typeof pmToast === 'function') pmToast('Photo required on mobile', 'warning');
+    return false;
+  }
+  return true;
+}
+
+/* Called when user taps a zone in the picker */
+function selectZone(zid) {
+  _SELECTED_ZONE = zid;
+  document.getElementById('auditInfo').textContent = 'Loading…';
+  document.getElementById('content').innerHTML =
+    '<div style="text-align:center;padding:60px;color:var(--text-muted);font-family:var(--font-mono);font-size:12px">Loading audit form…</div>';
+  google.script.run
+    .withSuccessHandler(renderAudit)
+    .withFailureHandler(function(e) {
+      document.getElementById('content').innerHTML =
+        '<div style="text-align:center;padding:40px;color:var(--score-red)">' + escHtml(e.message) + '</div>';
+    })
+    .getQuickAuditConfig(zid);
+}
+
+loadAudit();
+</script>
+
+<script>
+window.PM_TOUR_ID = 'quickaudit';
+window.PM_TOUR_STEPS = [
+  { selector: '.score-bar',       title: 'Live Score Bar',  body: 'Your running audit score updates in real time as you rate each criterion — aim for 80% or above.', pos: 'bottom' },
+  { selector: '.pillar-section',  title: '5S Pillar Group', body: 'Criteria are grouped by pillar. Tap a header to expand it, then score each item 0 (none) to 4 (excellent).', pos: 'bottom' },
+  { selector: '.score-selector',  title: 'Score Selector',  body: 'Tap a number to set the score for this criterion. 0 = not done, 4 = excellent standard maintained.', pos: 'top' },
+  { selector: '.header',          title: 'Audit Header',    body: 'Shows zone name and audit date. Use the ← back link to exit without saving.', pos: 'bottom' }
+];
+</script>
+<?!= include('GuidedTour') ?>
+</body>
+</html>

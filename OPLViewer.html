@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>One-Point Lessons — PackMasters 5S</title>
+<?!= include("CommonStyles") ?>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f5f5f5;min-height:100vh}
+@media print{.no-print{display:none!important}.opl-page{break-after:page}}
+.hdr{background:linear-gradient(135deg,#16a085,#1abc9c);color:#fff;padding:14px 20px}
+.hdr h1{font-size:18px}.hdr .sub{font-size:12px;opacity:.8}
+.container{max-width:700px;margin:16px auto;padding:0 12px}
+.candidates{background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.06)}
+.cand-h{padding:12px 16px;font-weight:600;font-size:14px;border-bottom:1px solid #f0f0f0}
+.cand-row{padding:10px 16px;border-bottom:1px solid #f8f8f8;display:flex;justify-content:space-between;align-items:center;cursor:pointer;transition:background .15s}
+.cand-row:hover{background:#f0f8ff}
+.cand-row .info{font-size:13px}.cand-row .info .id{font-weight:600;color:#1a5276}
+.cand-row .btn{padding:4px 12px;background:#16a085;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px}
+.opl-page{background:#fff;border-radius:10px;margin:16px 0;padding:24px;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.opl-title{font-size:18px;font-weight:700;color:#1a5276;margin-bottom:4px}
+.opl-meta{font-size:12px;color:#999;margin-bottom:16px}
+.opl-section{margin-bottom:16px;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden}
+.opl-section .sh{padding:8px 12px;font-weight:600;font-size:13px;color:#fff}
+.sh.prob{background:#e74c3c}.sh.corr{background:#27ae60}.sh.std{background:#2e75b6}.sh.key{background:#8e44ad}
+.opl-section .sb{padding:12px;font-size:13px;line-height:1.5}
+.opl-section .sb img{max-width:100%;border-radius:6px;margin:8px 0}
+.back-btn{display:inline-block;margin:12px 0;padding:6px 14px;background:#ddd;border-radius:6px;cursor:pointer;font-size:12px;border:none}
+.back-btn:hover{background:#ccc}
+</style>
+</head><body>
+
+<div class="hdr"><h1>One-Point Lessons (OPL)</h1><div class="sub">Auto-generated from closed Non-Conformances</div></div>
+<div class="container" id="content"><div style="text-align:center;padding:60px;color:#999">Loading...</div></div>
+
+<script>
+function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function loadCandidates(){
+  google.script.run.withSuccessHandler(function(data){
+    if(!data||!data.length){document.getElementById('content').innerHTML='<div style="text-align:center;padding:40px;color:#999">No closed NCs with corrective actions found. OPLs are generated from closed NC/CAPA records.</div>';return;}
+    var h='<div class="candidates"><div class="cand-h">Available OPL Candidates ('+data.length+' closed NCs)</div>';
+    data.forEach(function(c){
+      h+='<div class="cand-row" onclick="generateOPL(\''+esc(c.ncId)+'\')">';
+      h+='<div class="info"><span class="id">'+esc(c.ncId)+'</span> — '+esc(c.criterion)+' '+esc(c.label)+'<br><span style="color:#999;font-size:11px">'+esc(c.zone)+' | Closed: '+esc(c.closedDate)+'</span></div>';
+      h+='<button class="btn">Generate OPL</button>';
+      h+='</div>';
+    });
+    h+='</div>';
+    document.getElementById('content').innerHTML=h;
+  }).withFailureHandler(function(e){
+    document.getElementById('content').innerHTML='<div style="text-align:center;padding:40px;color:red">'+esc(e.message)+'</div>';
+  }).getOPLCandidates();
+}
+
+function generateOPL(ncId){
+  document.getElementById('content').innerHTML='<div style="text-align:center;padding:60px;color:#999">Generating OPL for '+esc(ncId)+'...</div>';
+  google.script.run.withSuccessHandler(function(opl){
+    if(!opl||!opl.success){document.getElementById('content').innerHTML='<div style="padding:40px;color:red">'+(opl?esc(opl.message):'Error')+'</div>';return;}
+    var h='<button class="back-btn no-print" onclick="loadCandidates()">← Back to List</button>';
+    h+='<button class="back-btn no-print" onclick="window.print()" style="margin-left:8px;display:inline-flex;align-items:center;gap:5px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Print</button>';
+    h+='<div class="opl-page">';
+    h+='<div class="opl-title">'+esc(opl.title)+'</div>';
+    h+='<div class="opl-meta">OPL ID: '+esc(opl.oplId)+' | Zone: '+esc(opl.zone)+' | Pillar: '+esc(opl.pillar)+' | Date: '+esc(opl.generatedDate)+'</div>';
+    
+    // Problem section
+    h+='<div class="opl-section"><div class="sh prob">Problem</div><div class="sb">';
+    h+='<p><strong>What happened:</strong> '+esc(opl.problem.description)+'</p>';
+    h+='<p><strong>Root cause:</strong> '+esc(opl.problem.rootCause)+'</p>';
+    h+='<p><strong>Audit date:</strong> '+esc(opl.problem.auditDate)+'</p>';
+    h+='</div></div>';
+    
+    // Corrective action
+    h+='<div class="opl-section"><div class="sh corr">Corrective Action</div><div class="sb">';
+    h+='<p><strong>Action taken:</strong> '+esc(opl.correctiveAction.action)+'</p>';
+    if(opl.correctiveAction.preventiveAction) h+='<p><strong>Preventive action:</strong> '+esc(opl.correctiveAction.preventiveAction)+'</p>';
+    if(opl.correctiveAction.verifiedBy) h+='<p><strong>Verified by:</strong> '+esc(opl.correctiveAction.verifiedBy)+'</p>';
+    h+='</div></div>';
+    
+    // Correct method / standard
+    h+='<div class="opl-section"><div class="sh std">Correct Standard (WDGLL)</div><div class="sb">';
+    h+='<p>'+esc(opl.correctMethod.description)+'</p>';
+    if(opl.correctMethod.referencePhotos&&opl.correctMethod.referencePhotos.length){
+      opl.correctMethod.referencePhotos.forEach(function(p){
+        h+='<img src="'+esc(p.photoUrl)+'" alt="Standard" onerror="this.style.display=\'none\'">';
+        h+='<p style="font-size:11px;color:#666">'+esc(p.description)+'</p>';
+      });
+    } else {
+      h+='<p style="color:#999;font-style:italic">No WDGLL reference photo available. Consider uploading one.</p>';
+    }
+    h+='</div></div>';
+    
+    // Key points
+    h+='<div class="opl-section"><div class="sh key">Key Points</div><div class="sb">';
+    (opl.keyPoints||[]).forEach(function(kp,i){
+      if(kp) h+='<p>'+(i+1)+'. '+esc(kp)+'</p>';
+    });
+    h+='</div></div>';
+    
+    h+='<div style="text-align:center;font-size:11px;color:#999;margin-top:16px;padding-top:12px;border-top:1px solid #eee">Generated by PackMasters 5S v2.0 | NC Ref: '+esc(opl.ncRef)+'</div>';
+    h+='</div>';
+    document.getElementById('content').innerHTML=h;
+  }).withFailureHandler(function(e){
+    document.getElementById('content').innerHTML='<div style="padding:40px;color:red">'+esc(e.message)+'</div>';
+  }).generateOPL(ncId);
+}
+
+loadCandidates();
+</script>
+</body></html>

@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Gemba Walk — PackMasters 5S</title>
+<?!= include("CommonStyles") ?>
+<style>
+.gw-header {
+  background: linear-gradient(135deg, var(--pm-primary) 0%, var(--pm-primary-light) 100%);
+  color: #fff;
+  padding: 14px 16px 12px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.gw-header__top { display: flex; align-items: center; gap: 10px; }
+.gw-header__back {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: rgba(255,255,255,.15);
+  border: none; color: #fff; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; flex-shrink: 0;
+}
+.gw-header__title { font-family: var(--font-display); font-size: 18px; font-weight: 700; flex: 1; }
+
+.gw-progress-bar { background: var(--border); height: 3px; }
+.gw-progress-fill { height: 100%; width: 100%; background: var(--score-green); transform-origin: left; transform: scaleX(0); transition: transform .3s ease-out; }
+
+.gw-content { max-width: 600px; margin: 0 auto; padding: 16px 12px 120px; }
+
+.form-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--r-lg);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow);
+}
+.form-section h3 {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--pm-primary);
+  margin-bottom: 12px;
+}
+
+.gw-field { margin-bottom: 12px; }
+.gw-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 5px; }
+
+.gw-question { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border-light); }
+.gw-question:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.gw-question__text { font-size: 13px; color: var(--text-primary); margin-bottom: 8px; line-height: 1.4; }
+.gw-yn-btns { display: flex; gap: 8px; }
+.gw-yn-btn {
+  flex: 1; padding: 8px; border-radius: var(--r); font-size: 13px; font-weight: 600;
+  border: 1.5px solid var(--border); background: var(--bg-card-2);
+  cursor: pointer; min-height: 36px; transition: var(--trans);
+}
+.gw-yn-btn.yes.selected { background: var(--score-green-bg); border-color: var(--score-green); color: var(--score-green); }
+.gw-yn-btn.no.selected  { background: var(--score-red-bg);   border-color: var(--score-red);   color: var(--score-red); }
+.gw-yn-btn.na.selected  { background: var(--score-amber-bg); border-color: var(--score-amber); color: var(--score-amber); }
+
+.action-item {
+  background: var(--bg-card-2);
+  border-radius: var(--r);
+  padding: 12px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border-light);
+}
+.ai-field {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  font-family: inherit;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  margin-top: 6px;
+  box-sizing: border-box;
+}
+
+.gw-add-btn {
+  padding: 8px 16px;
+  border-radius: var(--r);
+  border: 1.5px dashed var(--border);
+  background: var(--bg-card-2);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  width: 100%;
+  min-height: 36px;
+  transition: var(--trans);
+}
+.gw-add-btn:hover { border-color: var(--pm-primary); color: var(--pm-primary); }
+
+.gw-progress-row {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: right;
+  margin-bottom: 4px;
+}
+
+/* Plan F: mobile-only */
+.mobile-only { display: none; }
+@media (max-width: 768px) {
+  .mobile-only { display: inline; color: var(--score-red, #EF4444); }
+}
+</style>
+</head>
+<body>
+
+<div class="gw-header">
+  <div class="gw-header__top">
+    <button class="gw-header__back" onclick="history.back()">&#8592;</button>
+    <span class="gw-header__title">Gemba Walk</span>
+  </div>
+</div>
+<div class="gw-progress-bar">
+  <div class="gw-progress-fill" id="progressBar"></div>
+</div>
+
+<div class="gw-content" id="gwContent">
+  <div style="text-align:center;padding:60px;color:var(--text-muted);font-family:var(--font-mono);font-size:12px">
+    Loading form…
+  </div>
+</div>
+
+<script>
+// Auth guard
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var urlToken = params.get('token');
+  if (urlToken) localStorage.setItem('pm5s_token', urlToken);
+  var token = localStorage.getItem('pm5s_token');
+  if (!token) {
+    window.top.location.href = '<?= deployUrl ?>?v2=1&action=login';
+    return;
+  }
+  window.PM5S_TOKEN = token;
+})();
+
+var DU = '<?= deployUrl ?>';
+var ZONE_ID = '<?= params && params.zone ? String(params.zone).replace(/[^a-zA-Z0-9\-_]/g,"") : "" ?>';
+var responses = {};
+var questions = [];
+var actionItemCount = 0;
+
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── Load walk types then render form ── */
+function loadWalkForm() {
+  google.script.run
+    .withSuccessHandler(function(types) {
+      renderForm(types || []);
+    })
+    .withFailureHandler(function(e) {
+      document.getElementById('gwContent').innerHTML =
+        '<div style="text-align:center;padding:40px;color:var(--score-red);">' + escHtml(e.message) + '</div>';
+    })
+    .getGembaWalkTypes();
+}
+
+/* ── Render the main form shell ── */
+function renderForm(walkTypes) {
+  var typeOptions = walkTypes.length > 0
+    ? walkTypes.map(function(t) { return '<option value="' + escHtml(t) + '">' + escHtml(t) + '</option>'; }).join('')
+    : '<option value="5S_AUDIT">5S Audit</option><option value="SAFETY">Safety</option><option value="QUALITY">Quality</option>';
+
+  var html = '';
+
+  // Walk Info section
+  html += '<div class="form-section">';
+  html += '<h3>Walk Information</h3>';
+  html += '<div class="gw-field"><label class="gw-label" for="walkType">Walk Type *</label>';
+  html += '<select class="pm-input" id="walkType" onchange="loadQuestions()">' + typeOptions + '</select></div>';
+
+  html += '<div class="gw-field"><label class="gw-label" for="walkZone">Zone *</label>';
+  html += '<select class="pm-input" id="walkZone"><option value="">Select zone…</option></select></div>';
+
+  html += '<div class="gw-field"><label class="gw-label" for="walkerName">Walker Name</label>';
+  html += '<input class="pm-input" type="text" id="walkerName" placeholder="Your name"></div>';
+  html += '</div>';
+
+  // Questions section (populated by loadQuestions)
+  html += '<div class="form-section" id="questionsSection">';
+  html += '<h3>Observations</h3>';
+  html += '<div id="questionsList"><div style="color:var(--text-muted);font-size:13px;">Select walk type to load questions…</div></div>';
+  html += '<div class="gw-progress-row"><span id="progressText">0/0</span></div>';
+  html += '</div>';
+
+  // General observations
+  html += '<div class="form-section">';
+  html += '<h3>General Observations</h3>';
+  html += '<div class="gw-field"><label class="gw-label" for="observations">Notes / Comments</label>';
+  html += '<textarea class="pm-textarea" id="observations" rows="3" placeholder="Any additional observations…"></textarea></div>';
+  html += '</div>';
+
+  // Action items
+  html += '<div class="form-section">';
+  html += '<h3>Action Items</h3>';
+  html += '<div id="actionItemsList"></div>';
+  html += '<button class="gw-add-btn" onclick="addActionItem()">+ Add Action Item</button>';
+  html += '</div>';
+
+  // Photo evidence
+  html += '<div class="form-section">';
+  html += '<label class="gw-label">Photo Evidence <span class="mobile-only">(required)</span></label>';
+  html += '<input type="file" id="photoInput" name="photoInput" accept="image/*" capture="environment" class="pm-input" style="padding:6px;">';
+  html += '<small style="color:var(--text-muted,#94A3B8);">Capture on-site evidence</small>';
+  html += '</div>';
+
+  // Submit
+  html += '<button class="pm-btn pm-btn--primary form-sticky-submit" id="submitBtn" onclick="submitWalk()" disabled>Submit Walk</button>';
+  html += '<div id="submitStatus" style="text-align:center;margin-top:8px;color:var(--text-muted);font-size:13px;"></div>';
+
+  document.getElementById('gwContent').innerHTML = html;
+  initFormDefaults_();
+  loadZonesForForm();
+  if (walkTypes.length > 0) loadQuestions();
+}
+
+/* ── Load zones into select ── */
+function loadZonesForForm() {
+  google.script.run
+    .withSuccessHandler(function(cfg) {
+      var sel = document.getElementById('walkZone');
+      if (!sel) return;
+      Object.keys(cfg || {}).sort().forEach(function(id) {
+        var o = document.createElement('option');
+        o.value = id;
+        o.textContent = id + ' — ' + (cfg[id].name || id);
+        sel.appendChild(o);
+      });
+      if (ZONE_ID && sel.querySelector('option[value="' + ZONE_ID + '"]')) {
+        sel.value = ZONE_ID;
+        sel.disabled = true;
+      }
+      updateSubmitState();
+    })
+    .getZoneConfig();
+}
+
+/* ── Load questions for selected walk type ── */
+function loadQuestions() {
+  var walkType = document.getElementById('walkType');
+  if (!walkType || !walkType.value) return;
+  var qList = document.getElementById('questionsList');
+  if (qList) qList.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">Loading questions…</div>';
+  responses = {};
+  google.script.run
+    .withSuccessHandler(function(qs) {
+      questions = qs || [];
+      renderQuestions(questions);
+    })
+    .withFailureHandler(function() {
+      questions = [];
+      renderQuestions([]);
+    })
+    .getGembaWalkQuestions(walkType.value);
+}
+
+/* ── Render question cards ── */
+function renderQuestions(qs) {
+  var qList = document.getElementById('questionsList');
+  if (!qList) return;
+  if (qs.length === 0) {
+    qList.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">No questions configured for this walk type.</div>';
+    updateProgress();
+    return;
+  }
+  var html = '';
+  qs.forEach(function(q, idx) {
+    html += '<div class="gw-question">';
+    html += '<div class="gw-question__text">' + escHtml(q.text || q.question || ('Question ' + (idx + 1))) + (q.required ? ' <span style="color:var(--score-red)">*</span>' : '') + '</div>';
+    html += '<div class="gw-yn-btns">';
+    html += '<button class="gw-yn-btn yes" id="q' + idx + '_yes" onclick="setResponse(\'' + escHtml(q.questionId || ('q' + idx)) + '\',' + idx + ',\'YES\')">Yes</button>';
+    html += '<button class="gw-yn-btn no"  id="q' + idx + '_no"  onclick="setResponse(\'' + escHtml(q.questionId || ('q' + idx)) + '\',' + idx + ',\'NO\')">No</button>';
+    html += '<button class="gw-yn-btn na"  id="q' + idx + '_na"  onclick="setResponse(\'' + escHtml(q.questionId || ('q' + idx)) + '\',' + idx + ',\'NA\')">N/A</button>';
+    html += '</div></div>';
+  });
+  qList.innerHTML = html;
+  updateProgress();
+}
+
+/* ── Record a response ── */
+function setResponse(questionId, idx, val) {
+  responses[questionId] = val;
+  ['yes','no','na'].forEach(function(v) {
+    var btn = document.getElementById('q' + idx + '_' + v);
+    if (btn) btn.classList.toggle('selected', v.toUpperCase() === val);
+  });
+  updateProgress();
+}
+
+/* ── Update progress bar and submit state ── */
+function updateProgress() {
+  var answered = Object.keys(responses).length;
+  var total = questions.length;
+  var pct = total > 0 ? Math.round(answered / total * 100) : 0;
+  var bar = document.getElementById('progressBar');
+  if (bar) bar.style.transform = 'scaleX(' + pct / 100 + ')';
+  var txt = document.getElementById('progressText');
+  if (txt) txt.textContent = answered + '/' + total;
+
+  var allRequired = true;
+  questions.forEach(function(q) {
+    if (q.required && !responses[q.questionId || ('q' + questions.indexOf(q))]) allRequired = false;
+  });
+  var zoneVal = document.getElementById('walkZone') ? document.getElementById('walkZone').value : '';
+  var typeVal = document.getElementById('walkType') ? document.getElementById('walkType').value : '';
+  var btn = document.getElementById('submitBtn');
+  if (btn) btn.disabled = !allRequired || !typeVal || !zoneVal;
+}
+
+/* ── Update submit state when zone/type changes ── */
+function updateSubmitState() {
+  updateProgress();
+}
+
+/* ── Add action item row ── */
+function addActionItem() {
+  actionItemCount++;
+  var div = document.createElement('div');
+  div.className = 'action-item';
+  div.innerHTML =
+    '<b style="font-size:13px;">Action Item #' + actionItemCount + '</b>' +
+    '<input type="text" placeholder="Title / What needs to be done?" data-field="title" class="ai-field">' +
+    '<textarea rows="2" placeholder="Description (optional)" data-field="description" class="ai-field" style="margin-top:4px;"></textarea>' +
+    '<input type="text" placeholder="Assign to (name)" data-field="assignedTo" class="ai-field">' +
+    '<input type="date" data-field="dueDate" class="ai-field">';
+  document.getElementById('actionItemsList').appendChild(div);
+}
+
+/* ── Submit the walk ── */
+function submitWalk() {
+  if (!validatePhotoOnMobile_()) return;
+  var btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  document.getElementById('submitStatus').textContent = 'Submitting…';
+
+  var actionItems = [];
+  document.querySelectorAll('.action-item').forEach(function(item) {
+    var ai = {};
+    item.querySelectorAll('.ai-field').forEach(function(field) {
+      ai[field.dataset.field] = field.value;
+    });
+    if (ai.title) actionItems.push(ai);
+  });
+
+  var walkData = {
+    walkType: document.getElementById('walkType').value,
+    zoneId: document.getElementById('walkZone').value,
+    walkerName: document.getElementById('walkerName').value,
+    walkerEmail: '',
+    responses: responses,
+    observations: document.getElementById('observations').value,
+    actionItems: actionItems,
+    photoUrls: ''
+  };
+
+  function queueGembaOffline_(reason) {
+    if (typeof offlineQueue !== 'undefined') {
+      var gembaForQueue = Object.assign({}, walkData, { zone: walkData.zoneId });
+      offlineQueue.queueSubmission('gemba', gembaForQueue).then(function() {
+        btn.disabled = false;
+        document.getElementById('submitStatus').innerHTML = '<span style="color:var(--score-amber);">Saved offline — will sync when online</span>';
+        if (typeof pmToast === 'function') pmToast('Saved offline — will sync when online', 'info');
+        if (typeof updateQueueStatus_ === 'function') updateQueueStatus_();
+      }).catch(function(e2) {
+        btn.disabled = false;
+        document.getElementById('submitStatus').innerHTML = '<span style="color:var(--score-red);">Error: ' + escHtml(e2.message) + '</span>';
+      });
+    } else {
+      btn.disabled = false;
+      document.getElementById('submitStatus').innerHTML = '<span style="color:var(--score-red);">Error: ' + escHtml(reason) + '</span>';
+    }
+  }
+
+  if (!navigator.onLine) { queueGembaOffline_('offline'); return; }
+
+  google.script.run
+    .withFailureHandler(function(e) {
+      queueGembaOffline_(e.message);
+    })
+    .withSuccessHandler(function(result) {
+      if (result.success) {
+        if (typeof pmToast === 'function') pmToast('✓ Submitted', 'success');
+        document.getElementById('submitStatus').innerHTML = '<span style="color:var(--score-green);">Walk submitted! ID: ' +
+          escHtml(String(result.walkId)) +
+          (result.taskIds && result.taskIds.length > 0 ? ' | ' + result.taskIds.length + ' tasks created' : '') +
+          '</span>';
+      } else {
+        document.getElementById('submitStatus').innerHTML = '<span style="color:var(--score-red);">' + escHtml(result.message) + '</span>';
+        btn.disabled = false;
+      }
+    })
+    .submitGembaWalk(walkData);
+}
+
+/* ── Plan F: Form defaults, mobile detection, photo validation ── */
+function initFormDefaults_() {
+  var params = new URLSearchParams(window.location.search);
+  var today = new Date().toISOString().split('T')[0];
+  document.querySelectorAll('input[type="date"]').forEach(function(f) { if (!f.value) f.value = today; });
+  var ownerField = document.getElementById('walkerName');
+  if (ownerField && params.get('currentUser') && !ownerField.value) {
+    ownerField.value = params.get('currentUser');
+  }
+  document.querySelectorAll('.form-section').forEach(function(el, idx) {
+    el.classList.add('animate__animated', 'animate__fadeInUp');
+    el.style.animationDelay = (idx * 0.08) + 's';
+  });
+  document.body.classList.add('has-sticky-submit');
+}
+
+function isMobileDevice_() {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
+function validatePhotoOnMobile_() {
+  if (!isMobileDevice_()) return true;
+  var photoInput = document.getElementById('photoInput') || document.querySelector('input[type="file"][accept*="image"]');
+  if (!photoInput || !photoInput.files || photoInput.files.length === 0) {
+    if (typeof pmToast === 'function') pmToast('Photo required on mobile', 'warning');
+    return false;
+  }
+  return true;
+}
+
+loadWalkForm();
+</script>
+</body>
+</html>

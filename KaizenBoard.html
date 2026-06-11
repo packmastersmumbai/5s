@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kaizen Board — PackMasters 5S</title>
+<?!= include("CommonStyles") ?>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-main);
+  background: var(--bg-page);
+  color: var(--text-primary);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── HEADER ─────────────────────────────── */
+.hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 20px;
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 100;
+  flex-wrap: wrap; gap: 10px;
+}
+
+.hdr-left { display: flex; align-items: center; gap: 12px; }
+
+.back-btn {
+  width: 32px; height: 32px; border-radius: var(--r);
+  background: var(--bg-card-2);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  text-decoration: none; color: var(--text-primary); font-size: 16px;
+  transition: background var(--trans);
+  flex-shrink: 0;
+}
+.back-btn:active { background: var(--border); }
+
+.hdr-title {
+  font-family: var(--font-display);
+  font-weight: 700; font-size: 17px; letter-spacing: 0.3px;
+  color: var(--pm-primary); line-height: 1;
+}
+.hdr-sub {
+  font-family: var(--font-mono);
+  font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text-muted); margin-top: 3px;
+}
+
+.hdr-right { display: flex; align-items: center; gap: 8px; }
+
+.refresh-btn {
+  background: var(--bg-card-2);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 5px 13px; border-radius: var(--r-sm);
+  cursor: pointer; font-size: 12px;
+  font-family: var(--font-mono); letter-spacing: .3px;
+  transition: background var(--trans), color var(--trans), border-color var(--trans);
+}
+.refresh-btn:hover { background: var(--pm-primary-soft); color: var(--pm-primary); border-color: var(--pm-primary); }
+.refresh-btn:active { transform: scale(.97); }
+
+/* ── BOARD ──────────────────────────────── */
+.board-wrap {
+  display: flex;
+  gap: 10px;
+  padding: 16px 20px;
+  overflow-x: auto;
+  min-height: calc(100vh - 64px);
+  -webkit-overflow-scrolling: touch;
+}
+
+.column {
+  min-width: 240px;
+  flex: 1;
+  background: var(--bg-card-2);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.col-header {
+  padding: 10px 14px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+  text-align: center;
+  color: #fff;
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.col-count {
+  background: rgba(255,255,255,.22);
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+.col-body { padding: 8px; flex: 1; overflow-y: auto; min-height: 80px; }
+
+/* ── CARDS ──────────────────────────────── */
+.card {
+  background: var(--bg-card);
+  border-radius: var(--r);
+  padding: 12px;
+  margin-bottom: 8px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border-light);
+  border-left: 3px solid var(--pm-accent);
+  transition: box-shadow var(--trans), transform var(--trans);
+}
+.card:active { transform: scale(.98); box-shadow: var(--shadow-lg); }
+
+.card-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--size-sm);
+  color: var(--text-primary);
+  margin-bottom: 5px;
+  line-height: 1.3;
+}
+
+.card-meta {
+  font-size: var(--size-xs);
+  color: var(--text-muted);
+  margin-top: 3px;
+  line-height: 1.4;
+}
+
+.card-savings {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--score-green-bg);
+  color: var(--score-green);
+  font-size: var(--size-xs);
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 10px;
+  margin-top: 6px;
+}
+
+.card-actions {
+  display: flex;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.card-actions button {
+  flex: 1;
+  padding: 6px 4px;
+  font-size: var(--size-xs);
+  font-family: var(--font-main);
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg-card-2);
+  color: var(--text-secondary);
+  cursor: pointer;
+  min-height: 30px;
+  transition: background var(--trans), color var(--trans), border-color var(--trans);
+}
+.card-actions button:hover { background: var(--pm-primary-soft); color: var(--pm-primary); border-color: var(--pm-primary); }
+.card-actions button:active { transform: scale(.97); }
+
+/* ── LOADING / EMPTY ────────────────────── */
+.loading-state {
+  display: flex; align-items: center; justify-content: center;
+  height: 60vh; flex-direction: column; gap: 14px;
+}
+.spin {
+  width: 32px; height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--pm-primary);
+  border-radius: 50%;
+  animation: pm-spin .9s linear infinite;
+}
+@keyframes pm-spin { to { transform: rotate(360deg); } }
+.loading-label {
+  font-family: var(--font-mono);
+  font-size: 11px; letter-spacing: 1.5px;
+  color: var(--text-muted); text-transform: uppercase;
+}
+
+/* ── RESPONSIVE ─────────────────────────── */
+@media (max-width: 600px) {
+  .board-wrap { flex-direction: column; padding: 12px; }
+  .column { min-width: auto; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════ HEADER ══════════ -->
+<header class="hdr">
+  <div class="hdr-left">
+    <a class="back-btn" href="<?= deployUrl ?>" target="_top" title="Home">←</a>
+    <div>
+      <div class="hdr-title">Kaizen Board</div>
+      <div class="hdr-sub">Continuous Improvement Ideas</div>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <button class="refresh-btn" onclick="loadKaizen()">↻ Refresh</button>
+  </div>
+</header>
+
+<!-- ══════════ BOARD ══════════ -->
+<div id="kzBoard">
+  <div class="loading-state">
+    <div class="spin"></div>
+    <div class="loading-label">Loading Kaizen data</div>
+  </div>
+</div>
+
+<script>
+// Auth guard — read from URL param first (GAS iframe navigation), then localStorage
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var urlToken = params.get('token');
+  if (urlToken) localStorage.setItem('pm5s_token', urlToken);
+  var token = localStorage.getItem('pm5s_token');
+  if (!token) {
+    window.top.location.href = '<?= deployUrl ?>?v2=1&action=login';
+    return;
+  }
+  window.PM5S_TOKEN = token;
+})();
+
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+var COLS = [
+  { key: "SUBMITTED",       label: "Submitted",    color: "#6c757d" },
+  { key: "UNDER_REVIEW",    label: "Under Review", color: "#6741D9" },
+  { key: "APPROVED",        label: "Approved",     color: "#1864AB" },
+  { key: "IMPLEMENTING",    label: "Implementing", color: "#E67700" },
+  { key: "COMPLETED",       label: "Completed",    color: "#2F9E44" },
+  { key: "BENEFIT_VERIFIED",label: "Verified",     color: "#0B7C45" }
+];
+
+function loadKaizen() {
+  document.getElementById('kzBoard').innerHTML =
+    '<div class="loading-state"><div class="spin"></div><div class="loading-label">Loading…</div></div>';
+  google.script.run
+    .withFailureHandler(function(e) {
+      document.getElementById('kzBoard').innerHTML =
+        '<div class="loading-state"><div class="loading-label" style="color:var(--score-red)">Error: ' + escHtml(e.message) + '</div></div>';
+    })
+    .withSuccessHandler(renderBoard)
+    .getKaizenData({});
+}
+
+function renderBoard(items) {
+  var board = document.createElement('div');
+  board.className = 'board-wrap';
+
+  COLS.forEach(function(col) {
+    var colItems = items.filter(function(i) { return i.status === col.key; });
+
+    var div = document.createElement('div');
+    div.className = 'column';
+
+    var header = document.createElement('div');
+    header.className = 'col-header';
+    header.style.background = col.color;
+    header.innerHTML = escHtml(col.label) + ' <span class="col-count">' + colItems.length + '</span>';
+    div.appendChild(header);
+
+    var body = document.createElement('div');
+    body.className = 'col-body';
+
+    colItems.forEach(function(item) {
+      var card = document.createElement('div');
+      card.className = 'card';
+
+      var savingsHtml = item.estimatedSavings
+        ? '<div class="card-savings">₹' + escHtml(String(item.estimatedSavings)) + '/mo</div>'
+        : '';
+
+      card.innerHTML =
+        '<div class="card-title">' + escHtml(item.title) + '</div>' +
+        '<div class="card-meta">' + escHtml(item.kaizenId) + ' · ' + escHtml(item.category) + ' · ' + escHtml(item.zoneName) + '</div>' +
+        '<div class="card-meta">By: ' + escHtml(item.submitterName) + '</div>' +
+        savingsHtml;
+
+      var ci = COLS.findIndex(function(c) { return c.key === col.key; });
+      if (ci < COLS.length - 1) {
+        var actions = document.createElement('div');
+        actions.className = 'card-actions';
+        var nb = document.createElement('button');
+        nb.textContent = 'Move → ' + COLS[ci + 1].label;
+        nb.onclick = (function(kId, nextKey) {
+          return function() {
+            google.script.run
+              .withFailureHandler(function(e) { alert('Error: ' + e.message); })
+              .withSuccessHandler(function() { loadKaizen(); })
+              .updateKaizenStatus(kId, nextKey, '', { reviewer: '' });
+          };
+        })(item.kaizenId, COLS[ci + 1].key);
+        actions.appendChild(nb);
+        card.appendChild(actions);
+      }
+
+      body.appendChild(card);
+    });
+
+    div.appendChild(body);
+    board.appendChild(div);
+  });
+
+  document.getElementById('kzBoard').innerHTML = '';
+  document.getElementById('kzBoard').appendChild(board);
+}
+
+loadKaizen();
+setInterval(loadKaizen, 300000);
+</script>
+
+<script>
+window.PM_TOUR_ID = 'kaizenboard';
+window.PM_TOUR_STEPS = [
+  { selector: '#kzBoard',       title: 'Kaizen Board',   body: 'Cards move left to right through stages: Submitted → Under Review → Approved → Implementing → Completed.', pos: 'bottom' },
+  { selector: '.column',        title: 'Stage Column',   body: 'Each column is one stage. The number in the header shows how many ideas are in that stage right now.', pos: 'bottom' },
+  { selector: '.card',          title: 'Kaizen Card',    body: 'Each card is one improvement idea. Shows the title, category, zone, and who submitted it.', pos: 'bottom' },
+  { selector: '.card-actions',  title: 'Move Forward',   body: 'Supervisors tap the Move button to advance a card to the next stage when it has been reviewed or implemented.', pos: 'top' }
+];
+</script>
+<?!= include('GuidedTour') ?>
+</body>
+</html>

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tiered Dashboard — PackMasters 5S</title>
+<?!= include("CommonStyles") ?>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-main);background:var(--bg-page);color:var(--text-primary);min-height:100vh}
+.hdr{padding:12px 20px;color:var(--text-light);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+/* Solid semantic header colors — no gradients */
+.hdr.t1{background:var(--score-green)}.hdr.t2{background:var(--score-amber)}.hdr.t3{background:var(--pm-primary)}
+.hdr h1{font-size:17px;font-weight:700}.hdr .meta{font-size:11px;opacity:.85}
+.tier-tabs{display:flex;background:var(--bg-card);border-bottom:2px solid var(--bg-page)}
+.tier-tab{flex:1;padding:11px;text-align:center;cursor:pointer;font-size:13px;font-weight:600;border-bottom:3px solid transparent;transition:background .15s,color .15s;color:var(--text-secondary)}
+.tier-tab:hover{background:var(--bg-card-2)}.tier-tab.active{border-bottom-color:var(--score-blue);color:var(--score-blue)}
+.container{max-width:900px;margin:12px auto;padding:0 12px}
+.card{background:var(--bg-card);border-radius:10px;margin-bottom:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.card-h{padding:12px 16px;font-weight:600;font-size:14px;border-bottom:1px solid var(--bg-card-2);display:flex;justify-content:space-between;align-items:center;color:var(--text-primary)}
+.card-b{padding:14px 16px}
+.risk-row{padding:10px 0;border-bottom:1px solid var(--bg-card-2);font-size:13px;color:var(--text-primary)}
+.risk-row:last-child{border-bottom:none}
+.risk-row .top{display:flex;justify-content:space-between;align-items:start;gap:8px}
+.risk-row .desc{flex:1}.risk-row .level{font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px}
+.level.EXTREME{background:var(--score-red-bg);color:var(--score-red)}.level.HIGH{background:var(--score-amber-bg);color:var(--score-amber)}.level.SIGNIFICANT{background:#FFF8E1;color:#E65100}
+.risk-row .det{font-size:11px;color:var(--text-muted);margin-top:4px}
+.alert-item{padding:10px;margin-bottom:8px;border-radius:8px;background:var(--bg-card-2);font-size:13px}
+.alert-item.HIGH{background:var(--score-red-bg)}.alert-item.MEDIUM{background:var(--score-amber-bg)}
+.alert-item .msg{font-weight:500;margin-bottom:4px;color:var(--text-primary)}.alert-item .act{font-size:11px;color:var(--score-blue)}
+.kg{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin:8px 0}
+.kp{background:var(--bg-card-2);border-radius:8px;padding:10px;text-align:center;border:1px solid rgba(0,0,0,.04)}
+.kp .v{font-size:22px;font-weight:700;color:var(--text-primary)}.kp .v.g{color:var(--score-green)}.kp .v.b{color:var(--score-red)}
+.kp .l{font-size:10px;color:var(--text-muted);margin-top:2px}
+.meeting-info{background:var(--score-blue-bg);padding:10px 14px;border-radius:8px;font-size:12px;color:var(--score-blue);margin-bottom:12px}
+.loading{text-align:center;padding:60px;color:var(--text-muted)}
+.skel-card{background:var(--bg-card);border-radius:10px;margin-bottom:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:14px 16px}
+.skel-line{background:linear-gradient(90deg,var(--bg-card-2) 25%,var(--bg-page) 50%,var(--bg-card-2) 75%);background-size:200% 100%;animation:tshin 1.5s infinite;border-radius:4px;margin-bottom:10px}
+@keyframes tshin{0%{background-position:200% 0}100%{background-position:-200% 0}}
+</style>
+</head><body>
+
+<div class="tier-tabs" id="tabs">
+  <div class="tier-tab" onclick="switchTier(1)">Tier 1 — Zone Daily</div>
+  <div class="tier-tab" onclick="switchTier(2)">Tier 2 — Department</div>
+  <div class="tier-tab" onclick="switchTier(3)">Tier 3 — Plant Mgmt</div>
+</div>
+<div class="hdr t1" id="hdr"><h1 id="hdrTitle">Loading...</h1><div class="meta" id="hdrMeta"></div></div>
+<div class="container" id="content">
+  <div class="skel-card"><div class="skel-line" style="height:14px;width:40%;margin-bottom:12px"></div><div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px"><div class="skel-line" style="height:52px;margin:0"></div><div class="skel-line" style="height:52px;margin:0"></div><div class="skel-line" style="height:52px;margin:0"></div><div class="skel-line" style="height:52px;margin:0"></div><div class="skel-line" style="height:52px;margin:0"></div></div></div>
+  <div class="skel-card"><div class="skel-line" style="height:14px;width:30%"></div><div class="skel-line" style="height:12px;width:80%"></div><div class="skel-line" style="height:12px;width:65%"></div><div class="skel-line" style="height:12px;width:72%;margin-bottom:0"></div></div>
+  <div class="skel-card"><div class="skel-line" style="height:14px;width:35%"></div><div class="skel-line" style="height:12px;width:90%"></div><div class="skel-line" style="height:12px;width:75%;margin-bottom:0"></div></div>
+</div>
+
+<script>
+function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+var currentTier=1;
+// Params injected server-side (works inside GAS sandboxed iframe)
+var _ZONE_ID='<?= (typeof params !== "undefined" && params && params.zone) ? String(params.zone).replace(/['"<>&]/g,"") : "" ?>';
+var _TIER_NUM='<?= (typeof params !== "undefined" && params && params.tier) ? String(params.tier).replace(/['"<>&]/g,"") : "" ?>';
+function getParams(){try{var p=new URLSearchParams(window.location.search);return{tier:parseInt(_TIER_NUM||p.get('tier'))||1,zone:_ZONE_ID||p.get('zone')||''};}catch(e){return{tier:parseInt(_TIER_NUM)||1,zone:_ZONE_ID||''};} }
+
+function switchTier(t){
+  currentTier=t;
+  document.querySelectorAll('.tier-tab').forEach(function(el,i){el.classList.toggle('active',i+1===t);});
+  var hdr=document.getElementById('hdr');hdr.className='hdr t'+t;
+  var p=getParams();
+  var cacheKey='tier_'+t+'_'+(p.zone||'ALL');
+  var cached=PM5SCache.get(cacheKey);
+  if(!cached){
+    document.getElementById('content').innerHTML='<div class="loading">Loading Tier '+t+' data...</div>';
+  }
+  PM5SCache.load(cacheKey,function(onFresh,onError){
+    google.script.run.withSuccessHandler(onFresh).withFailureHandler(onError)
+      .getTieredDashboardData(t,p.zone||undefined);
+  },function(data,isStale){
+    render(data,isStale);
+  },{ttl:5*60*1000,
+    onError:function(e){
+      if(!cached) document.getElementById('content').innerHTML='<div class="loading" style="color:red">'+esc(e.message)+'</div>';
+    }
+  });
+}
+
+function render(d,isStale){
+  if(!d){document.getElementById('content').innerHTML='<div class="loading">No data</div>';return;}
+  document.getElementById('hdrTitle').textContent=d.level||'Dashboard';
+  document.getElementById('hdrMeta').textContent=d.focus+' | Meeting: '+d.meetingDuration+' | '+d.generated+(isStale?' (cached)':'');
+  var h='<div class="meeting-info">'+esc(d.level)+' — Recommended duration: '+esc(d.meetingDuration)+' | Focus: '+esc(d.focus)+'</div>';
+  
+  // SQCDP summary (all tiers)
+  if(d.sqcdp&&d.sqcdp.zones){
+    h+='<div class="card"><div class="card-h">SQCDP Status</div><div class="card-b">';
+    h+='<div class="kg"><div class="kp"><div class="v '+(d.sqcdp.plant.greenPct>=80?'g':'b')+'">'+d.sqcdp.plant.greenPct+'%</div><div class="l">Plant Green Rate</div></div></div>';
+    d.sqcdp.zones.forEach(function(z){
+      h+='<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px"><strong>'+esc(z.zoneName)+'</strong> ';
+      ['S','Q','C','D','P'].forEach(function(dim){
+        var s=z.sqcdp[dim];
+        var c=s.status==='GREEN'?'var(--score-green)':s.status==='RED'?'var(--score-red)':'var(--score-amber)';
+        h+='<span style="display:inline-block;width:20px;height:20px;border-radius:4px;background:'+c+';text-align:center;color:#fff;font-size:10px;line-height:20px;font-weight:700" title="'+esc(s.detail)+'">'+dim+'</span> ';
+      });
+      h+='</div>';
+    });
+    h+='</div></div>';
+  }
+  
+  // Actions (Tier 1 & 2)
+  if(d.actions&&d.actions.actions&&d.actions.actions.length){
+    h+='<div class="card"><div class="card-h">Action Items <span style="font-size:12px;color:#e74c3c">'+d.actions.actions.length+'</span></div><div class="card-b">';
+    d.actions.actions.slice(0,10).forEach(function(a){
+      h+='<div class="risk-row"><div class="top"><div class="desc"><strong>'+esc(a.title)+'</strong></div><span class="level '+esc(a.urgency)+'">'+esc(a.urgency)+'</span></div>';
+      h+='<div class="det">'+esc(a.zone)+' · '+esc(a.assigned)+' · '+esc(a.detail)+'</div></div>';
+    });
+    h+='</div></div>';
+  }
+  
+  // Trend Alerts (Tier 2 & 3)
+  if(d.trendAlerts&&d.trendAlerts.length){
+    h+='<div class="card"><div class="card-h">Predictive Trend Alerts</div><div class="card-b">';
+    d.trendAlerts.forEach(function(a){
+      h+='<div class="alert-item '+esc(a.severity)+'"><div class="msg">'+esc(a.message)+'</div>';
+      h+='<div class="det">'+esc(a.zoneName)+' — '+esc(a.detail||'')+'</div>';
+      h+='<div class="act">Recommended: '+esc(a.action)+'</div></div>';
+    });
+    h+='</div></div>';
+  }
+  
+  // Risk Register (Tier 3)
+  if(d.riskRegister&&d.riskRegister.risks&&d.riskRegister.risks.length){
+    var rr=d.riskRegister;
+    h+='<div class="card"><div class="card-h">Risk Register (ISO 31000) <span style="font-size:12px;color:#e74c3c">'+rr.risks.length+' risks</span></div><div class="card-b">';
+    h+='<div class="kg">';
+    h+='<div class="kp"><div class="v b">'+(rr.summary.extreme||0)+'</div><div class="l">Extreme</div></div>';
+    h+='<div class="kp"><div class="v" style="color:#e67e22">'+(rr.summary.high||0)+'</div><div class="l">High</div></div>';
+    h+='<div class="kp"><div class="v" style="color:#f39c12">'+(rr.summary.significant||0)+'</div><div class="l">Significant</div></div>';
+    h+='</div>';
+    rr.risks.forEach(function(r){
+      h+='<div class="risk-row"><div class="top"><div class="desc"><strong>'+esc(r.description)+'</strong></div><span class="level '+esc(r.level)+'">'+esc(r.level)+' ('+r.riskScore+')</span></div>';
+      h+='<div class="det">Zone: '+esc(r.zone)+' | Controls: '+esc(r.controls)+' | Action: '+esc(r.action)+'</div>';
+      h+='<div class="det">ISO: '+esc(r.isoRef)+' | Owner: '+esc(r.owner)+'</div></div>';
+    });
+    h+='</div></div>';
+  }
+  
+  // Kaizen ROI (Tier 3)
+  if(d.kaizenROI&&d.kaizenROI.summary){
+    var ks=d.kaizenROI.summary;
+    h+='<div class="card"><div class="card-h">Kaizen ROI Tracker</div><div class="card-b">';
+    h+='<div class="kg">';
+    h+='<div class="kp"><div class="v">'+ks.submitted+'</div><div class="l">Submitted</div></div>';
+    h+='<div class="kp"><div class="v g">'+ks.implemented+'</div><div class="l">Implemented</div></div>';
+    h+='<div class="kp"><div class="v g">\u20B9'+Math.round(ks.totalActualSavings||0).toLocaleString()+'</div><div class="l">Verified Savings</div></div>';
+    h+='<div class="kp"><div class="v">'+ks.avgImplementDays+'d</div><div class="l">Avg Impl Time</div></div>';
+    h+='<div class="kp"><div class="v '+(ks.implementationRate>=60?'g':'b')+'">'+ks.implementationRate+'%</div><div class="l">Impl Rate</div></div>';
+    h+='</div>';
+    if(ks.topContributorsList&&ks.topContributorsList.length){
+      h+='<p style="font-size:12px;font-weight:600;margin:8px 0 4px">Top Contributors:</p>';
+      ks.topContributorsList.forEach(function(c,i){
+        h+='<span style="font-size:12px;margin-right:12px">'+(i+1)+'. '+esc(c.name)+' ('+c.count+')</span>';
+      });
+    }
+    h+='</div></div>';
+  }
+  
+  document.getElementById('content').innerHTML=h;
+}
+
+var p=getParams();
+currentTier=p.tier;
+switchTier(currentTier);
+</script>
+</body></html>

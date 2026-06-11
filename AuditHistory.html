@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Audit History</title>
+<?!= include("CommonStyles") ?>
+<style>
+.ah-hdr {
+  background: var(--pm-primary);
+  color: #fff;
+  padding: 14px 16px 12px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ah-hdr__back {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: rgba(255,255,255,.15); border: none; color: #fff;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 20px; flex-shrink: 0;
+}
+.ah-hdr__title { font-family: var(--font-display); font-size: 18px; font-weight: 700; flex: 1; }
+.ah-hdr__zone { font-size: 12px; opacity: .75; }
+
+.ah-bar {
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-light);
+  padding: 10px 16px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.ah-tabs { display: flex; border: 1.5px solid var(--border); border-radius: 20px; overflow: hidden; }
+.ah-tab {
+  padding: 5px 16px; font-size: 12px; font-weight: 600;
+  background: transparent; border: none; cursor: pointer;
+  color: var(--text-secondary); min-height: 32px;
+}
+.ah-tab.active { background: var(--pm-primary); color: #fff; }
+
+.ah-month {
+  font-size: 13px; font-weight: 600; padding: 5px 10px;
+  border: 1.5px solid var(--border); border-radius: 20px;
+  background: var(--bg-card); color: var(--text-primary);
+  min-height: 32px;
+}
+
+.ah-list { padding: 12px 12px 100px; }
+
+.ah-row {
+  background: var(--bg-card);
+  border-radius: var(--r);
+  border: 1px solid var(--border-light);
+  margin-bottom: 8px;
+  padding: 12px 14px 10px;
+  box-shadow: var(--shadow);
+}
+.ah-row__top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 4px; }
+.ah-row__date { font-weight: 600; font-size: 14px; }
+.ah-row__meta { font-size: 12px; color: var(--text-secondary); line-height: 1.7; margin-top: 4px; }
+.ah-row__actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+
+.score-pill {
+  padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 700;
+}
+.score-pill.green { background: var(--score-green-bg); color: var(--score-green); }
+.score-pill.amber { background: var(--score-amber-bg); color: var(--score-amber); }
+.score-pill.red   { background: var(--score-red-bg);   color: var(--score-red); }
+
+.ah-act-btn {
+  padding: 5px 12px; border-radius: 16px; font-size: 12px; font-weight: 600;
+  border: 1.5px solid var(--border); background: var(--bg-card-2);
+  cursor: pointer; min-height: 28px; color: var(--text-primary); transition: var(--trans);
+}
+.ah-act-btn:active { transform: scale(.96); }
+.ah-act-btn--warn { border-color: var(--score-red-bg); background: var(--score-red-bg); color: var(--score-red); }
+
+.ah-empty { text-align: center; padding: 48px 20px; color: var(--text-muted); font-size: 13px; }
+
+/* Confirm drawer */
+.drw-field  { margin-bottom: 14px; }
+.drw-label  { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 5px; display: block; }
+</style>
+</head>
+<body>
+
+<div class="ah-hdr">
+  <button class="ah-hdr__back" onclick="history.back()">&#8592;</button>
+  <div>
+    <div class="ah-hdr__title">Audit History</div>
+    <div class="ah-hdr__zone" id="ahZoneLabel"></div>
+  </div>
+</div>
+
+<div class="ah-bar">
+  <div class="ah-tabs">
+    <button class="ah-tab active" onclick="setType(this,'daily')">Daily</button>
+    <button class="ah-tab"       onclick="setType(this,'weekly')">Weekly</button>
+  </div>
+  <input class="ah-month" type="month" id="ahMonth">
+</div>
+
+<div class="ah-list" id="ahList">
+  <div id="ahSkeleton">
+    <div class="skeleton skeleton-card"></div>
+    <div class="skeleton skeleton-card"></div>
+    <div class="skeleton skeleton-card" style="height:70px"></div>
+  </div>
+</div>
+
+<!-- ─── Invalidate Drawer ─── -->
+<div class="pm-drawer-backdrop" id="invDrawerBackdrop" onclick="pmDrawer('invDrawer',false)"></div>
+<div class="pm-drawer" id="invDrawer">
+  <div class="pm-drawer__handle"></div>
+  <div class="pm-drawer__header">
+    <span class="pm-drawer__title">Invalidate Submission</span>
+    <button class="pm-drawer__close" onclick="pmDrawer('invDrawer',false)">&#215;</button>
+  </div>
+  <div class="pm-drawer__body">
+    <input type="hidden" id="invId">
+    <input type="hidden" id="invType">
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;">
+      This marks the submission as invalid. The record stays in the sheet but is excluded from scores.
+      This action is logged to AdminLog.
+    </p>
+    <div class="drw-field">
+      <label class="drw-label" for="invReason">Reason for Invalidation *</label>
+      <textarea class="pm-textarea" id="invReason" rows="3" placeholder="Explain why this submission should be invalidated..."></textarea>
+    </div>
+    <button class="pm-btn pm-btn--danger" onclick="confirmInvalidate()">Invalidate Submission</button>
+  </div>
+</div>
+
+<script>
+var DU = '<?= deployUrl ?>';
+var ZONE_ID = '<?= zoneId ?>';
+var currentType = 'daily';
+var data = { daily: [], weekly: [] };
+
+function escH(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function scoreClass(pct){return pct>=70?'green':pct>=50?'amber':'red';}
+
+/* ── Init ── */
+(function init(){
+  // Set zone label
+  if(ZONE_ID){
+    document.getElementById('ahZoneLabel').textContent='Zone: '+ZONE_ID;
+    google.script.run.withSuccessHandler(function(cfg){
+      if(cfg&&cfg[ZONE_ID])document.getElementById('ahZoneLabel').textContent='Zone: '+(cfg[ZONE_ID].name||ZONE_ID);
+    }).getZoneConfig();
+  }
+  // Default month = current
+  var now=new Date();
+  var m=(now.getMonth()+1<10?'0':'')+(now.getMonth()+1);
+  document.getElementById('ahMonth').value=now.getFullYear()+'-'+m;
+  document.getElementById('ahMonth').addEventListener('change',loadHistory);
+  loadHistory();
+})();
+
+/* ── Load ── */
+function loadHistory(){
+  var sk=document.getElementById('ahSkeleton');
+  if(!sk){
+    var list=document.getElementById('ahList');
+    list.innerHTML='<div id="ahSkeleton"><div class="skeleton skeleton-card"></div><div class="skeleton skeleton-card"></div></div>';
+  }
+  var month=document.getElementById('ahMonth').value;
+  google.script.run
+    .withFailureHandler(function(e){document.getElementById('ahSkeleton').remove();pmToast('Error: '+e.message,'error');})
+    .withSuccessHandler(function(result){
+      var s=document.getElementById('ahSkeleton');if(s)s.remove();
+      data=result;
+      render();
+    })
+    .getAuditHistory(ZONE_ID,month);
+}
+
+/* ── Tab switch ── */
+function setType(el,type){
+  document.querySelectorAll('.ah-tab').forEach(function(t){t.classList.remove('active');});
+  el.classList.add('active');
+  currentType=type;
+  render();
+}
+
+/* ── Render ── */
+function render(){
+  var list=document.getElementById('ahList');
+  var rows=data[currentType]||[];
+  if(rows.length===0){
+    list.innerHTML='<div class="ah-empty">No '+currentType+' submissions for this month.</div>';
+    return;
+  }
+  list.innerHTML=rows.map(function(r){return buildRow(r,currentType);}).join('');
+}
+
+function buildRow(r,type){
+  var pct=r.pctScore||0;
+  var pill='<span class="score-pill '+escH(scoreClass(pct))+'">'+pct+'%</span>';
+  var meta='';
+  if(type==='daily'){
+    meta='<div class="ah-row__meta">'
+      +'<span>'+escH(r.submissionDate)+'</span>'
+      +' · <span>'+escH(r.zoneLeader||r.zoneName)+'</span>'
+      +(r.remarks?' · '+escH(r.remarks.substring(0,60)):'')
+      +'</div>';
+  } else {
+    meta='<div class="ah-row__meta">'
+      +'<span>'+escH(r.auditDate)+'</span>'
+      +' · Auditor: '+escH(r.auditor||'—')
+      +'</div>';
+  }
+  var actions='';
+  if(r.canCorrect){
+    actions+='<button class="ah-act-btn" onclick="correctSubmission(\''+escH(r.submissionId)+'\',\''+escH(type)+'\')">✎ Correct</button>';
+  }
+  actions+='<button class="ah-act-btn ah-act-btn--warn" onclick="openInvalidate(\''+escH(r.submissionId)+'\',\''+escH(type)+'\')">✕ Invalidate</button>';
+  if(r.photoUrl){
+    actions+='<a class="ah-act-btn" href="'+escH(r.photoUrl)+'" target="_blank">📷 Photo</a>';
+  }
+  return '<div class="ah-row">'
+    +'<div class="ah-row__top"><span class="ah-row__date">'+escH(r.submissionId)+'</span>'+pill+'</div>'
+    +meta
+    +'<div class="ah-row__actions">'+actions+'</div>'
+    +'</div>';
+}
+
+/* ── Correct: navigate to form pre-filled ── */
+function correctSubmission(submissionId, type){
+  var form=type==='weekly'?'quickaudit':'dailyform';
+  var url=DU+'?v2=1&action='+form+'&zone='+encodeURIComponent(ZONE_ID)+'&correct='+encodeURIComponent(submissionId);
+  window.top.location.href=url;
+}
+
+/* ── Invalidate ── */
+function openInvalidate(submissionId, type){
+  document.getElementById('invId').value=submissionId;
+  document.getElementById('invType').value=type;
+  document.getElementById('invReason').value='';
+  pmDrawer('invDrawer',true);
+}
+
+function confirmInvalidate(){
+  var sid=document.getElementById('invId').value;
+  var stype=document.getElementById('invType').value;
+  var reason=document.getElementById('invReason').value.trim();
+  if(!reason){pmToast('Please enter a reason','error');return;}
+  google.script.run
+    .withFailureHandler(function(e){pmToast(e.message,'error');})
+    .withSuccessHandler(function(r){
+      pmDrawer('invDrawer',false);
+      if(r&&r.success){pmToast('Submission invalidated','success');loadHistory();}
+      else{pmToast((r&&r.message)||'Failed','error');}
+    })
+    .invalidateSubmission(sid,reason,stype);
+}
+</script>
+</body>
+</html>

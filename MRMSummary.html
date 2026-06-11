@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MRM Summary — PackMasters 5S</title>
+  <?!= include('CommonStyles') ?>
+  <script src="https://www.gstatic.com/charts/loader.js"></script>
+  <style>
+    @page{size:A4 landscape;margin:12mm;}
+    .report{max-width:297mm;margin:0 auto;padding:10mm;}
+    .report-header{display:flex;justify-content:space-between;border-bottom:3px solid #1a5276;padding-bottom:8px;margin-bottom:12px;}
+    .report-header h1{font-size:20px;color:#1a5276;margin:0;}
+    .report-header__doc{font-size:12px;font-weight:700;color:#1a5276;}
+    .plant-score{text-align:center;padding:20px;margin:12px 0;border-radius:12px;}
+    .plant-score__val{font-size:48px;font-weight:900;}
+    .plant-score__label{font-size:12px;color:#666;}
+    .zone-table{width:100%;border-collapse:collapse;font-size:11px;margin:12px 0;}
+    .zone-table th{background:#1a5276;color:white;padding:8px;text-align:center;}
+    .zone-table td{padding:6px 8px;border-bottom:1px solid #eee;text-align:center;}
+    .zone-table tr:nth-child(even){background:#f8f9fa;}
+    .charts-row{display:flex;gap:16px;margin:16px 0;flex-wrap:wrap;}
+    .chart-container{flex:1;min-width:280px;background:white;border-radius:10px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,0.08);}
+    .chart-title{font-size:13px;font-weight:700;color:#1a5276;margin-bottom:8px;text-align:center;}
+    @media print{
+      .no-print{display:none!important;}
+      body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+      .charts-row{page-break-inside:avoid;}
+    }
+    @media screen{.report{box-shadow:0 0 20px rgba(0,0,0,0.1);margin:20px auto;padding:20px;}}
+  </style>
+</head>
+<body>
+  <div class="report">
+    <div class="no-print" style="text-align:center;margin-bottom:16px;padding:8px;background:#f0f3f7;border-radius:8px;">
+      <button onclick="window.print()" style="padding:8px 24px;font-size:13px;background:#1a5276;color:white;border:none;border-radius:6px;cursor:pointer;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex-shrink:0"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Print / Export PDF</button>
+      <a href="<?= JSON.parse(data).deployUrl ?>" style="margin-left:10px;color:#1a5276;font-size:13px;">← Home</a>
+      <select id="monthSelect" onchange="loadMonth(this.value)" style="margin-left:10px;padding:6px;border-radius:4px;border:1px solid #ddd;font-size:12px;"></select>
+    </div>
+
+    <div class="report-header">
+      <div><h1>PackMasters — 5S Monthly MRM Summary</h1><p style="font-size:11px;color:#666;">Navi Mumbai | ZED-2 Compliant | ISO 9001:2015</p></div>
+      <div style="text-align:right;"><div class="report-header__doc">F/QA/5S/03</div><p style="font-size:10px;color:#666;">Rev 1.0 | <span id="genDate"></span></p></div>
+    </div>
+
+    <div style="text-align:center;font-size:16px;font-weight:700;color:#1a5276;margin:8px 0;" id="periodLabel"></div>
+
+    <!-- Plant Score Card -->
+    <div class="plant-score" id="plantScoreCard" style="background:#f0f3f7;">
+      <div class="skeleton" style="height:48px;width:120px;margin:0 auto;"></div>
+    </div>
+
+    <!-- Zone Table -->
+    <table class="zone-table" id="zoneTable">
+      <thead><tr><th>Zone</th><th>Leader</th><th>S1</th><th>S2</th><th>S3</th><th>S4</th><th>S5</th><th>Avg %</th><th>NCs</th><th>Closed</th><th>Daily %</th></tr></thead>
+      <tbody id="zoneTableBody"><tr><td colspan="11"><div class="skeleton"></div></td></tr></tbody>
+    </table>
+
+    <!-- Charts -->
+    <div class="charts-row">
+      <div class="chart-container"><div class="chart-title">Pillar Strengths (Plant Average)</div><div id="radarChart" style="height:300px;"></div></div>
+      <div class="chart-container"><div class="chart-title">6-Month Trend</div><div id="trendChart" style="height:300px;"></div></div>
+    </div>
+    <div class="charts-row">
+      <div class="chart-container"><div class="chart-title">NC Closure Rate by Zone</div><div id="ncChart" style="height:250px;"></div></div>
+      <div class="chart-container"><div class="chart-title">Zone Score Comparison</div><div id="zoneBarChart" style="height:250px;"></div></div>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      var SERVER_DATA=<?!= data ?>;
+      var deployUrl=SERVER_DATA.deployUrl;
+      var requestedMonth=SERVER_DATA.month||'';
+
+      document.getElementById('genDate').textContent=new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+
+      // Populate month selector
+      var sel=document.getElementById('monthSelect');
+      var now=new Date();
+      for(var i=0;i<12;i++){
+        var d=new Date(now.getFullYear(),now.getMonth()-i,1);
+        var m=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+        var label=d.toLocaleDateString('en-IN',{month:'short',year:'numeric'});
+        var opt=document.createElement('option');
+        opt.value=m;opt.textContent=label;
+        if(m===requestedMonth)opt.selected=true;
+        sel.appendChild(opt);
+      }
+      if(!requestedMonth)requestedMonth=sel.value;
+
+      window.loadMonth=function(m){
+        window.open(deployUrl+'?action=dashboard&view=plant&month='+m,'_top');
+      };
+
+      // Load data
+      google.charts.load('current',{packages:['corechart']});
+      google.script.run.withSuccessHandler(renderPlant).getPlantSummary(requestedMonth);
+      google.script.run.withSuccessHandler(renderTrend).getPlantTrend(6);
+
+      function renderPlant(d){
+        if(!d||!d.hasData){
+          document.getElementById('plantScoreCard').innerHTML='<div class="plant-score__label">No data for this period</div>';
+          return;
+        }
+        document.getElementById('periodLabel').textContent='Period: '+d.month;
+        var pct=Math.round(d.plantAvg);
+        var bg=pct>=80?'#e8f8f0':pct>=60?'#fef9e7':'#fdedec';
+        var color=pct>=80?'#27ae60':pct>=60?'#f39c12':'#e74c3c';
+        document.getElementById('plantScoreCard').style.background=bg;
+        document.getElementById('plantScoreCard').innerHTML=
+          '<div class="plant-score__val" style="color:'+color+';">'+pct+'%</div>'+
+          '<div class="plant-score__label">Plant Average | NCs: '+d.totalNCs+' raised, '+d.totalClosed+' closed ('+d.closureRate+'% closure)</div>';
+
+        // Zone table
+        var tbody='';
+        d.zones.forEach(function(z){
+          var p=Math.round(Number(z.pct_score)||0);
+          var c=p>=80?'#27ae60':p>=60?'#f39c12':'#e74c3c';
+          tbody+='<tr>'+
+            '<td style="text-align:left;font-weight:700;">'+z.zone_id+'</td>'+
+            '<td style="text-align:left;">'+((z.leader||'')+'').substring(0,20)+'</td>'+
+            '<td>'+Math.round(Number(z.s1_avg)||0)+'</td>'+
+            '<td>'+Math.round(Number(z.s2_avg)||0)+'</td>'+
+            '<td>'+Math.round(Number(z.s3_avg)||0)+'</td>'+
+            '<td>'+Math.round(Number(z.s4_avg)||0)+'</td>'+
+            '<td>'+Math.round(Number(z.s5_avg)||0)+'</td>'+
+            '<td style="font-weight:700;color:'+c+';">'+p+'%</td>'+
+            '<td>'+(z.nc_count||0)+'</td>'+
+            '<td>'+(z.nc_closed||0)+'</td>'+
+            '<td>'+(z.daily_submission_rate||0)+'%</td></tr>';
+        });
+        document.getElementById('zoneTableBody').innerHTML=tbody;
+
+        // Charts
+        google.charts.setOnLoadCallback(function(){
+          // Radar (using ColumnChart as substitute since Google Charts has no radar)
+          var radarData=[['Pillar','Score %',{role:'style'}]];
+          var pa=d.pillarAvgs;
+          [['S1-Sort',pa.s1_avg],['S2-Order',pa.s2_avg],['S3-Shine',pa.s3_avg],['S4-Std',pa.s4_avg],['S5-Sustain',pa.s5_avg]].forEach(function(item){
+            var v=Math.round(item[1]);
+            radarData.push([item[0],v,v>=80?'#27ae60':v>=60?'#f39c12':'#e74c3c']);
+          });
+          new google.visualization.ColumnChart(document.getElementById('radarChart'))
+            .draw(google.visualization.arrayToDataTable(radarData),{legend:'none',vAxis:{minValue:0,maxValue:100},chartArea:{left:40,right:10,top:10,bottom:40},animation:{startup:true,duration:500}});
+
+          // NC closure
+          var ncData=[['Zone','Open','Closed']];
+          d.zones.forEach(function(z){
+            ncData.push([z.zone_id,(Number(z.nc_count)||0)-(Number(z.nc_closed)||0),Number(z.nc_closed)||0]);
+          });
+          new google.visualization.BarChart(document.getElementById('ncChart'))
+            .draw(google.visualization.arrayToDataTable(ncData),{isStacked:true,legend:{position:'top'},colors:['#e74c3c','#27ae60'],chartArea:{left:50,right:10,top:30,bottom:30},animation:{startup:true,duration:500}});
+
+          // Zone bar
+          var zbData=[['Zone','Score %',{role:'style'}]];
+          d.zones.forEach(function(z){
+            var p=Math.round(Number(z.pct_score)||0);
+            zbData.push([z.zone_id,p,p>=80?'#27ae60':p>=60?'#f39c12':'#e74c3c']);
+          });
+          new google.visualization.ColumnChart(document.getElementById('zoneBarChart'))
+            .draw(google.visualization.arrayToDataTable(zbData),{legend:'none',vAxis:{minValue:0,maxValue:100},chartArea:{left:40,right:10,top:10,bottom:40},animation:{startup:true,duration:500}});
+        });
+      }
+
+      function renderTrend(trendData){
+        if(!trendData||trendData.length===0)return;
+        google.charts.setOnLoadCallback(function(){
+          var td=[['Month','Plant Avg %']];
+          trendData.forEach(function(t){
+            td.push([t.month.substring(5),Math.round(t.plantAvg)]);
+          });
+          new google.visualization.LineChart(document.getElementById('trendChart'))
+            .draw(google.visualization.arrayToDataTable(td),{legend:'none',vAxis:{minValue:0,maxValue:100},curveType:'function',colors:['#1a5276'],pointSize:6,chartArea:{left:40,right:10,top:10,bottom:40},animation:{startup:true,duration:500}});
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

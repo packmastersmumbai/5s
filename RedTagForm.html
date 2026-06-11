@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Red Tag Register</title>
+<?!= include("CommonStyles") ?>
+<style>body{font-family:Arial,sans-serif;background:#f5f5f5;}.rt-header{background:linear-gradient(135deg,#c0392b,#e74c3c);color:white;padding:20px;text-align:center;}.rt-header h1{font-size:22px;}.form-section{background:white;margin:12px;border-radius:10px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.1);}.form-group{margin-bottom:14px;}.form-group label{display:block;font-size:14px;font-weight:bold;margin-bottom:6px;color:#333;}.form-group select,.form-group input,.form-group textarea{width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px;}.submit-btn{width:100%;padding:16px;background:#c0392b;color:white;border:none;border-radius:10px;font-size:18px;font-weight:bold;cursor:pointer;min-height:56px;}.submit-btn:disabled{background:#ccc;}</style>
+</head><body>
+<div class="rt-header"><h1>Red Tag Register</h1><p>Sort (S1) — Tag unnecessary items</p></div>
+<div class="form-section"><h3 style="color:#c0392b;">New Red Tag</h3>
+<div class="form-group"><label>Zone</label><select id="rtZone"><option value="">Select zone...</option></select></div>
+<div class="form-group"><label>Item Description</label><textarea id="rtDesc" rows="3" placeholder="Describe the unnecessary item..."></textarea></div>
+<div class="form-group"><label>Category</label><select id="rtCategory"><option>Tools</option><option>Materials</option><option>Equipment</option><option>Supplies</option><option>Documents</option><option>Personal Items</option><option>Other</option></select></div>
+<div class="form-group"><label>Estimated Value (₹)</label><input type="number" id="rtValue" placeholder="0"></div>
+<div class="form-group"><label>Proposed Action</label><select id="rtAction"><option>Discard</option><option>Relocate</option><option>Sell</option><option>Recycle</option><option>Return to Owner</option></select></div>
+<div class="form-group"><label>Owner (if known)</label><input type="text" id="rtOwner" placeholder="Item owner name"></div>
+<div class="form-group"><label>Photo</label><input type="file" id="rtPhoto" accept="image/*" capture="environment"></div>
+<button class="submit-btn" id="rtSubmit" onclick="submitRedTag()">Create Red Tag</button>
+<div id="rtStatus" style="text-align:center;margin-top:8px;color:#999;font-size:13px;"></div>
+</div>
+<script>
+
+function escHtml(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+try{var zc=(function(){try{return JSON.parse('<?= config.zoneConfig ?>');}catch(e){return {};}})();var s=document.getElementById("rtZone");Object.keys(zc).sort().forEach(function(id){var o=document.createElement("option");o.value=id;o.textContent=id+" — "+zc[id].name;s.appendChild(o);});}catch(e){}
+function submitRedTag(){document.getElementById("rtSubmit").disabled=true;document.getElementById("rtStatus").textContent="Submitting...";
+var data={zoneId:document.getElementById("rtZone").value,itemDescription:document.getElementById("rtDesc").value,itemCategory:document.getElementById("rtCategory").value,estimatedValue:parseInt(document.getElementById("rtValue").value)||0,proposedAction:document.getElementById("rtAction").value,owner:document.getElementById("rtOwner").value,photoUrl:"",remarks:""};
+google.script.run.withSuccessHandler(function(r){if(r.success){document.getElementById("rtStatus").innerHTML='<span style="color:#27ae60;">Red Tag created: '+r.tagId+'</span>';document.getElementById("rtSubmit").disabled=false;}else{document.getElementById("rtStatus").innerHTML='<span style="color:#e74c3c;">'+r.message+'</span>';document.getElementById("rtSubmit").disabled=false;}}).withFailureHandler(function(e){document.getElementById("rtStatus").innerHTML='<span style="color:#e74c3c;">'+e.message+'</span>';document.getElementById("rtSubmit").disabled=false;}).createRedTag(data);}
+</script></body></html>

@@ -61,11 +61,16 @@ function doGet(e) {
       var fnArgs = [];
       try { if (params.args) fnArgs = JSON.parse(params.args); } catch(ignore) {}
       var fnResult = null;
-      if (params.fn === 'getPublicZones') {
-        var zc = getZoneConfig();
-        fnResult = Object.keys(zc).sort().map(function(id) {
-          return { id: id, name: zc[id].name || id };
-        });
+      try {
+        if (params.fn === 'getPublicZones') {
+          var zc = getZoneConfig();
+          fnResult = Object.keys(zc).sort().map(function(id) {
+            return { id: id, name: zc[id].name || id };
+          });
+        }
+      } catch(fnErr) {
+        Logger.log('JSONP getPublicZones error: ' + fnErr.message);
+        fnResult = [];
       }
       return ContentService.createTextOutput(cb + '(' + JSON.stringify(fnResult) + ')')
         .setMimeType(ContentService.MimeType.JAVASCRIPT);

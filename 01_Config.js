@@ -296,14 +296,6 @@ function initScriptProperties() {
   var props = PropertiesService.getScriptProperties();
   var ss = SpreadsheetApp.getActiveSpreadsheet();
 
-  // SAFETY: Back up existing ZONE_CONFIG before any overwrite
-  var existingZoneConfig = props.getProperty("ZONE_CONFIG");
-  if (existingZoneConfig) {
-    var backupKey = "ZONE_CONFIG_BACKUP_" + new Date().getTime();
-    props.setProperty(backupKey, existingZoneConfig);
-    Logger.log("✅ Zone config backed up to: " + backupKey);
-  }
-
   // Attempt to read from Zones sheet; fall back to defaults
   var zoneConfig = getDefaultZoneConfig_();
   var zonesSheet = ss.getSheetByName("Zones");

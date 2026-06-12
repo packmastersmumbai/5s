@@ -162,6 +162,71 @@ body {
 .score-btn.selected.s3 { background: var(--score-3); border-color: var(--score-3); }
 .score-btn.selected.s4 { background: var(--score-4); border-color: var(--score-4); }
 
+/* ── HINDI LABEL + HELPER ──────────────── */
+.criterion-en {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+.criterion-hi {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+.info-btn {
+  background: none;
+  border: none;
+  color: var(--pm-primary);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0 2px;
+  vertical-align: middle;
+  line-height: 1;
+  opacity: .75;
+}
+.info-btn:active { opacity: 1; }
+.helper-box {
+  display: none;
+  margin-top: 6px;
+  padding: 8px 10px;
+  background: var(--bg-card-2);
+  border-left: 3px solid var(--pm-primary);
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.helper-box.show { display: block; }
+
+/* ── REMARK (per criterion) ────────────── */
+.remark-row {
+  display: none;
+  margin-top: 8px;
+}
+.remark-toggle {
+  font-size: 11px;
+  color: var(--pm-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 0;
+}
+.remark-input {
+  display: none;
+  width: 100%;
+  margin-top: 4px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12px;
+  resize: vertical;
+}
+
 /* ── WDGLL REFERENCE ───────────────────── */
 .wdgll-ref {
   margin-top: 8px;
@@ -422,16 +487,29 @@ function renderAudit(cfg) {
     html += '<div class="card-pillar ' + escHtml(c.pillar) + '">' +
             escHtml(c.pillarName) + ' (' + escHtml(c.pillar) + ')</div>';
     html += '<div class="card-body">';
-    html += '<div class="criterion">' + escHtml(c.label) + '</div>';
+    html += '<div class="criterion-en">' + escHtml(c.label) +
+            (c.labelHi ? ' <button class="info-btn" onclick="toggleHelper(' + idx + ')" title="Help">ℹ</button>' : '') +
+            '</div>';
+    if (c.labelHi) {
+      html += '<div class="criterion-hi">' + escHtml(c.labelHi) + '</div>';
+      html += '<div class="helper-box" id="helper-' + idx + '">' + escHtml(c.labelHi) + '</div>';
+    }
 
     /* Score buttons */
-    html += '<div class="score-btns">';
+    html += '<div class="score-btns" style="margin-top:10px">';
     for (var s = 0; s <= c.maxScore; s++) {
       html += '<button class="score-btn s' + s + '" ' +
               'onclick="setScore(\'' + escHtml(c.criterionId) + '\',' + s + ',' + idx + ')" ' +
               'id="btn-' + idx + '-' + s + '">' + s + '</button>';
     }
     html += '</div>';
+
+    /* Remark (expandable, shown after scoring) */
+    html += '<div class="remark-row" id="remark-row-' + idx + '">' +
+            '<button class="remark-toggle" onclick="toggleRemark(' + idx + ')">+ Add remark</button>' +
+            '<textarea class="remark-input" id="remark-' + idx + '" ' +
+            'data-cid="' + escHtml(c.criterionId) + '" rows="2" placeholder="Optional remark…"></textarea>' +
+            '</div>';
 
     /* WDGLL reference */
     if (c.wdgllPhotos && c.wdgllPhotos.length > 0) {
@@ -494,6 +572,10 @@ function setScore(criterionId, score, idx) {
     if (btn) btn.classList.toggle('selected', s === score);
   }
 
+  /* Show remark row */
+  var remarkRow = document.getElementById('remark-row-' + idx);
+  if (remarkRow) remarkRow.style.display = 'block';
+
   /* Update card state */
   var card = document.getElementById('card-' + idx);
   if (card) { card.classList.add('scored'); card.classList.remove('active'); }
@@ -512,6 +594,21 @@ function setScore(criterionId, score, idx) {
   document.getElementById('submitBtn').disabled = (scored < totalCriteria);
 }
 
+function toggleHelper(idx) {
+  var el = document.getElementById('helper-' + idx);
+  if (el) el.classList.toggle('show');
+}
+
+function toggleRemark(idx) {
+  var ta = document.getElementById('remark-' + idx);
+  var btn = document.querySelector('#remark-row-' + idx + ' .remark-toggle');
+  if (!ta) return;
+  var showing = ta.style.display === 'block';
+  ta.style.display = showing ? 'none' : 'block';
+  if (btn) btn.textContent = showing ? '+ Add remark' : '− Remark';
+  if (!showing) setTimeout(function(){ ta.focus(); }, 50);
+}
+
 function toggleWDGLL(idx) {
   var el = document.getElementById('wdgll-' + idx);
   if (el) el.classList.toggle('show');
@@ -526,7 +623,12 @@ function submitAudit() {
 
   var photoHidden = document.getElementById('photoDataUrl');
   var photoB64 = photoHidden && photoHidden.value ? photoHidden.value.split(',')[1] : '';
-  var auditPayload = { zoneId: getZoneId(), zone: getZoneId(), scores: scores, remarks: '', photo_b64: photoB64 };
+  var criteriaRemarks = {};
+  document.querySelectorAll('.remark-input').forEach(function(ta) {
+    var v = ta.value.trim();
+    if (v) criteriaRemarks[ta.getAttribute('data-cid')] = v;
+  });
+  var auditPayload = { zoneId: getZoneId(), zone: getZoneId(), scores: scores, remarks: criteriaRemarks, photo_b64: photoB64 };
 
   function queueAuditOffline_(reason) {
     if (typeof offlineQueue !== 'undefined') {

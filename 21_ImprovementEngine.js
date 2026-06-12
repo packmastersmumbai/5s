@@ -445,21 +445,19 @@ function getQuickAuditConfig(zoneId) {
     var user = v2GetCurrentUser_();
     var now = new Date();
 
-    // Load checklist criteria
-    var schemaData = v2LoadSheet_(ss, "ChecklistSchema");
-    var criteria = [];
-    for (var i = 1; i < schemaData.length; i++) {
-      var row = schemaData[i];
-      var isActive = String(row[4] || "TRUE").toUpperCase() !== "FALSE";
-      if (!isActive) continue;
-      criteria.push({
-        criterionId: String(row[0]),
-        pillar: String(row[1]),
-        pillarName: String(row[2]),
-        label: String(row[3]),
-        maxScore: parseInt(row[5]) || 4
-      });
-    }
+    // Load zone-specific criteria from ScriptProperties (set by initScriptProperties)
+    var PILLAR_NAMES_ = {S1:'Sort',S2:'Set in Order',S3:'Shine',S4:'Standardize',S5:'Sustain'};
+    var rawCriteria = getZoneCriteria(zoneId);
+    var criteria = rawCriteria.map(function(c) {
+      return {
+        criterionId: c.id || c.criterionId || '',
+        pillar:      c.pillar || '',
+        pillarName:  PILLAR_NAMES_[c.pillar] || c.pillar || '',
+        label:       c.labelEn || c.label || '',
+        labelHi:     c.labelHi || '',
+        maxScore:    c.maxScore || 4
+      };
+    });
 
     // Load WDGLL photos for each criterion (IMP-10 integration)
     var wdData = v2LoadSheet_(ss, "WDGLL_Library");

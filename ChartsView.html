@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PackMasters — Charts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Plus Jakarta Sans',sans-serif;background:#f4f5f8;min-height:100vh}
+
+  .cv-header{background:#1a2235;color:#fff;padding:12px 20px;display:flex;align-items:center;gap:12px}
+  .cv-back{color:rgba(255,255,255,.7);text-decoration:none;font-size:12px;padding:4px 8px;border:1px solid rgba(255,255,255,.2);border-radius:6px;white-space:nowrap}
+  .cv-back:hover{color:#fff}
+  .cv-header h1{font-size:15px;font-weight:600;flex:1}
+  .cv-header .cv-meta{font-size:11px;opacity:.6}
+
+  .cv-toolbar{padding:14px 16px;background:#fff;border-bottom:1px solid #e0e4ee;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .cv-filter-label{font-size:11px;font-weight:700;color:#5a6070;letter-spacing:.5px;margin-right:4px}
+  .cv-filter-btn{padding:4px 12px;border-radius:20px;border:1px solid #d0d4de;background:#fff;font-size:11px;font-family:'Plus Jakarta Sans',sans-serif;cursor:pointer;transition:all .12s;font-weight:500}
+  .cv-filter-btn.active{background:#1a2235;color:#fff;border-color:#1a2235}
+
+  .cv-body{padding:16px;display:flex;flex-direction:column;gap:16px}
+
+  .chart-card{background:#fff;border-radius:12px;border:1px solid #e0e4ee;padding:20px}
+  .chart-card-title{font-size:12px;font-weight:700;color:#5a6070;letter-spacing:.5px;text-transform:uppercase;margin-bottom:16px}
+
+  .pillar-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+  .pillar-bar-wrap{display:flex;flex-direction:column;gap:6px}
+  .pillar-bar-label{display:flex;justify-content:space-between;align-items:center}
+  .pillar-name{font-size:12px;font-weight:600;color:#1a2235}
+  .pillar-pct{font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace}
+  .bar-track{height:10px;background:#f0f2f5;border-radius:6px;overflow:hidden}
+  .bar-fill{height:100%;border-radius:6px;transition:width .6s ease}
+
+  .pillar-s1 .bar-fill{background:#e85c2e}
+  .pillar-s2 .bar-fill{background:#7c56d4}
+  .pillar-s3 .bar-fill{background:#2ba86e}
+  .pillar-s4 .bar-fill{background:#d4a010}
+  .pillar-s5 .bar-fill{background:#c04aaa}
+
+  canvas{display:block;width:100% !important;max-width:100%}
+
+  .trend-wrap{position:relative;height:220px}
+  .trend-wrap canvas{position:absolute;top:0;left:0;height:100% !important}
+
+  .heatmap-grid{display:grid;gap:3px}
+  .hm-row{display:flex;gap:3px;align-items:center}
+  .hm-label{font-size:10px;font-family:'JetBrains Mono',monospace;color:#6b7280;width:36px;flex-shrink:0}
+  .hm-cell{flex:1;height:28px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;transition:opacity .2s}
+  .hm-cell:hover{opacity:.85}
+  .hm-header{display:flex;gap:3px;margin-bottom:4px;padding-left:40px}
+  .hm-col-label{flex:1;text-align:center;font-size:10px;font-weight:700;color:#6b7280;letter-spacing:.3px}
+
+  .cv-loading{text-align:center;padding:60px;color:#8090a8}
+  .spin{display:inline-block;width:24px;height:24px;border:3px solid #e0e4ec;border-top-color:#6b7280;border-radius:50%;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .cv-error{text-align:center;padding:40px;color:#b83a14}
+</style>
+</head>
+<body>
+
+<div class="cv-header">
+  <a class="cv-back" href="?v2=1">&#8592; Home</a>
+  <h1>5S Charts &amp; Trends</h1>
+  <div class="cv-meta" id="cv-meta">Loading...</div>
+</div>
+
+<div class="cv-toolbar">
+  <span class="cv-filter-label">ZONE:</span>
+  <div id="zone-filters"></div>
+</div>
+
+<div class="cv-body" id="cv-body">
+  <div class="cv-loading"><div class="spin"></div></div>
+</div>
+
+<script>
+var _trend = null;
+var _zoneFilter = 'ALL';
+var PILLARS = ['S1','S2','S3','S4','S5'];
+var PILLAR_NAMES = {S1:'Sort',S2:'Set in Order',S3:'Shine',S4:'Standardize',S5:'Sustain'};
+var PILLAR_COLORS = {S1:'#e85c2e',S2:'#7c56d4',S3:'#2ba86e',S4:'#d4a010',S5:'#c04aaa'};
+var PILLAR_COLORS_A = {S1:'rgba(232,92,46,.15)',S2:'rgba(124,86,212,.15)',S3:'rgba(43,168,110,.15)',S4:'rgba(212,160,16,.15)',S5:'rgba(192,74,170,.15)'};
+
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function heatColor(score) {
+  if (score === null || score === undefined) return '#e0e4ee';
+  if (score >= 90) return '#166534';
+  if (score >= 75) return '#2ba86e';
+  if (score >= 60) return '#d4a010';
+  if (score >= 40) return '#e85c2e';
+  return '#b83a14';
+}
+
+function getZones() {
+  if (!_trend) return [];
+  var zones = new Set();
+  PILLARS.forEach(function(p) {
+    if (_trend[p]) Object.keys(_trend[p]).forEach(function(z){ zones.add(z); });
+  });
+  return Array.from(zones).sort();
+}
+
+function getMonths() {
+  if (!_trend) return [];
+  var months = new Set();
+  PILLARS.forEach(function(p) {
+    if (!_trend[p]) return;
+    Object.values(_trend[p]).forEach(function(arr){
+      arr.forEach(function(pt){ months.add(pt.month); });
+    });
+  });
+  return Array.from(months).sort().slice(-6);
+}
+
+function buildZoneFilters(zones) {
+  var all = ['ALL'].concat(zones);
+  document.getElementById('zone-filters').innerHTML = all.map(function(z){
+    return '<button class="cv-filter-btn' + (z === _zoneFilter ? ' active' : '') +
+      '" onclick="setZoneFilter(\'' + escHtml(z) + '\')">' + escHtml(z) + '</button>';
+  }).join('');
+}
+
+function setZoneFilter(z) {
+  _zoneFilter = z;
+  document.querySelectorAll('.cv-filter-btn').forEach(function(b){
+    b.classList.toggle('active', b.textContent === z);
+  });
+  renderAll();
+}
+
+function avgScore(pillar, months) {
+  if (!_trend[pillar]) return null;
+  var zones = _zoneFilter === 'ALL' ? Object.keys(_trend[pillar]) : [_zoneFilter];
+  var totals = {}, counts = {};
+  months.forEach(function(m){ totals[m] = 0; counts[m] = 0; });
+  zones.forEach(function(z) {
+    if (!_trend[pillar][z]) return;
+    _trend[pillar][z].forEach(function(pt) {
+      if (totals[pt.month] !== undefined) {
+        totals[pt.month] += pt.score;
+        counts[pt.month]++;
+      }
+    });
+  });
+  return months.map(function(m){ return counts[m] ? Math.round(totals[m]/counts[m]) : null; });
+}
+
+function latestScore(pillar) {
+  if (!_trend[pillar]) return null;
+  var zones = _zoneFilter === 'ALL' ? Object.keys(_trend[pillar]) : [_zoneFilter];
+  var vals = [];
+  zones.forEach(function(z) {
+    if (!_trend[pillar][z] || !_trend[pillar][z].length) return;
+    var sorted = _trend[pillar][z].slice().sort(function(a,b){ return a.month < b.month ? 1 : -1; });
+    vals.push(sorted[0].score);
+  });
+  if (!vals.length) return null;
+  return Math.round(vals.reduce(function(s,v){return s+v;},0) / vals.length);
+}
+
+function renderPillarBars() {
+  var html = '<div class="chart-card"><div class="chart-card-title">Current Pillar Scores</div><div class="pillar-grid">';
+  PILLARS.forEach(function(p) {
+    var score = latestScore(p);
+    var pct = score !== null ? score : 0;
+    html += '<div class="pillar-bar-wrap pillar-' + p.toLowerCase() + '">' +
+      '<div class="pillar-bar-label">' +
+        '<span class="pillar-name">' + p + ' ' + PILLAR_NAMES[p] + '</span>' +
+        '<span class="pillar-pct" style="color:' + PILLAR_COLORS[p] + '">' + (score !== null ? pct + '%' : 'N/A') + '</span>' +
+      '</div>' +
+      '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%;background:' + PILLAR_COLORS[p] + '"></div></div>' +
+    '</div>';
+  });
+  html += '</div></div>';
+  return html;
+}
+
+function renderTrendChart(months) {
+  var id = 'trend-canvas-' + Date.now();
+  var html = '<div class="chart-card"><div class="chart-card-title">Pillar Score Trends (Last 6 Months)</div>' +
+    '<div class="trend-wrap"><canvas id="' + id + '"></canvas></div></div>';
+  setTimeout(function() {
+    var canvas = document.getElementById(id);
+    if (!canvas) return;
+    var W = canvas.parentElement.offsetWidth;
+    var H = 220;
+    canvas.width = W;
+    canvas.height = H;
+    var ctx = canvas.getContext('2d');
+    var PAD = {top:16,right:16,bottom:36,left:36};
+    var cw = W - PAD.left - PAD.right;
+    var ch = H - PAD.top - PAD.bottom;
+    ctx.clearRect(0,0,W,H);
+
+    // grid
+    ctx.strokeStyle = '#f0f2f5';
+    ctx.lineWidth = 1;
+    [0,25,50,75,100].forEach(function(v) {
+      var y = PAD.top + ch - (v/100)*ch;
+      ctx.beginPath(); ctx.moveTo(PAD.left,y); ctx.lineTo(PAD.left+cw,y); ctx.stroke();
+      ctx.fillStyle = '#a0aab8'; ctx.font = '9px JetBrains Mono,monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText(v, PAD.left - 4, y + 3);
+    });
+
+    // x-axis labels
+    ctx.fillStyle = '#6b7280'; ctx.font = '9px Plus Jakarta Sans,sans-serif'; ctx.textAlign = 'center';
+    months.forEach(function(m,i) {
+      var x = PAD.left + (i/(months.length-1||1))*cw;
+      ctx.fillText(m.slice(0,7), x, H - PAD.bottom + 14);
+    });
+
+    // lines
+    PILLARS.forEach(function(p) {
+      var data = avgScore(p, months);
+      if (!data) return;
+      ctx.beginPath();
+      ctx.strokeStyle = PILLAR_COLORS[p];
+      ctx.lineWidth = 2;
+      ctx.lineJoin = 'round';
+      var started = false;
+      data.forEach(function(v,i) {
+        if (v === null) return;
+        var x = PAD.left + (i/(months.length-1||1))*cw;
+        var y = PAD.top + ch - (v/100)*ch;
+        if (!started) { ctx.moveTo(x,y); started = true; } else { ctx.lineTo(x,y); }
+      });
+      ctx.stroke();
+
+      // dots
+      data.forEach(function(v,i) {
+        if (v === null) return;
+        var x = PAD.left + (i/(months.length-1||1))*cw;
+        var y = PAD.top + ch - (v/100)*ch;
+        ctx.beginPath();
+        ctx.arc(x,y,3.5,0,Math.PI*2);
+        ctx.fillStyle = PILLAR_COLORS[p];
+        ctx.fill();
+      });
+    });
+
+    // legend
+    var lx = PAD.left;
+    PILLARS.forEach(function(p) {
+      ctx.fillStyle = PILLAR_COLORS[p];
+      ctx.fillRect(lx, H - 8, 12, 4);
+      ctx.fillStyle = '#6b7280'; ctx.font = '9px Plus Jakarta Sans,sans-serif'; ctx.textAlign = 'left';
+      ctx.fillText(p, lx + 14, H - 4);
+      lx += 38;
+    });
+  }, 50);
+  return html;
+}
+
+function renderHeatmap(months, allZones) {
+  var zones = _zoneFilter === 'ALL' ? allZones : [_zoneFilter];
+  if (!zones.length) return '';
+
+  // build zone x pillar matrix using latest month data
+  var html = '<div class="chart-card"><div class="chart-card-title">Zone &#215; Pillar Heatmap (Latest)</div>' +
+    '<div style="overflow-x:auto"><div style="min-width:360px">' +
+    '<div class="hm-header">' + PILLARS.map(function(p){ return '<div class="hm-col-label">' + p + '</div>'; }).join('') + '</div>';
+
+  zones.forEach(function(z) {
+    html += '<div class="hm-row"><div class="hm-label">' + escHtml(z) + '</div>';
+    PILLARS.forEach(function(p) {
+      var score = null;
+      if (_trend[p] && _trend[p][z] && _trend[p][z].length) {
+        var sorted = _trend[p][z].slice().sort(function(a,b){ return a.month < b.month ? 1 : -1; });
+        score = sorted[0].score;
+      }
+      var bg = heatColor(score);
+      var label = score !== null ? score : '--';
+      html += '<div class="hm-cell" style="background:' + bg + '" title="' + escHtml(z) + ' ' + p + ': ' + label + '">' + label + '</div>';
+    });
+    html += '</div>';
+  });
+  html += '</div></div></div>';
+  return html;
+}
+
+function renderAll() {
+  var months = getMonths();
+  var allZones = getZones();
+  var body = document.getElementById('cv-body');
+  body.innerHTML =
+    renderPillarBars() +
+    renderTrendChart(months) +
+    renderHeatmap(months, allZones);
+}
+
+function loadData() {
+  google.script.run
+    .withSuccessHandler(function(result) {
+      _trend = typeof result === 'string' ? JSON.parse(result) : result;
+      var allZones = getZones();
+      var months = getMonths();
+      buildZoneFilters(allZones);
+      document.getElementById('cv-meta').textContent =
+        allZones.length + ' zones · ' + months.length + ' months';
+      renderAll();
+    })
+    .withFailureHandler(function(err) {
+      document.getElementById('cv-body').innerHTML =
+        '<div class="cv-error">&#9888;&#65039; Load error: ' + escHtml(err.message) + '</div>';
+    })
+    .getPillarTrend();
+}
+
+loadData();
+</script>
+</body>
+</html>

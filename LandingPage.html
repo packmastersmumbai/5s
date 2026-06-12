@@ -178,15 +178,19 @@
       var SVG_BULB = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="9" y1="18" x2="15" y2="18"/><line x1="10" y1="22" x2="14" y2="22"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>';
       var SVG_EYE = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
       var SVG_SWAP = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>';
+      var SVG_CHART = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>';
+      var SVG_ANALYTICS = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21H3"/><path d="m3 10 5-5 4 4 5-5 4 4"/></svg>';
       var v2Tools = [
-        { icon: SVG_CLIP, label: 'Quick Audit', action: 'quickaudit' },
-        { icon: SVG_GRID, label: 'SQCDP Board', action: 'sqcdp' },
-        { icon: SVG_PIN,  label: 'Kanban / CAPA', action: 'kanban' },
-        { icon: SVG_CLIP, label: 'Task Board', action: 'taskboard' },
-        { icon: SVG_TAG,  label: 'Red Tag', action: 'redtag' },
-        { icon: SVG_BULB, label: 'Kaizen Suggestion', action: 'kaizen' },
-        { icon: SVG_EYE,  label: 'Gemba Walk', action: 'gembawalk' },
-        { icon: SVG_SWAP, label: 'Shift Handover', action: 'handover' }
+        { icon: SVG_CLIP,      label: 'Quick Audit',       action: 'quickaudit' },
+        { icon: SVG_GRID,      label: 'SQCDP Board',       action: 'sqcdp' },
+        { icon: SVG_PIN,       label: 'Kanban / CAPA',     action: 'kanban' },
+        { icon: SVG_CHART,     label: 'Charts',            action: 'charts' },
+        { icon: SVG_ANALYTICS, label: 'Analytics',         action: 'analytics' },
+        { icon: SVG_CLIP,      label: 'Task Board',        action: 'taskboard' },
+        { icon: SVG_TAG,       label: 'Red Tag',           action: 'raiseredtag' },
+        { icon: SVG_BULB,      label: 'Kaizen Suggestion', action: 'kaizen' },
+        { icon: SVG_EYE,       label: 'Gemba Walk',        action: 'gembawalk' },
+        { icon: SVG_SWAP,      label: 'Shift Handover',    action: 'handover' }
       ];
       var toolsDiv = document.getElementById('v2ZoneTools');
       var grid = document.createElement('div');

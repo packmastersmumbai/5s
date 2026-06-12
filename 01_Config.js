@@ -27,13 +27,26 @@
  * Email addresses are placeholders — replace before going live.
  */
 function getDefaultZoneConfig_() {
+  // Delegate to 01b_ZoneData.js — keeps this file readable
+  var meta = getDefaultZoneMetadata_();
+  var criteria = getDefaultZoneCriteria_();
+  var config = {};
+  Object.keys(meta).sort().forEach(function(zid) {
+    config[zid] = meta[zid];
+    config[zid].criteria = criteria[zid] || [];
+  });
+  return config;
+}
+
+function getDefaultZoneConfig__PLACEHOLDER_DO_NOT_USE_() {
+  // Old 8-zone placeholder removed. See 01b_ZoneData.js for real data.
   return {
     "Z-01": {
-      id: "Z-01", name: "Production Floor A", nameHi: "उत्पादन फ्लोर ए",
-      leader: "Mr. Anuj Pathak", email: "anuj.pathak@packmasters.in",
-      auditDay: "Monday", auditDayNum: 1, department: "Production & Ops", driveFolderId: "",
+      id: "Z-01", name: "Security + Meter Room", nameHi: "सिक्योरिटी + मीटर रूम",
+      leader: "Mr. Tarun", supervisor: "Mr. Rajesh Dubey", email: "tarun@packmasters.in",
+      auditDay: "Monday", auditDayNum: 1, department: "Security & Logistics", driveFolderId: "",
       criteria: [
-        { id: "S1-1", pillar: "S1", labelEn: "Only current job materials/components on the line — no leftover from previous batch", labelHi: "लाइन पर सिर्फ आज का काम रखो — पिछले बैच का सामान हटाओ", maxScore: 4 },
+        { id: "S1-1", pillar: "S1", labelEn: "No obsolete paper accumulation at entry post", labelHi: "पुरानी रजिस्टर, नोटिस या कागज एंट्री पर नहीं", maxScore: 4 },
         { id: "S1-2", pillar: "S1", labelEn: "Broken/worn tools and jigs removed or red-tagged for repair", labelHi: "टूटे या घिसे औज़ार हटाओ, रेड टैग लगाओ", maxScore: 4 },
         { id: "S1-3", pillar: "S1", labelEn: "Rejected packs/waste segregated immediately — not mixed with WIP", labelHi: "खराब माल अलग डिब्बे में डालो — अच्छे माल में मत मिलाओ", maxScore: 4 },
         { id: "S2-1", pillar: "S2", labelEn: "Packing line positions marked — materials, bins, tools each at designated spot", labelHi: "हर चीज़ की जगह तय है — वही रखो जहाँ निशान लगा है", maxScore: 4 },

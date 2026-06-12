@@ -74,8 +74,10 @@ function loadImage(dataUrl, stamp) {
   var img = new Image();
   img.onload = function() {
     baseImage = img;
+    // Add strip height to canvas so watermark doesn't overlap image
+    var stripH = Math.max(28, Math.round(img.height * 0.045));
     canvas.width = img.width;
-    canvas.height = img.height;
+    canvas.height = img.height + stripH;
     redraw();
     if (stamp) {
       document.getElementById("stampInfo").textContent =
@@ -89,15 +91,31 @@ function redraw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   if (baseImage) ctx.drawImage(baseImage, 0, 0);
 
-  // Draw stamp watermark
-  if (stampData.zone) {
+  // Solid watermark strip below image
+  if (stampData.zone || stampData.auditor) {
+    var imgH = baseImage ? baseImage.height : canvas.height;
+    var stripH = canvas.height - imgH;
+    var fontSize = Math.max(12, Math.round(stripH * 0.52));
+
+    // Dark background strip
     ctx.save();
-    ctx.globalAlpha = 0.4;
+    ctx.fillStyle = "#1a1a2e";
+    ctx.fillRect(0, imgH, canvas.width, stripH);
+
+    // Left: zone + auditor
     ctx.fillStyle = "#ffffff";
-    ctx.font = "bold " + Math.max(14, canvas.width * 0.025) + "px Arial";
-    var stampText = stampData.zone + " | " + stampData.date + " | " + stampData.auditor;
-    ctx.fillText(stampText, 10, canvas.height - 12);
-    ctx.globalAlpha = 1.0;
+    ctx.font = "bold " + fontSize + "px Arial";
+    ctx.textBaseline = "middle";
+    var left = (stampData.zone || "") + "  |  " + (stampData.auditor || "");
+    ctx.fillText(left, 10, imgH + stripH / 2);
+
+    // Right: date + zoom
+    var right = (stampData.date || "");
+    if (stampData.zoom) right += "  |  zoom " + stampData.zoom + "x";
+    var rightW = ctx.measureText(right).width;
+    ctx.fillStyle = "#a0aec0";
+    ctx.fillText(right, canvas.width - rightW - 10, imgH + stripH / 2);
+
     ctx.restore();
   }
 

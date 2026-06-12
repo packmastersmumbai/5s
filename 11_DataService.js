@@ -768,6 +768,71 @@ function getAuditHistory(zoneId, month) {
     // Sort newest first
     daily.sort(function(a,b){ return new Date(b.timestamp) - new Date(a.timestamp); });
     weekly.sort(function(a,b){ return new Date(b.auditDate) - new Date(a.auditDate); });
-    return { daily: daily, weekly: weekly };
+    return { daily: daily, weekly: [] };
   }, "getAuditHistory", { daily: [], weekly: [] }, "low");
+}
+
+/**
+ * getZoneMapData — returns latest 5S score + open NC count per zone.
+ * Called by HomePage zone map widget.
+ * Returns: { "Z-01": { score, nc, last, s1, s2, s3, s4, s5 }, ... }
+ */
+function getZoneMapData() {
+  return v2SafeExecute_(function() {
+    var ss = v2GetSpreadsheet_();
+    var CRITERIA_PER_PILLAR = 3; // 15 criteria / 5 pillars
+
+    // ── Latest audit score per zone from DailySubmissions ──
+    var dsData = v2LoadSheet_(ss, "DailySubmissions");
+    var latest = {}; // zone_id -> row with most recent SUBMISSION_DATE
+    for (var r = 1; r < dsData.length; r++) {
+      var row = dsData[r];
+      if (!row[DS_COL.SUBMISSION_ID]) continue;
+      if (row[DS_COL.IS_DUPLICATE] === true || String(row[DS_COL.IS_DUPLICATE]).toUpperCase() === "TRUE") continue;
+      var zid = String(row[DS_COL.ZONE_ID] || "").trim();
+      if (!zid) continue;
+      var dateVal = row[DS_COL.SUBMISSION_DATE];
+      if (!latest[zid] || (dateVal instanceof Date && latest[zid].dateVal < dateVal)) {
+        latest[zid] = { row: row, dateVal: dateVal instanceof Date ? dateVal : new Date(0) };
+      }
+    }
+
+    // ── Open NC count per zone from NC_CAPA ──
+    var ncSheet = ss.getSheetByName("NC_CAPA");
+    var openNCs = {};
+    if (ncSheet && ncSheet.getLastRow() > 1) {
+      var ncData = ncSheet.getDataRange().getValues();
+      for (var n = 1; n < ncData.length; n++) {
+        var nr = ncData[n];
+        var nZid = String(nr[2] || "").trim(); // col C = zone_id
+        var nStatus = String(nr[14] || "").trim().toUpperCase(); // col O = status
+        if (!nZid) continue;
+        if (nStatus === "CLOSED" || nStatus === "DELETED") continue;
+        openNCs[nZid] = (openNCs[nZid] || 0) + 1;
+      }
+    }
+
+    // ── Build result map ──
+    var result = {};
+    Object.keys(latest).forEach(function(zid) {
+      var row = latest[zid].row;
+      var dateVal = latest[zid].dateVal;
+      var score = Math.round(parseFloat(row[DS_COL.PCT_SCORE]) || 0);
+      var s1 = Math.round((row[DS_COL.S1_SCORE] || 0) / CRITERIA_PER_PILLAR * 100);
+      var s2 = Math.round((row[DS_COL.S2_SCORE] || 0) / CRITERIA_PER_PILLAR * 100);
+      var s3 = Math.round((row[DS_COL.S3_SCORE] || 0) / CRITERIA_PER_PILLAR * 100);
+      var s4 = Math.round((row[DS_COL.S4_SCORE] || 0) / CRITERIA_PER_PILLAR * 100);
+      var s5 = Math.round((row[DS_COL.S5_SCORE] || 0) / CRITERIA_PER_PILLAR * 100);
+      var lastStr = dateVal.getFullYear() > 1970
+        ? Utilities.formatDate(dateVal, TZ, "d MMM") : "—";
+      result[zid] = { score: score, nc: openNCs[zid] || 0, last: lastStr, s1: s1, s2: s2, s3: s3, s4: s4, s5: s5 };
+    });
+
+    // Fill NC counts for zones not yet audited
+    Object.keys(openNCs).forEach(function(zid) {
+      if (!result[zid]) result[zid] = { score: null, nc: openNCs[zid], last: "—", s1: 0, s2: 0, s3: 0, s4: 0, s5: 0 };
+    });
+
+    return result;
+  }, "getZoneMapData", {}, "medium");
 }

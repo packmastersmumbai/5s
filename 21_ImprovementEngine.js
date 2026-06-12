@@ -558,6 +558,19 @@ function submitQuickAudit(auditData) {
     });
     row.push(total);
     row.push(maxTotal > 0 ? Math.round(100 * total / maxTotal) : 0);
+
+    // Upload watermarked photo if provided
+    var photoUrl = "";
+    if (auditData.photo_b64) {
+      try {
+        var result = uploadPhotoToDrive(auditData.photo_b64,
+          "audit_" + zoneId + "_" + Utilities.formatDate(now, TZ, "yyyyMMdd_HHmmss") + ".jpg",
+          zoneId);
+        if (result && result.thumbnailUrl) photoUrl = result.thumbnailUrl;
+      } catch (e) { Logger.log("Photo upload skipped: " + e.message); }
+    }
+    row.push(photoUrl);
+
     sheet.appendRow(row);
 
     // Auto-generate actions for low scores (IMP-02 integration)

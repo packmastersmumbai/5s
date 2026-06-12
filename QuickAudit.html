@@ -451,9 +451,17 @@ function renderAudit(cfg) {
   html += '<div class="card-container">';
   html += '<div class="form-section" style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px;margin-bottom:12px;">';
   html += '<label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:5px;">Photo Evidence <span class="mobile-only">(required)</span></label>';
-  html += '<input type="file" id="photoInput" name="photoInput" accept="image/*" capture="environment" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:var(--r);">';
-  html += '<small style="color:var(--text-muted,#94A3B8);">Capture on-site evidence</small>';
+  html += '<input type="file" id="photoInputRaw" accept="image/*" capture="environment" style="display:none">';
+  html += '<button type="button" onclick="openCamera_()" style="width:100%;padding:10px;border:1px dashed var(--border);border-radius:var(--r);background:var(--bg-card);color:var(--text-secondary);font-size:14px;cursor:pointer;" id="photoBtn">📷 Tap to capture photo</button>';
+  html += '<div id="photoThumb" style="margin-top:8px;display:none"><img id="photoPreviewImg" style="max-width:100%;border-radius:var(--r);border:1px solid var(--border)" /><small style="color:var(--pm-success,#27ae60)">✓ Photo captured with watermark</small></div>';
+  html += '<input type="hidden" id="photoDataUrl" name="photoInput">';
+  html += '<small style="color:var(--text-muted,#94A3B8);">Watermark (zone · auditor · date) applied automatically</small>';
   html += '</div></div>';
+
+  /* Annotator overlay (hidden until photo captured) */
+  html += '<div id="annotatorOverlay" style="display:none;position:fixed;inset:0;z-index:9999;background:#000;flex-direction:column">';
+  html += '<iframe id="annotatorFrame" src="' + escHtml(google.script.url ? '' : '') + '?action=photoannotator" style="flex:1;width:100%;border:none;height:calc(100% - 0px)"></iframe>';
+  html += '</div>';
 
   /* Submit area */
   html += '<div class="submit-area">';
@@ -516,7 +524,9 @@ function submitAudit() {
   btn.textContent = 'Submitting…';
   clearInterval(timerInterval);
 
-  var auditPayload = { zoneId: getZoneId(), zone: getZoneId(), scores: scores, remarks: '' };
+  var photoHidden = document.getElementById('photoDataUrl');
+  var photoB64 = photoHidden && photoHidden.value ? photoHidden.value.split(',')[1] : '';
+  var auditPayload = { zoneId: getZoneId(), zone: getZoneId(), scores: scores, remarks: '', photo_b64: photoB64 };
 
   function queueAuditOffline_(reason) {
     if (typeof offlineQueue !== 'undefined') {
@@ -617,13 +627,107 @@ function isMobileDevice_() {
 
 function validatePhotoOnMobile_() {
   if (!isMobileDevice_()) return true;
-  var photoInput = document.getElementById('photoInput') || document.querySelector('input[type="file"][accept*="image"]');
-  if (!photoInput || !photoInput.files || photoInput.files.length === 0) {
+  var hidden = document.getElementById('photoDataUrl');
+  if (!hidden || !hidden.value) {
     if (typeof pmToast === 'function') pmToast('Photo required on mobile', 'warning');
     return false;
   }
   return true;
 }
+
+/* ── Photo capture + watermark ── */
+function openCamera_() {
+  var raw = document.getElementById('photoInputRaw');
+  if (raw) raw.click();
+}
+
+(function wirePhotoInput_() {
+  // Defer until DOM is ready — renderAudit() injects the input dynamically
+  document.addEventListener('click', function(e) {
+    var raw = document.getElementById('photoInputRaw');
+    if (raw && !raw._wired) {
+      raw._wired = true;
+      raw.addEventListener('change', function() {
+        if (!raw.files || !raw.files[0]) return;
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+          applyWatermark_(ev.target.result);
+        };
+        reader.readAsDataURL(raw.files[0]);
+      });
+    }
+  });
+})();
+
+function applyWatermark_(dataUrl) {
+  var img = new Image();
+  img.onload = function() {
+    var stripH = Math.max(28, Math.round(img.height * 0.045));
+    var c = document.createElement('canvas');
+    c.width  = img.width;
+    c.height = img.height + stripH;
+    var ctx  = c.getContext('2d');
+
+    // Draw photo
+    ctx.drawImage(img, 0, 0);
+
+    // Watermark strip
+    var zone    = getZoneId() || 'Unknown Zone';
+    var auditor = (typeof currentUser_ !== 'undefined' && currentUser_) ? currentUser_ : 'Auditor';
+    var now     = new Date();
+    var dateStr = now.getFullYear() + '-' +
+                  String(now.getMonth()+1).padStart(2,'0') + '-' +
+                  String(now.getDate()).padStart(2,'0') + ' ' +
+                  String(now.getHours()).padStart(2,'0') + ':' +
+                  String(now.getMinutes()).padStart(2,'0');
+    var zoom    = (window.devicePixelRatio || 1).toFixed(1);
+
+    var fontSize = Math.max(12, Math.round(stripH * 0.52));
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, img.height, c.width, stripH);
+
+    ctx.font          = 'bold ' + fontSize + 'px Arial';
+    ctx.textBaseline  = 'middle';
+    var midY = img.height + stripH / 2;
+
+    // Left: zone | auditor
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(zone + '  |  ' + auditor, 10, midY);
+
+    // Right: date | zoom
+    var right = dateStr + '  |  zoom ' + zoom + 'x';
+    ctx.fillStyle = '#a0aec0';
+    var rw = ctx.measureText(right).width;
+    ctx.fillText(right, c.width - rw - 10, midY);
+
+    var watermarked = c.toDataURL('image/jpeg', 0.88);
+
+    // Store for submit
+    var hidden = document.getElementById('photoDataUrl');
+    if (hidden) hidden.value = watermarked;
+
+    // Show thumbnail
+    var thumb = document.getElementById('photoThumb');
+    var prev  = document.getElementById('photoPreviewImg');
+    var btn   = document.getElementById('photoBtn');
+    if (prev)  prev.src            = watermarked;
+    if (thumb) thumb.style.display = 'block';
+    if (btn)   btn.textContent     = '📷 Retake photo';
+  };
+  img.src = dataUrl;
+}
+
+/* Called by PhotoAnnotator iframe when user taps Save (annotation flow) */
+window.closeAnnotator = function(dataUrl) {
+  document.getElementById('annotatorOverlay').style.display = 'none';
+  if (!dataUrl) return;
+  var hidden = document.getElementById('photoDataUrl');
+  var prev   = document.getElementById('photoPreviewImg');
+  var thumb  = document.getElementById('photoThumb');
+  if (hidden) hidden.value          = dataUrl;
+  if (prev)   prev.src              = dataUrl;
+  if (thumb)  thumb.style.display   = 'block';
+};
 
 /* Called when user taps a zone in the picker */
 function selectZone(zid) {

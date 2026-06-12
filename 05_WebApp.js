@@ -67,10 +67,12 @@ function doGet(e) {
           fnResult = Object.keys(zc).sort().map(function(id) {
             return { id: id, name: zc[id].name || id };
           });
+        } else if (params.fn === 'getZoneMapData') {
+          fnResult = getZoneMapData();
         }
       } catch(fnErr) {
-        Logger.log('JSONP getPublicZones error: ' + fnErr.message);
-        fnResult = [];
+        Logger.log('JSONP fn error: ' + fnErr.message);
+        fnResult = {};
       }
       return ContentService.createTextOutput(cb + '(' + JSON.stringify(fnResult) + ')')
         .setMimeType(ContentService.MimeType.JAVASCRIPT);

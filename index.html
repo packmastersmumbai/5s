@@ -3,255 +3,316 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
-<title>PackMasters 5S — Select Zone</title>
+<title>PackMasters 5S — Zone Map</title>
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100vh;background:#f0ece4;color:#1a1e2e;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:14px;-webkit-font-smoothing:antialiased;overscroll-behavior:none}
 
-:root {
-  --bg-page:    #0f172a;
-  --bg-header:  #1e293b;
-  --bg-card:    #1e293b;
-  --bg-card-2:  #334155;
-  --accent:     #f97316;
-  --text-1:     #f1f5f9;
-  --text-2:     #94a3b8;
-  --text-3:     #64748b;
-  --font:       system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
+.hdr{background:#fefcf8;border-bottom:2px solid #fcd34d;padding:12px 14px;display:flex;align-items:center;gap:11px;position:sticky;top:0;z-index:100}
+.logo{width:34px;height:34px;background:#d97706;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;color:#fff;flex-shrink:0}
+.hdr-title{font-size:15px;font-weight:800;color:#1a1e2e;letter-spacing:-.2px}
+.hdr-sub{font-size:11px;color:#6b7280;margin-top:1px}
 
-html, body {
-  height: 100%;
-  background: var(--bg-page);
-  color: var(--text-1);
-  font-family: var(--font);
-  font-size: 15px;
-  line-height: 1.5;
-  overscroll-behavior: none;
-}
+.summary{display:flex;gap:6px;padding:12px 14px 0;flex-wrap:wrap}
+.chip{font-size:11px;font-weight:600;padding:5px 10px;border-radius:6px;border:1.5px solid;display:flex;align-items:center;gap:5px}
+.chip-n{font-size:14px;font-weight:800}
 
-body {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
+/* Tabs — pill segmented control */
+.tabs{display:flex;gap:0;padding:12px 14px 12px;background:transparent}
+.tabs-inner{display:flex;gap:0;flex:1;background:#e8e4dc;border:1.5px solid #ddd8cf;border-radius:11px;padding:3px}
+.tab{flex:1;padding:7px 6px;border:none;border-radius:8px;background:transparent;font-size:10px;color:#9ca3af;cursor:pointer;text-align:center;line-height:1.35;-webkit-tap-highlight-color:transparent;transition:background 200ms cubic-bezier(0.16,1,0.3,1),box-shadow 200ms}
+.tab-id{display:block;font-size:14px;font-weight:700;color:#9ca3af;margin-bottom:1px;transition:color 200ms}
+.tab-sub{display:block;font-size:9px;color:#9ca3af;transition:color 200ms}
+.tab.on{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.1),0 0 0 1.5px #fcd34d}
+.tab.on .tab-id{color:#b45309}
+.tab.on .tab-sub{color:#525668}
 
-/* ── HEADER ── */
-.header {
-  background: var(--bg-header);
-  border-bottom: 2px solid var(--accent);
-  padding: 14px 20px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
-}
-.logo {
-  width: 36px; height: 36px;
-  background: var(--accent);
-  border-radius: 8px;
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 900; font-size: 14px; color: #fff;
-  letter-spacing: -0.5px; flex-shrink: 0;
-}
-.header-title { font-size: 15px; font-weight: 700; }
-.header-sub   { font-size: 12px; color: var(--text-2); }
+/* Grid */
+.grid{padding:0 14px 80px;display:grid;grid-template-columns:1fr 1fr;gap:9px;transition:opacity 130ms ease-in}
+.grid.fading{opacity:0;pointer-events:none}
+@media(min-width:560px){.grid{grid-template-columns:1fr 1fr 1fr}}
 
-/* ── BODY ── */
-.body {
-  flex: 1;
-  padding: 20px 16px;
-  max-width: 600px;
-  margin: 0 auto;
-  width: 100%;
-}
+/* Card entrance + shimmer */
+@keyframes zmIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes zmShimmer{from{background-position:-200% 0}to{background-position:200% 0}}
 
-.prompt {
-  font-size: 13px;
-  color: var(--text-2);
-  font-weight: 500;
-  margin-bottom: 16px;
-}
+.card{background:#fefcf8;border:1.5px solid #ddd8cf;border-radius:11px;overflow:hidden;text-decoration:none;display:block;-webkit-tap-highlight-color:transparent;transition:border-color 150ms,box-shadow 150ms;animation:zmIn 320ms cubic-bezier(0.16,1,0.3,1) both}
+.card:active{border-color:#d97706;box-shadow:0 0 0 3px rgba(217,119,6,.12)}
 
-/* ── ZONE GRID ── */
-.grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-@media (max-width: 360px) { .grid { grid-template-columns: 1fr; } }
+.ch{display:flex;align-items:center;gap:6px;padding:7px 10px;background:#f7f5f0;border-bottom:1.5px solid #e8e4dc}
+.c-id{font-size:10px;font-weight:700;color:#374151;letter-spacing:.8px}
+.c-type{font-size:8px;font-weight:700;color:#525668;text-transform:uppercase;padding:1px 5px;border:1px solid #d1cdc4;border-radius:3px;background:#fff;white-space:nowrap}
+.c-flags{margin-left:auto;display:flex;gap:3px}
+.fl{font-size:8px;font-weight:700;padding:1px 4px;border-radius:3px;border:1px solid}
+.fl-H{background:#fee2e2;color:#991b1b;border-color:#fca5a5}
+.fl-B{background:#dcfce7;color:#166534;border-color:#86efac}
+.fl-D{background:#fef3c7;color:#92400e;border-color:#fcd34d}
 
-.zone-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 20px 12px;
-  background: var(--bg-card);
-  border: 2px solid var(--bg-card-2);
-  border-radius: 12px;
-  cursor: pointer;
-  text-decoration: none;
-  transition: border-color .15s, background .15s;
-  min-height: 90px;
-  text-align: center;
-  -webkit-tap-highlight-color: transparent;
-}
-.zone-card:active,
-.zone-card:hover {
-  border-color: var(--accent);
-  background: var(--bg-card-2);
-}
-.zone-id {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--accent);
-  letter-spacing: 0.06em;
-  margin-bottom: 4px;
-}
-.zone-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-1);
-  line-height: 1.3;
-}
+.cb{display:flex;gap:9px;padding:10px;align-items:flex-start}
 
-/* skeleton */
-.skeleton {
-  background: var(--bg-card-2);
-  border-radius: 4px;
-  animation: pulse 1.2s ease-in-out infinite;
-}
-@keyframes pulse {
-  0%,100% { opacity: .5; }
-  50%      { opacity: 1; }
-}
+.stile{flex-shrink:0;width:56px;height:56px;border-radius:9px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border:2px solid}
+.stile-skel{background:linear-gradient(90deg,#ede9e1 25%,#e0dbd2 50%,#ede9e1 75%);background-size:200% 100%;animation:zmShimmer 1.6s infinite linear;border-color:#e0dbd2!important}
+.stile-n{font-size:20px;font-weight:800;line-height:1}
+.stile-u{font-size:8px;font-weight:700}
 
-/* ── FOOTER ── */
-.footer {
-  padding: 16px;
-  text-align: center;
-  border-top: 1px solid var(--bg-card-2);
-  flex-shrink: 0;
-}
-.login-link {
-  font-size: 12px;
-  color: var(--text-3);
-  text-decoration: none;
-}
-.login-link:hover { color: var(--text-2); }
-.login-link span  { text-decoration: underline; }
+.ci{flex:1;min-width:0}
+.c-name{font-size:12px;font-weight:800;color:#1a1e2e;line-height:1.3;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.c-desc{font-size:9px;color:#525668;line-height:1.5;margin-bottom:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 
-/* error state */
-.error-msg {
-  text-align: center;
-  padding: 32px 16px;
-  color: var(--text-2);
-  font-size: 13px;
-}
+.staff{display:flex;gap:6px}
+.person{display:flex;align-items:center;gap:5px;flex:1;min-width:0}
+.av{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0}
+.av-role{font-size:8px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.3px}
+.av-name{font-size:9px;font-weight:600;color:#374151;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.bars{display:flex;gap:3px;padding:3px 10px 9px}
+.bar{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px}
+.bar-bg{width:100%;height:5px;background:#e9e5de;border-radius:3px;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px;transform-origin:left;transform:scaleX(0);transition:transform 600ms cubic-bezier(0.16,1,0.3,1)}
+.bar-lbl{font-size:7px;font-weight:700;color:#374151}
+
+.cf{display:flex;align-items:center;gap:7px;padding:7px 10px;border-top:1.5px solid #e8e4dc;background:#f7f5f0}
+.nc-chip{font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;flex-shrink:0;border:1.5px solid}
+.nc-ok{background:#dcfce7;color:#166534;border-color:#86efac}
+.nc-bad{background:#fee2e2;color:#991b1b;border-color:#fca5a5}
+.cf-ago{font-size:9px;font-weight:500;color:#6b7280;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.footer{position:fixed;bottom:0;left:0;right:0;background:#fefcf8;border-top:1.5px solid #e8e4dc;padding:11px 16px;text-align:center}
+.login-link{font-size:12px;color:#6b7280;text-decoration:none}
+.login-link span{color:#374151;text-decoration:underline;font-weight:700}
 </style>
 </head>
 <body>
 
-<div class="header">
+<div class="hdr">
   <div class="logo">PM</div>
   <div>
-    <div class="header-title">PackMasters 5S</div>
-    <div class="header-sub">Select your zone to begin</div>
+    <div class="hdr-title">PackMasters 5S</div>
+    <div class="hdr-sub">Tap your zone to begin audit</div>
   </div>
 </div>
 
-<div class="body">
-  <div class="prompt">Tap your zone</div>
-  <div class="grid" id="grid">
-    <!-- skeleton placeholders -->
-    <div class="zone-card" style="pointer-events:none">
-      <div class="skeleton" style="height:11px;width:36px;margin-bottom:6px"></div>
-      <div class="skeleton" style="height:13px;width:80px"></div>
-    </div>
-    <div class="zone-card" style="pointer-events:none">
-      <div class="skeleton" style="height:11px;width:36px;margin-bottom:6px"></div>
-      <div class="skeleton" style="height:13px;width:80px"></div>
-    </div>
+<div class="summary">
+  <div class="chip" style="background:#dcfce7;color:#166534;border-color:#86efac"><span class="chip-n">9</span>GF</div>
+  <div class="chip" style="background:#fef3c7;color:#92400e;border-color:#fcd34d"><span class="chip-n">14</span>1F</div>
+  <div class="chip" style="background:#fee2e2;color:#991b1b;border-color:#fca5a5"><span class="chip-n">5</span>2F</div>
+  <div class="chip" style="background:#f3f4f6;color:#374151;border-color:#d1d5db"><span class="chip-n">28</span>Zones</div>
+</div>
+
+<div class="tabs">
+  <div class="tabs-inner">
+    <button class="tab on" onclick="sw('GF',this)"><span class="tab-id">GF</span><span class="tab-sub">Ground Floor</span></button>
+    <button class="tab"    onclick="sw('1F',this)"><span class="tab-id">1F</span><span class="tab-sub">First Floor</span></button>
+    <button class="tab"    onclick="sw('2F',this)"><span class="tab-id">2F</span><span class="tab-sub">Second Floor</span></button>
   </div>
 </div>
+
+<div class="grid" id="grid"></div>
 
 <div class="footer">
-  <a class="login-link" id="loginLink" href="#">
-    Manager / Admin <span>sign in</span>
-  </a>
+  <a class="login-link" id="loginLink" href="#">Manager / Admin &mdash; <span>Sign in</span></a>
 </div>
 
 <script>
-(function() {
-  var GAS_URL = 'https://script.google.com/macros/s/AKfycbyYsCQfJvhorJglpwmpfYNt65659sM5HWKztNK1n5tzeB5wyaovrLpMRDYg95d6yKgQHg/exec';
+(function(){
+var GAS='https://script.google.com/macros/s/AKfycbyYsCQfJvhorJglpwmpfYNt65659sM5HWKztNK1n5tzeB5wyaovrLpMRDYg95d6yKgQHg/exec';
+document.getElementById('loginLink').href=GAS+'?v2=1&action=login';
 
-  var STATIC_ZONES = [
-    { id: 'Z-01', name: 'Security + Meter Room' },
-    { id: 'Z-02', name: 'Loading / Unloading' },
-    { id: 'Z-03', name: "Supervisor's Cabin" },
-    { id: 'Z-04', name: 'Production Area (GF)' },
-    { id: 'Z-05', name: 'Buffer Area (GF)' },
-    { id: 'Z-06', name: 'Outdoor Storage' },
-    { id: 'Z-07', name: 'Pump Room' },
-    { id: 'Z-08', name: 'Wash Bays' },
-    { id: 'Z-09', name: 'Scrap Area Gate 1-2' },
-    { id: 'Z-10', name: 'Office + Storage (1F)' },
-    { id: 'Z-11', name: "Owner's Cabin" },
-    { id: 'Z-12', name: 'Conference Room' },
-    { id: 'Z-13', name: 'Office Amenities' },
-    { id: 'Z-14', name: 'Quality Lab' },
-    { id: 'Z-15', name: 'Production Area (1F)' },
-    { id: 'Z-16', name: 'Raw Material Area' },
-    { id: 'Z-17', name: 'PM + Front Mezzanine' },
-    { id: 'Z-18', name: 'Finished Goods (1F)' },
-    { id: 'Z-19', name: 'Scrap / Rework / Rejected' },
-    { id: 'Z-20', name: 'Back Mezzanine' },
-    { id: 'Z-21', name: 'Maintenance Area' },
-    { id: 'Z-22', name: 'Buffer Area (1F)' },
-    { id: 'Z-23', name: 'Production Toilets' },
-    { id: 'Z-24', name: 'Printing Area' },
-    { id: 'Z-25', name: 'FFS + Bottle Filling' },
-    { id: 'Z-26', name: 'WIP + Job Work' },
-    { id: 'Z-27', name: 'Finished Goods (2F)' },
-    { id: 'Z-28', name: 'Storage PM + Bulk' }
-  ];
+var TYPES={production:'Production',storage:'Storage',warehouse:'Warehouse',office:'Office',lab:'Quality Lab',logistics:'Logistics',utilities:'Utilities',maintenance:'Maintenance',waste:'Waste/Scrap',cleaning:'Cleaning',amenities:'Amenities',security:'Security',buffer:'Buffer',meeting:'Meeting Room',wip:'WIP'};
+var DESCS={
+  'Z-01':'Entry gate, visitor log, fire alarm panel, main electrical metering.',
+  'Z-02':'Material receipt and dispatch dock. Inbound GFM verification and outbound FG loading.',
+  'Z-03':'Floor supervisor coordination. Daily schedule board and shift handover.',
+  'Z-04':'Primary filling and labelling. FFS lines, semi-auto filling, in-process QC.',
+  'Z-05':'Temporary WIP staging between production runs. FIFO rotation.',
+  'Z-06':'External storage for empty containers and bulk overstock.',
+  'Z-07':'Compressed air, vacuum and water pump systems. Utility readings.',
+  'Z-08':'Equipment and container washing. Detergent management, drying racks.',
+  'Z-09':'Scrap segregation at gate — recyclables, rejected material, hazardous waste.',
+  'Z-10':'Admin records, files and office supplies. Document control and Deloitte records.',
+  'Z-11':'Owner cabin. Confidential GFM reconciliation and financial audit docs.',
+  'Z-12':'Client meetings, brand reviews and training sessions.',
+  'Z-13':'Staff amenities, female rest room, drinking water, welfare notice board.',
+  'Z-14':'Incoming and in-process quality testing. Instruments, reagents, COA filing.',
+  'Z-15':'1F filling, repacking and contract packaging. Line clearance between jobs.',
+  'Z-16':'Customer-supplied raw materials, solvents, chemicals. FIFO reconciliation.',
+  'Z-17':'Packaging material on mezzanine and front buffer. PM usage reconciliation.',
+  'Z-18':'Finished goods holding area. Customer-segregated pallets, dispatch checks.',
+  'Z-19':'Scrap, rework and rejected batch quarantine zone. BSR compliance.',
+  'Z-20':'Back mezzanine general storage. HESQ chemical storage compliance.',
+  'Z-21':'Maintenance workshop, spare parts and tool storage. PM schedule tracking.',
+  'Z-22':'1F inter-process buffer. WIP pallet staging between filling and packing.',
+  'Z-23':'Production floor toilets. BSR sanitation compliance and hygiene.',
+  'Z-24':'Carton and label printing. Artwork approval, version control.',
+  'Z-25':'Form-fill-seal and bottle filling. Automated filling, CIP records.',
+  'Z-26':'WIP and job work. Customer job separation and rework tracking.',
+  'Z-27':'2F finished goods dispatch staging. Palletisation and shipment docs.',
+  'Z-28':'Bulk PM and raw material overflow. Chemical segregation, GFM reconciliation.'
+};
 
-  document.getElementById('loginLink').href = GAS_URL + '?action=login';
+var ZONES=[
+  {id:'Z-01',n:'Security + Meter Room',    f:'GF',l:'Tarun',         s:'Rajesh D.',   t:'security',   fl:[]},
+  {id:'Z-02',n:'Loading / Unloading',      f:'GF',l:'Anuj P.',       s:'Dilip M.',    t:'logistics',  fl:['H']},
+  {id:'Z-03',n:"Supervisor's Cabin",       f:'GF',l:'Tarun',         s:'Harish S.',   t:'office',     fl:[]},
+  {id:'Z-04',n:'Production Area',          f:'GF',l:'Anuj P.',       s:'Harish S.',   t:'production', fl:['H']},
+  {id:'Z-05',n:'Buffer Area',              f:'GF',l:'Anuj P.',       s:'Deepak N.',   t:'buffer',     fl:[]},
+  {id:'Z-06',n:'Outdoor Storage',          f:'GF',l:'Anuj P.',       s:'Deepak N.',   t:'storage',    fl:['H']},
+  {id:'Z-07',n:'Pump Room',                f:'GF',l:'Santosh M.',    s:'Deepak N.',   t:'utilities',  fl:['H']},
+  {id:'Z-08',n:'Wash Bays',                f:'GF',l:'Anuj P.',       s:'Harish S.',   t:'cleaning',   fl:['H']},
+  {id:'Z-09',n:'Scrap Area Gate 1-2',      f:'GF',l:'Anuj P.',       s:'Dilip M.',    t:'waste',      fl:['H','D']},
+  {id:'Z-10',n:'Office + Storage',         f:'1F',l:'Shikha',        s:'Khushi P.',   t:'office',     fl:['D']},
+  {id:'Z-11',n:"Owner's Cabin",            f:'1F',l:'Balkrishna',    s:'Shikha',      t:'office',     fl:['D']},
+  {id:'Z-12',n:'Conference Room',          f:'1F',l:'Tarun',         s:'Khushi P.',   t:'meeting',    fl:['B']},
+  {id:'Z-13',n:'Office Amenities',         f:'1F',l:'Shikha',        s:'Khushi P.',   t:'amenities',  fl:['B','H']},
+  {id:'Z-14',n:'Quality Lab',              f:'1F',l:'Khushi P.',     s:'Shikha',      t:'lab',        fl:['H']},
+  {id:'Z-15',n:'Production Area',          f:'1F',l:'Anuj P.',       s:'Dilip M.',    t:'production', fl:['H']},
+  {id:'Z-16',n:'Raw Material Area',        f:'1F',l:'Khushi P.',     s:'Deepak N.',   t:'storage',    fl:['H']},
+  {id:'Z-17',n:'PM + Front Mezzanine',     f:'1F',l:'Anuj P.',       s:'Deepak N.',   t:'storage',    fl:['D']},
+  {id:'Z-18',n:'Finished Goods',           f:'1F',l:'Khushi P.',     s:'Deepak N.',   t:'warehouse',  fl:['D']},
+  {id:'Z-19',n:'Scrap / Rework / Rejected',f:'1F',l:'Anuj P.',       s:'Dilip M.',    t:'waste',      fl:['B','D']},
+  {id:'Z-20',n:'Back Mezzanine',           f:'1F',l:'Tarun',         s:'Santosh M.',  t:'storage',    fl:['H']},
+  {id:'Z-21',n:'Maintenance Area',         f:'1F',l:'Santosh M.',    s:'Deepak N.',   t:'maintenance',fl:['H','D']},
+  {id:'Z-22',n:'Buffer Area',              f:'1F',l:'Anuj P.',       s:'Deepak N.',   t:'buffer',     fl:['D']},
+  {id:'Z-23',n:'Production Toilets',       f:'1F',l:'Anuj P.',       s:'Harish S.',   t:'amenities',  fl:['B','H']},
+  {id:'Z-24',n:'Printing Area',            f:'2F',l:'Anuj P.',       s:'Harish S.',   t:'production', fl:['H']},
+  {id:'Z-25',n:'FFS + Bottle Filling',     f:'2F',l:'Anuj P.',       s:'Dilip M.',    t:'production', fl:['H']},
+  {id:'Z-26',n:'WIP + Job Work',           f:'2F',l:'Anuj P.',       s:'Dilip M.',    t:'wip',        fl:['D']},
+  {id:'Z-27',n:'Finished Goods',           f:'2F',l:'Khushi P.',     s:'Deepak N.',   t:'warehouse',  fl:['D']},
+  {id:'Z-28',n:'Storage PM + Bulk',        f:'2F',l:'Anuj P.',       s:'Deepak N.',   t:'storage',    fl:['H','D']},
+];
 
-  function escHtml(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  }
+var SCORES={};
 
-  function renderZones(zones) {
-    var grid = document.getElementById('grid');
-    if (!zones || !zones.length) return;
-    grid.innerHTML = '';
-    zones.forEach(function(z) {
-      var a = document.createElement('a');
-      a.className = 'zone-card';
-      a.href = GAS_URL + '?v2=1&action=quickaudit&zone=' + encodeURIComponent(z.id);
-      a.innerHTML =
-        '<div class="zone-id">' + escHtml(z.id) + '</div>' +
-        '<div class="zone-name">' + escHtml(z.name) + '</div>';
-      grid.appendChild(a);
+var AVP=[
+  {bg:'#dbeafe',fg:'#1e3a8a'},{bg:'#d1fae5',fg:'#064e3b'},{bg:'#fee2e2',fg:'#7f1d1d'},
+  {bg:'#ede9fe',fg:'#3b0764'},{bg:'#fef3c7',fg:'#78350f'},{bg:'#fce7f3',fg:'#831843'},
+  {bg:'#ccfbf1',fg:'#134e4a'},{bg:'#ffedd5',fg:'#7c2d12'},{bg:'#f0fdf4',fg:'#14532d'},
+];
+var _ac={};
+function avP(nm){if(!_ac[nm]){var h=0;for(var i=0;i<nm.length;i++)h=(h*31+nm.charCodeAt(i))&0x7fffffff;_ac[nm]=AVP[h%AVP.length];}return _ac[nm];}
+function ini(nm){var p=nm.replace(/^(Mr|Mrs|Ms|Dr)\.?\s*/i,'').trim().split(/\s+/);return(p[0][0]+(p[1]?p[1][0]:'')).toUpperCase();}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function stBg(s){return s>=80?'#dcfce7':s>=60?'#fef3c7':'#fee2e2';}
+function stBd(s){return s>=80?'#86efac':s>=60?'#fcd34d':'#fca5a5';}
+function stFg(s){return s>=80?'#166534':s>=60?'#92400e':'#991b1b';}
+function plFg(s){return s>=80?'#15803d':s>=60?'#b45309':'#b91c1c';}
+
+var BTN_AUDIT='display:inline-block;-webkit-appearance:none;appearance:none;font-family:inherit;font-size:10px;font-weight:700;padding:5px 11px;border-radius:5px;border:1.5px solid #fcd34d;background-color:#fef3c7;color:#78350f;cursor:pointer;line-height:1.4;white-space:nowrap';
+var BTN_NC='display:inline-block;-webkit-appearance:none;appearance:none;font-family:inherit;font-size:10px;font-weight:700;padding:5px 11px;border-radius:5px;border:1.5px solid #fca5a5;background-color:#fee2e2;color:#7f1d1d;cursor:pointer;line-height:1.4;white-space:nowrap';
+
+function countUp(el,target,delay){
+  var dur=550;
+  setTimeout(function(){
+    var start=null;
+    function step(ts){
+      if(!start)start=ts;
+      var p=Math.min((ts-start)/dur,1);
+      var e=1-Math.pow(1-p,3);
+      el.textContent=Math.round(e*target);
+      if(p<1)requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  },delay||0);
+}
+
+function card(z,idx){
+  var sc=SCORES[z.id]||null;
+  var score=sc&&sc.score!=null?sc.score:null;
+  var nc=sc?sc.nc||0:0;
+  var ago=sc&&sc.last?sc.last:'—';
+  var s1=sc?sc.s1||score||0:0,s2=sc?sc.s2||score||0:0,s3=sc?sc.s3||score||0:0,
+      s4=sc?sc.s4||score||0:0,s5=sc?sc.s5||score||0:0;
+  var cardDelay=(idx||0)*40;
+  var fh=z.fl.map(function(f){return '<span class="fl fl-'+f+'">'+esc(f)+'</span>';}).join('');
+  var url=GAS+'?v2=1&action=quickaudit&zone='+encodeURIComponent(z.id);
+  var lp=avP(z.l),sp=avP(z.s);
+
+  var tileHtml=score!=null
+    ?('<div class="stile" style="background:'+stBg(score)+';border-color:'+stBd(score)+'">'
+      +'<div class="stile-n" data-score="'+score+'" style="color:'+stFg(score)+'">0</div>'
+      +'<div class="stile-u" style="color:'+stFg(score)+'">% 5S</div></div>')
+    :'<div class="stile stile-skel">'
+      +'<div class="stile-n" style="color:#c4bfb5;font-size:13px">—</div>'
+      +'<div class="stile-u" style="color:#c4bfb5">5S</div></div>';
+
+  var bars=[s1,s2,s3,s4,s5].map(function(v,i){
+    var bColor=v>0?plFg(v):'#c4bfb5';
+    var bDelay=cardDelay+220+(i*55);
+    return '<div class="bar"><div class="bar-bg">'
+      +'<div class="bar-fill" data-w="'+(v/100)+'" style="background:'+bColor+';transition-delay:'+bDelay+'ms"></div>'
+      +'</div><div class="bar-lbl">S'+(i+1)+'</div></div>';
+  }).join('');
+
+  var btnStyle=nc>0?BTN_NC:BTN_AUDIT;
+  var btnTxt=nc>0?'View NCs':'Audit';
+
+  return '<a class="card" href="'+url+'" style="animation-delay:'+cardDelay+'ms">'
+    +'<div class="ch"><span class="c-id">'+esc(z.id)+'</span><span class="c-type">'+esc(TYPES[z.t]||z.t)+'</span><div class="c-flags">'+fh+'</div></div>'
+    +'<div class="cb">'+tileHtml
+    +'<div class="ci">'
+    +'<div class="c-name">'+esc(z.n)+'</div>'
+    +'<div class="c-desc">'+esc(DESCS[z.id]||'')+'</div>'
+    +'<div class="staff">'
+    +'<div class="person"><div class="av" style="background:'+lp.bg+';color:'+lp.fg+'">'+ini(z.l)+'</div><div><div class="av-role">Leader</div><div class="av-name">'+esc(z.l)+'</div></div></div>'
+    +'<div class="person"><div class="av" style="background:'+sp.bg+';color:'+sp.fg+'">'+ini(z.s)+'</div><div><div class="av-role">Supvr</div><div class="av-name">'+esc(z.s)+'</div></div></div>'
+    +'</div></div></div>'
+    +'<div class="bars">'+bars+'</div>'
+    +'<div class="cf">'
+    +(nc>0?'<span class="nc-chip nc-bad">'+nc+' NC</span>':'<span class="nc-chip nc-ok">Clear</span>')
+    +'<span class="cf-ago">'+esc(ago)+'</span>'
+    +'<button style="'+btnStyle+'" onclick="event.preventDefault()">'+btnTxt+'</button>'
+    +'</div></a>';
+}
+
+function activate(grid){
+  requestAnimationFrame(function(){
+    grid.querySelectorAll('.bar-fill').forEach(function(el){
+      el.style.transform='scaleX('+(parseFloat(el.getAttribute('data-w'))||0)+')';
     });
-  }
+    grid.querySelectorAll('.stile-n[data-score]').forEach(function(el,i){
+      var target=parseInt(el.getAttribute('data-score'),10)||0;
+      var card=el.closest('.card');
+      var cardDelay=card?parseInt(card.style.animationDelay)||0:0;
+      countUp(el,target,cardDelay+80);
+    });
+  });
+}
 
-  // Show static zones immediately — no GAS needed
-  renderZones(STATIC_ZONES);
+var _floor='GF';
+function render(){
+  var grid=document.getElementById('grid');
+  var zones=ZONES.filter(function(z){return z.f===_floor;});
+  grid.innerHTML=zones.map(function(z,i){return card(z,i);}).join('');
+  activate(grid);
+}
 
-  // Try GAS refresh in background to pick up any newly added zones
-  var cbName = '_gscb1';
-  var t = setTimeout(function() { delete window[cbName]; }, 8000);
-  window[cbName] = function(data) {
-    clearTimeout(t);
-    delete window[cbName];
-    if (data && data.length) renderZones(data);
-  };
-  var s = document.createElement('script');
-  s.src = GAS_URL + '?fn=getPublicZones&args=[]&callback=' + cbName;
-  s.onerror = function() { clearTimeout(t); delete window[cbName]; };
-  document.head.appendChild(s);
+window.sw=function(floor,btn){
+  var grid=document.getElementById('grid');
+  grid.classList.add('fading');
+  setTimeout(function(){
+    _floor=floor;
+    document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('on');});
+    btn.classList.add('on');
+    render();
+    grid.classList.remove('fading');
+  },130);
+};
+
+render();
+
+/* JSONP — fetch live scores */
+var _cb='_pmcb'+(Date.now()%9999);
+var _t=setTimeout(function(){delete window[_cb];},8000);
+window[_cb]=function(data){
+  clearTimeout(_t);delete window[_cb];
+  if(data&&typeof data==='object'){SCORES=data;render();}
+};
+var s=document.createElement('script');
+s.src=GAS+'?fn=getZoneMapData&args=[]&callback='+_cb;
+s.onerror=function(){clearTimeout(_t);delete window[_cb];};
+document.head.appendChild(s);
+
 })();
 </script>
 </body>

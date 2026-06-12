@@ -70,11 +70,21 @@ function getSheetDefinitions_() {
       namedRange: "CAPA_Data",
       type: "operational",
       headers: [
-        "nc_id", "created_date", "zone_id", "zone_name", "audit_date",
-        "criterion_id", "criterion_label", "score_given", "auditor_email",
-        "root_cause", "corrective_action", "preventive_action",
-        "responsible_person", "target_date", "status", "closure_date",
-        "verified_by", "verification_remarks", "is_repeat_nc", "repeat_count"
+        "nc_id", "zone_id", "audit_date", "description",
+        "type", "pillar", "sqcdp_dimension",
+        "corrective_action", "responsible_person", "target_date",
+        "actual_closure_date", "status",
+        "root_cause", "verified_by", "verification_date", "recurrence_count"
+      ]
+    },
+    {
+      name: "RedTags",
+      namedRange: "RedTag_Data",
+      type: "operational",
+      headers: [
+        "tag_no", "zone_id", "item_description", "quantity", "reason",
+        "category", "date_tagged", "tagged_by", "status",
+        "suggested_action", "disposal_date", "remarks"
       ]
     },
     {
@@ -92,11 +102,10 @@ function getSheetDefinitions_() {
       namedRange: "Summary_Data",
       type: "aggregated",
       headers: [
-        "zone_id", "zone_name", "month", "year", "period_type",
-        "s1_avg", "s2_avg", "s3_avg", "s4_avg", "s5_avg",
-        "total_avg", "pct_score", "audit_count", "nc_count", "nc_closed",
-        "daily_submission_count", "daily_submission_rate",
-        "last_daily_date", "last_audit_date", "computed_at"
+        "zone_id", "month", "overall_score", "submission_count",
+        "s1_score", "s2_score", "s3_score", "s4_score", "s5_score",
+        "open_ncs", "closed_ncs", "open_ofis", "active_red_tags",
+        "zed_status", "score_delta"
       ]
     },
     {
@@ -342,7 +351,7 @@ function columnToLetter_(col) {
  * @private
  */
 function protectHeaders_(ss) {
-  var dataSheets = ["DailySubmissions", "WeeklyAudit", "NC_CAPA", "PhotoLog", "Summary", "AdminLog", "QR_Master"];
+  var dataSheets = ["DailySubmissions", "WeeklyAudit", "NC_CAPA", "RedTags", "PhotoLog", "Summary", "AdminLog", "QR_Master"];
 
   dataSheets.forEach(function(sheetName) {
     var sheet = ss.getSheetByName(sheetName);

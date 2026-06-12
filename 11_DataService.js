@@ -532,6 +532,15 @@ function handleDataRequestFull_(params) {
     case "allOpen":
       result = getOpenCAPAs();
       break;
+    case "pillarTrend":
+      result = getPillarTrend();
+      break;
+    case "kanbanData":
+      result = getKanbanData();
+      break;
+    case "analyticsKPIs":
+      result = getAnalyticsKPIs();
+      break;
     default:
       result = { error: "Unknown dataType: " + dataType };
   }
@@ -804,8 +813,8 @@ function getZoneMapData() {
       var ncData = ncSheet.getDataRange().getValues();
       for (var n = 1; n < ncData.length; n++) {
         var nr = ncData[n];
-        var nZid = String(nr[2] || "").trim(); // col C = zone_id
-        var nStatus = String(nr[14] || "").trim().toUpperCase(); // col O = status
+        var nZid = String(nr[1] || "").trim(); // col B = zone_id (new schema)
+        var nStatus = String(nr[11] || "").trim().toUpperCase(); // col L = status (new schema)
         if (!nZid) continue;
         if (nStatus === "CLOSED" || nStatus === "DELETED") continue;
         openNCs[nZid] = (openNCs[nZid] || 0) + 1;
@@ -835,4 +844,273 @@ function getZoneMapData() {
 
     return result;
   }, "getZoneMapData", {}, "medium");
+}
+
+
+// ============================================================================
+// PILLAR TREND — for ChartsView
+// ============================================================================
+
+function getPillarTrend() {
+  var cache = CacheService.getScriptCache();
+  var cached = cache.get('PILLAR_TREND');
+  if (cached) return JSON.parse(cached);
+
+  var ss = v2GetSpreadsheet_();
+  var sh = ss.getSheetByName('Summary');
+  if (!sh || sh.getLastRow() < 2) return {};
+
+  var data = sh.getDataRange().getValues();
+  // Schema: zone_id(0), month(1), overall(2), count(3), s1(4), s2(5), s3(6), s4(7), s5(8)
+  var result = { S1: {}, S2: {}, S3: {}, S4: {}, S5: {} };
+
+  data.slice(1).forEach(function(r) {
+    var zone = String(r[0]).trim();
+    var month = String(r[1]).trim();
+    if (!zone || !month) return;
+    var pillars = ['S1','S2','S3','S4','S5'];
+    pillars.forEach(function(p, i) {
+      if (!result[p][zone]) result[p][zone] = [];
+      result[p][zone].push({ month: month, score: Number(r[4 + i]) || 0 });
+    });
+  });
+
+  // Sort each zone's data by month
+  ['S1','S2','S3','S4','S5'].forEach(function(p) {
+    Object.keys(result[p]).forEach(function(z) {
+      result[p][z].sort(function(a, b) { return a.month < b.month ? -1 : 1; });
+    });
+  });
+
+  var json = JSON.stringify(result);
+  try { cache.put('PILLAR_TREND', json, 600); } catch(e) {}
+  return result;
+}
+
+
+// ============================================================================
+// KANBAN DATA — for KanbanBoard
+// ============================================================================
+
+function getKanbanData() {
+  var cache = CacheService.getScriptCache();
+  var cached = cache.get('KANBAN_DATA');
+  if (cached) return JSON.parse(cached);
+
+  var ss = v2GetSpreadsheet_();
+  var now = new Date();
+  var ncs = [];
+  var redTags = [];
+
+  var ncSh = ss.getSheetByName('NC_CAPA');
+  if (ncSh && ncSh.getLastRow() > 1) {
+    var ncData = ncSh.getDataRange().getValues();
+    // NC_CAPA schema: nc_id(0),zone_id(1),audit_date(2),description(3),type(4),
+    //   pillar(5),sqcdp_dimension(6),corrective_action(7),responsible_person(8),
+    //   target_date(9),actual_closure_date(10),status(11),root_cause(12),
+    //   verified_by(13),verification_date(14),recurrence_count(15)
+    ncData.slice(1).forEach(function(r) {
+      if (!r[0]) return;
+      var targetDate = r[9] ? Utilities.formatDate(new Date(r[9]), 'Asia/Kolkata', 'yyyy-MM-dd') : '';
+      var daysOverdue = 0;
+      if (r[9] && r[11] !== 'Closed') {
+        var diff = now - new Date(r[9]);
+        daysOverdue = diff > 0 ? Math.floor(diff / 86400000) : 0;
+      }
+      ncs.push({
+        id: String(r[0]),
+        zone: String(r[1]),
+        description: String(r[3]),
+        type: String(r[4] || 'NC'),
+        pillar: String(r[5] || ''),
+        sqcdp: String(r[6] || ''),
+        owner: String(r[8] || ''),
+        targetDate: targetDate,
+        status: String(r[11] || 'Open'),
+        daysOverdue: daysOverdue,
+        recurrenceCount: Number(r[15]) || 0
+      });
+    });
+  }
+
+  var rtSh = ss.getSheetByName('RedTags');
+  if (rtSh && rtSh.getLastRow() > 1) {
+    var rtData = rtSh.getDataRange().getValues();
+    // RedTags schema: tag_no(0),zone_id(1),item_description(2),quantity(3),reason(4),
+    //   category(5),date_tagged(6),tagged_by(7),status(8),suggested_action(9),
+    //   disposal_date(10),remarks(11)
+    rtData.slice(1).forEach(function(r) {
+      if (!r[0]) return;
+      var daysOpen = 0;
+      if (r[6]) {
+        var diff = now - new Date(r[6]);
+        daysOpen = diff > 0 ? Math.floor(diff / 86400000) : 0;
+      }
+      redTags.push({
+        tagNo: String(r[0]),
+        zone: String(r[1]),
+        item: String(r[2]),
+        reason: String(r[4] || ''),
+        taggedBy: String(r[7] || ''),
+        status: String(r[8] || 'Open'),
+        daysOpen: daysOpen
+      });
+    });
+  }
+
+  var result = { ncs: ncs, redTags: redTags };
+  var json = JSON.stringify(result);
+  try { cache.put('KANBAN_DATA', json, 300); } catch(e) {}
+  return result;
+}
+
+
+// ============================================================================
+// ANALYTICS KPIs — for AnalyticsView
+// ============================================================================
+
+function getAnalyticsKPIs() {
+  var cache = CacheService.getScriptCache();
+  var cached = cache.get('ANALYTICS_KPIS');
+  if (cached) return JSON.parse(cached);
+
+  var ss = v2GetSpreadsheet_();
+  var now = new Date();
+
+  var summary = ss.getSheetByName('Summary');
+  var ncSh = ss.getSheetByName('NC_CAPA');
+  var rtSh = ss.getSheetByName('RedTags');
+
+  var sumData = summary ? summary.getDataRange().getValues() : [];
+  var ncData = ncSh ? ncSh.getDataRange().getValues() : [];
+  var rtData = rtSh ? rtSh.getDataRange().getValues() : [];
+
+  // Latest month scores per zone — keep row with max month string (YYYY-MM lexicographic)
+  var latestScores = {};
+  sumData.slice(1).forEach(function(r) {
+    if (!r[0] || !r[2]) return;
+    var month = r[1] ? String(r[1]) : '';
+    var existing = latestScores[r[0]];
+    if (!existing || month > existing.month) {
+      latestScores[r[0]] = { overall: Number(r[2]) || 0, delta: r[14] || 0, month: month,
+        s1: Number(r[4])||0, s2: Number(r[5])||0, s3: Number(r[6])||0, s4: Number(r[7])||0, s5: Number(r[8])||0 };
+    }
+  });
+
+  var zones = Object.keys(latestScores);
+  var scores = zones.map(function(z) { return latestScores[z].overall; });
+  var plantAvg = scores.length ? Math.round(scores.reduce(function(a,b){return a+b;},0) / scores.length * 10) / 10 : 0;
+  var zonesOnTarget = scores.filter(function(s){return s >= 80;}).length;
+  var bestZone = zones.length ? zones[scores.indexOf(Math.max.apply(null,scores))] : '';
+  var worstZone = zones.length ? zones[scores.indexOf(Math.min.apply(null,scores))] : '';
+
+  var ncs = ncData.slice(1).filter(function(r){return r[0];});
+  var openNCs = ncs.filter(function(r){return String(r[4])==='NC' && String(r[11])!=='Closed';}).length;
+  var openOFIs = ncs.filter(function(r){return String(r[4])==='OFI' && String(r[11])!=='Closed';}).length;
+  var overdueNCs = ncs.filter(function(r){
+    return String(r[11])!=='Closed' && r[9] && new Date(r[9]) < now;
+  }).length;
+  var repeatNCs = ncs.filter(function(r){return String(r[11])==='Repeat NC';}).length;
+  var closedNCs = ncs.filter(function(r){return String(r[4])==='NC' && String(r[11])==='Closed';}).length;
+  var closureRate = (openNCs + closedNCs) > 0 ? Math.round(closedNCs / (openNCs + closedNCs) * 100) : 0;
+
+  var avgAgeDays = 0;
+  var openList = ncs.filter(function(r){return String(r[11])!=='Closed' && r[2];});
+  if (openList.length) {
+    var totalDays = openList.reduce(function(s,r){ return s + Math.floor((now - new Date(r[2])) / 86400000); }, 0);
+    avgAgeDays = Math.round(totalDays / openList.length);
+  }
+
+  var activeRedTags = rtData.slice(1).filter(function(r){
+    if (!r[0]) return false;
+    var st = String(r[8]);
+    return st !== 'Disposed' && st !== 'Returned' && st !== 'Scrapped';
+  }).length;
+
+  // SQCDP heatmap — open NCs per dimension
+  var sqcdpHeatmap = { S: 0, Q: 0, C: 0, D: 0, P: 0 };
+  ncs.filter(function(r){return String(r[4])==='NC' && String(r[11])!=='Closed';}).forEach(function(r) {
+    var dim = String(r[6]).trim().toUpperCase();
+    if (sqcdpHeatmap[dim] !== undefined) sqcdpHeatmap[dim]++;
+  });
+
+  // Pillar NC counts
+  var pillarNCs = { S1: 0, S2: 0, S3: 0, S4: 0, S5: 0 };
+  ncs.filter(function(r){return String(r[4])==='NC' && String(r[11])!=='Closed';}).forEach(function(r) {
+    var p = String(r[5]).trim().toUpperCase();
+    if (pillarNCs[p] !== undefined) pillarNCs[p]++;
+  });
+
+  var result = {
+    plantAvg: plantAvg,
+    zonesOnTarget: zonesOnTarget,
+    totalZones: zones.length,
+    bestZone: bestZone,
+    worstZone: worstZone,
+    openNCs: openNCs,
+    openOFIs: openOFIs,
+    overdueNCs: overdueNCs,
+    repeatNCs: repeatNCs,
+    closureRate: closureRate,
+    avgAgeDays: avgAgeDays,
+    activeRedTags: activeRedTags,
+    sqcdpHeatmap: sqcdpHeatmap,
+    pillarNCs: pillarNCs
+  };
+
+  var json = JSON.stringify(result);
+  try { cache.put('ANALYTICS_KPIS', json, 300); } catch(e) {}
+  return result;
+}
+
+
+// ============================================================================
+// UPDATE NC STATUS — for Kanban card actions
+// ============================================================================
+
+function updateNCStatus(ncId, newStatus) {
+  var ss = v2GetSpreadsheet_();
+  var sh = ss.getSheetByName('NC_CAPA');
+  if (!sh) return { ok: false, error: 'NC_CAPA sheet not found' };
+  var data = sh.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(ncId)) {
+      sh.getRange(i + 1, 12).setValue(newStatus); // col 12 = status (1-based)
+      if (newStatus === 'Closed') {
+        sh.getRange(i + 1, 11).setValue(new Date()); // col 11 = actual_closure_date
+      }
+      CacheService.getScriptCache().removeAll(['KANBAN_DATA', 'ANALYTICS_KPIS']);
+      return { ok: true };
+    }
+  }
+  return { ok: false, error: 'NC not found: ' + ncId };
+}
+
+
+// ============================================================================
+// RAISE RED TAG — for RedTagForm
+// ============================================================================
+
+function raiseRedTag(formData) {
+  var ss = v2GetSpreadsheet_();
+  var sh = ss.getSheetByName('RedTags');
+  if (!sh) return { ok: false, error: 'RedTags sheet not found' };
+  var lastRow = sh.getLastRow();
+  var tagNo = 'RT-' + new Date().getFullYear() + '-' + String(lastRow).padStart(4, '0');
+  sh.appendRow([
+    tagNo,
+    String(formData.zone || ''),
+    String(formData.item || ''),
+    String(formData.quantity || ''),
+    String(formData.reason || ''),
+    '',
+    new Date(),
+    String(formData.taggedBy || ''),
+    'Open',
+    String(formData.action || ''),
+    '',
+    ''
+  ]);
+  CacheService.getScriptCache().removeAll(['KANBAN_DATA', 'ANALYTICS_KPIS']);
+  return { ok: true, tagNo: tagNo };
 }

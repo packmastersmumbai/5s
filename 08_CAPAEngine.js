@@ -78,60 +78,44 @@ function generateNCId_() {
  * @param {string} auditorEmail — Auditor email
  * @returns {string} The generated NC ID
  */
-function createCAPA(zoneId, criterionId, score, auditDate, auditorEmail) {
+function createCAPA(zoneId, description, type, pillar, sqcdpDim, responsiblePerson) {
   var ss = (typeof v2GetSpreadsheet_ === 'function') ? v2GetSpreadsheet_() : SpreadsheetApp.getActiveSpreadsheet();
   var capaSheet = ss.getSheetByName("NC_CAPA");
   if (!capaSheet) {
     throw new Error("NC_CAPA sheet not found. Run createAllSheets() first.");
   }
 
-  var zoneConfig = getZoneConfig();
-  var schema = getChecklistSchema();
-  var zone = zoneConfig[zoneId];
-  if (!zone) {
-    throw new Error("Unknown zone: " + zoneId);
-  }
-
-  // Find criterion label
-  var criterion = schema.criteria.find(function(c) { return c.id === criterionId; });
-  var criterionLabel = criterion ? criterion.labelEn : criterionId;
-
   var ncId = generateNCId_();
   var now = new Date();
-
-  // Target date: 14 days from now
   var targetDate = new Date(now.getTime() + (14 * 24 * 60 * 60 * 1000));
   var targetDateStr = Utilities.formatDate(targetDate, "Asia/Kolkata", "yyyy-MM-dd");
+  var auditDateStr = Utilities.formatDate(now, "Asia/Kolkata", "yyyy-MM-dd");
 
-  // NC_CAPA column schema (20 columns A-T):
-  var capaRow = [
-    ncId,                                  // A: nc_id
-    now,                                   // B: created_date
-    zoneId,                                // C: zone_id
-    zone.name,                             // D: zone_name
-    auditDate,                             // E: audit_date
-    criterionId,                           // F: criterion_id
-    criterionLabel,                        // G: criterion_label
-    score,                                 // H: score_given
-    auditorEmail || "",                    // I: auditor_email
-    "",                                    // J: root_cause (filled by ZL later)
-    "",                                    // K: corrective_action (filled by ZL)
-    "",                                    // L: preventive_action (filled by ZL)
-    zone.leader,                           // M: responsible_person
-    targetDateStr,                         // N: target_date
-    "OPEN",                                // O: status
-    "",                                    // P: closure_date
-    "",                                    // Q: verified_by
-    "",                                    // R: verification_remarks
-    false,                                 // S: is_repeat_nc
-    0                                      // T: repeat_count
-  ];
+  // NC_CAPA column schema (16 columns):
+  // nc_id(0),zone_id(1),audit_date(2),description(3),type(4),pillar(5),
+  // sqcdp_dimension(6),corrective_action(7),responsible_person(8),target_date(9),
+  // actual_closure_date(10),status(11),root_cause(12),verified_by(13),
+  // verification_date(14),recurrence_count(15)
+  capaSheet.appendRow([
+    ncId,                       // 0: nc_id
+    zoneId,                     // 1: zone_id
+    auditDateStr,               // 2: audit_date
+    description || "",          // 3: description
+    type || "NC",               // 4: type
+    pillar || "",               // 5: pillar
+    sqcdpDim || "",             // 6: sqcdp_dimension
+    "",                         // 7: corrective_action
+    responsiblePerson || "",    // 8: responsible_person
+    targetDateStr,              // 9: target_date
+    "",                         // 10: actual_closure_date
+    "Open",                     // 11: status
+    "",                         // 12: root_cause
+    "",                         // 13: verified_by
+    "",                         // 14: verification_date
+    0                           // 15: recurrence_count
+  ]);
 
-  capaSheet.appendRow(capaRow);
-
-  Logger.log("  📌 CAPA created: " + ncId + " | Zone: " + zoneId +
-    " | Criterion: " + criterionId + " | Score: " + score);
-
+  Logger.log("  📌 CAPA created: " + ncId + " | Zone: " + zoneId + " | Pillar: " + pillar);
   return ncId;
 }
 
@@ -158,7 +142,15 @@ function createCAPAFromAudit_(data, zone, auditorEmail, dateStr) {
 
     if (score <= ncThreshold) {
       try {
-        var ncId = createCAPA(zone.id, criterion.id, score, dateStr, auditorEmail);
+        // Derive SQCDP dimension from criterion — use first true key
+        var sqcdpDim = '';
+        var dims = ['S', 'Q', 'C', 'D', 'P'];
+        var sqdcp = criterion.sqdcp || {};
+        for (var di = 0; di < dims.length; di++) {
+          if (sqdcp[dims[di]]) { sqcdpDim = dims[di]; break; }
+        }
+        var description = (criterion.labelEn || criterion.id) + ' (score: ' + score + ')';
+        var ncId = createCAPA(zone.id, description, 'NC', criterion.pillar || '', sqcdpDim, zone.leader || '');
         ncIds.push(ncId);
       } catch (e) {
         Logger.log("  ⚠️ Could not create CAPA for " + criterion.id + ": " + e.message);
@@ -223,7 +215,7 @@ function updateCAPAStatus(ncId, newStatus, verifiedBy, remarks, additionalFields
 
   var rowData = data[targetRow - 1];
   var currentStatus = String(rowData[NC_COL.STATUS] || "").trim().toUpperCase();
-  var createdBy     = String(rowData[NC_COL.AUDITOR] || "").trim();
+  var createdBy     = String(rowData[NC_COL.RESPONSIBLE] || "").trim();
   var zoneId        = String(rowData[NC_COL.ZONE_ID]  || "").trim();
   var actorEmail    = v2GetCurrentUser_();
 
@@ -259,31 +251,20 @@ function updateCAPAStatus(ncId, newStatus, verifiedBy, remarks, additionalFields
     }
   }
 
-  // Column indices (1-based for setValues)
-  var COL = {
-    status: 15,         // O
-    closure_date: 16,   // P
-    verified_by: 17,    // Q
-    remarks: 18,        // R
-    root_cause: 10,     // J
-    corrective: 11,     // K
-    preventive: 12      // L
-  };
-
-  // Build batch update using 0-based column indices
+  // Column indices (0-based): status=11, closure_date=10, verified_by=13,
+  // verification_date=14, root_cause=12, corrective_action=7
   var updates = {};
-  updates[COL.status - 1] = newStatus;
-  updates[COL.verified_by - 1] = verifiedBy || actorEmail;
-  updates[COL.remarks - 1] = remarks || "";
+  updates[NC_COL.STATUS] = newStatus;
+  updates[NC_COL.VERIFIED_BY] = verifiedBy || actorEmail;
 
   if (newStatus === "CLOSED") {
-    updates[COL.closure_date - 1] = Utilities.formatDate(new Date(), "Asia/Kolkata", "yyyy-MM-dd");
+    updates[NC_COL.CLOSURE_DATE] = Utilities.formatDate(new Date(), "Asia/Kolkata", "yyyy-MM-dd");
+    updates[NC_COL.VERIFICATION_DATE] = Utilities.formatDate(new Date(), "Asia/Kolkata", "yyyy-MM-dd");
   }
 
   if (additionalFields) {
-    if (additionalFields.root_cause)        updates[COL.root_cause - 1] = additionalFields.root_cause;
-    if (additionalFields.corrective_action) updates[COL.corrective  - 1] = additionalFields.corrective_action;
-    if (additionalFields.preventive_action) updates[COL.preventive  - 1] = additionalFields.preventive_action;
+    if (additionalFields.root_cause)        updates[NC_COL.ROOT_CAUSE] = additionalFields.root_cause;
+    if (additionalFields.corrective_action) updates[NC_COL.CORRECTIVE_ACTION] = additionalFields.corrective_action;
   }
 
   v2BatchUpdateRow_(capaSheet, targetRow, updates, rowData);
@@ -320,9 +301,12 @@ function updateCAPAStatus(ncId, newStatus, verifiedBy, remarks, additionalFields
 function createCAPAWithAudit(params) {
   return v2SafeExecute_(function() {
     params = params || {};
+    var description = (params.description || params.criterionLabel || params.criterionId || '') +
+      (params.score !== undefined ? ' (score: ' + params.score + ')' : '');
     var ncId = createCAPA(
-      params.zoneId, params.criterionId, params.score,
-      params.auditDate, params.auditorEmail
+      params.zoneId, description,
+      params.type || 'NC', params.pillar || '', params.sqcdpDim || '',
+      params.responsiblePerson || ''
     );
     if (typeof v2LogAuditTrail_ === "function") {
       v2LogAuditTrail_("CAPA_CREATED", ncId, "", "OPEN", "Manual creation", "NC_CAPA", params.zoneId || "");

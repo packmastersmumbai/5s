@@ -98,8 +98,7 @@ function weeklyRollup() {
     // Compute averages
     var count = zoneRows.length;
     if (count === 0) {
-      summaryRows.push(buildSummaryRow_(zoneId, zone.name, currentMonth, currentYear,
-        "weekly", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "", "", now));
+      summaryRows.push(buildSummaryRow_(zoneId, currentMonth, 0, 0, 0, 0, 0, 0, 0));
       return;
     }
 
@@ -121,9 +120,8 @@ function weeklyRollup() {
     var workingDays = 6; // Mon-Sat
     var submissionRate = Math.min(Math.round((count / workingDays) * 100), 100);
 
-    summaryRows.push(buildSummaryRow_(zoneId, zone.name, currentMonth, currentYear,
-      "weekly", s1Avg, s2Avg, s3Avg, s4Avg, s5Avg, totalAvg, pctAvg,
-      count, 0, 0, count, submissionRate, lastDateStr, "", now));
+    summaryRows.push(buildSummaryRow_(zoneId, currentMonth, pctAvg, count,
+      s1Avg, s2Avg, s3Avg, s4Avg, s5Avg));
   });
 
   // ── Write to Summary sheet ──
@@ -320,13 +318,8 @@ function monthlyRollup() {
     }
 
     summaryRows.push(buildSummaryRow_(
-      zoneId, zone.name, priorMonthStr, priorYear,
-      "monthly",
-      pillarAvgs.S1, pillarAvgs.S2, pillarAvgs.S3, pillarAvgs.S4, pillarAvgs.S5,
-      totalAvg, pctAvg,
-      zoneAudits.length, ncCount, ncClosed,
-      dailyCount, dailyRate,
-      lastDailyDate, lastAuditDate, now
+      zoneId, priorMonthStr, pctAvg, zoneAudits.length,
+      pillarAvgs.S1, pillarAvgs.S2, pillarAvgs.S3, pillarAvgs.S4, pillarAvgs.S5
     ));
 
     mrmData.push({
@@ -445,33 +438,75 @@ function checkMissedSubmissions(digestEvents) {
  * Builds a complete Summary sheet row array.
  * @private
  */
-function buildSummaryRow_(zoneId, zoneName, month, year, periodType,
-  s1Avg, s2Avg, s3Avg, s4Avg, s5Avg, totalAvg, pctScore,
-  auditCount, ncCount, ncClosed, dailyCount, dailyRate,
-  lastDailyDate, lastAuditDate, computedAt) {
+function buildSummaryRow_(zoneId, month, overallScore, submissionCount,
+  s1Score, s2Score, s3Score, s4Score, s5Score) {
+
+  var ss = v2GetSpreadsheet_();
+  var openNCs = 0, closedNCs = 0, openOFIs = 0, activeRedTags = 0;
+
+  var ncSh = ss.getSheetByName('NC_CAPA');
+  if (ncSh && ncSh.getLastRow() > 1) {
+    var ncData = ncSh.getDataRange().getValues();
+    ncData.slice(1).forEach(function(r) {
+      if (!r[0] || r[1] !== zoneId) return;
+      var type = String(r[4]).trim();
+      var status = String(r[11]).trim();
+      if (type === 'NC') {
+        if (status === 'Closed') closedNCs++;
+        else openNCs++;
+      } else if (type === 'OFI' && status !== 'Closed') {
+        openOFIs++;
+      }
+    });
+  }
+
+  var rtSh = ss.getSheetByName('RedTags');
+  if (rtSh && rtSh.getLastRow() > 1) {
+    var rtData = rtSh.getDataRange().getValues();
+    rtData.slice(1).forEach(function(r) {
+      if (!r[0] || r[1] !== zoneId) return;
+      var status = String(r[8]).trim();
+      if (status !== 'Disposed' && status !== 'Returned' && status !== 'Scrapped') activeRedTags++;
+    });
+  }
+
+  var prevScore = getPreviousMonthScore_(zoneId, month);
+  var delta = prevScore !== null ? Math.round((overallScore - prevScore) * 10) / 10 : '';
+  var zed = overallScore >= 80 ? 'ZED-3' : overallScore >= 60 ? 'ZED-2' : 'ZED-1';
 
   return [
-    zoneId,                          // A: zone_id
-    zoneName,                        // B: zone_name
-    month,                           // C: month (yyyy-MM)
-    year,                            // D: year
-    periodType,                      // E: period_type
-    round2_(s1Avg),                  // F: s1_avg
-    round2_(s2Avg),                  // G: s2_avg
-    round2_(s3Avg),                  // H: s3_avg
-    round2_(s4Avg),                  // I: s4_avg
-    round2_(s5Avg),                  // J: s5_avg
-    round2_(totalAvg),               // K: total_avg
-    round2_(pctScore),               // L: pct_score
-    auditCount,                      // M: audit_count
-    ncCount,                         // N: nc_count
-    ncClosed,                        // O: nc_closed
-    dailyCount,                      // P: daily_submission_count
-    dailyRate,                       // Q: daily_submission_rate
-    lastDailyDate || "",             // R: last_daily_date
-    lastAuditDate || "",             // S: last_audit_date
-    computedAt                       // T: computed_at
+    zoneId,         // 0: zone_id
+    month,          // 1: month (yyyy-MM)
+    round2_(overallScore),  // 2: overall_score
+    submissionCount,        // 3: submission_count
+    round2_(s1Score),       // 4: s1_score
+    round2_(s2Score),       // 5: s2_score
+    round2_(s3Score),       // 6: s3_score
+    round2_(s4Score),       // 7: s4_score
+    round2_(s5Score),       // 8: s5_score
+    openNCs,        // 9: open_ncs
+    closedNCs,      // 10: closed_ncs
+    openOFIs,       // 11: open_ofis
+    activeRedTags,  // 12: active_red_tags
+    zed,            // 13: zed_status
+    delta           // 14: score_delta
   ];
+}
+
+function getPreviousMonthScore_(zoneId, currentMonth) {
+  var ss = v2GetSpreadsheet_();
+  var sh = ss.getSheetByName('Summary');
+  if (!sh || sh.getLastRow() < 2) return null;
+  var data = sh.getDataRange().getValues();
+  var best = null, bestMonth = '';
+  data.slice(1).forEach(function(r) {
+    var m = String(r[1]);
+    if (r[0] === zoneId && m < currentMonth && m > bestMonth) {
+      bestMonth = m;
+      best = Number(r[2]) || null;
+    }
+  });
+  return best;
 }
 
 /**
@@ -491,19 +526,19 @@ function writeSummaryRows_(ss, rows, periodType, month) {
     return;
   }
 
-  // Remove existing rows for same period+month (BATCH_READ then delete)
-  if (summarySheet.getLastRow() > 1) {
-    var existingData = summarySheet.getDataRange().getValues(); // BATCH_READ
-    var rowsToDelete = [];
+  // Build set of zone_ids being written so we can remove stale rows
+  var zoneIds = {};
+  rows.forEach(function(r) { zoneIds[r[0]] = true; });
 
+  // Remove existing rows for same zone+month (col 0 = zone_id, col 1 = month)
+  if (summarySheet.getLastRow() > 1) {
+    var existingData = summarySheet.getDataRange().getValues();
+    var rowsToDelete = [];
     for (var r = existingData.length - 1; r >= 1; r--) {
-      if (String(existingData[r][4]).trim() === periodType &&
-        String(existingData[r][2]).trim() === month) {
-        rowsToDelete.push(r + 1); // 1-based row number
+      if (zoneIds[existingData[r][0]] && String(existingData[r][1]).trim() === month) {
+        rowsToDelete.push(r + 1);
       }
     }
-
-    // Delete from bottom up to avoid index shifting
     rowsToDelete.forEach(function(rowNum) {
       summarySheet.deleteRow(rowNum);
     });

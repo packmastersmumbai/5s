@@ -162,6 +162,26 @@ function doGet(e) {
       return serveManifest_();
     }
 
+    // Route: Kanban action board
+    if (action === "kanban") {
+      return servePage_("KanbanBoard", { zone: params.zone || "ALL" });
+    }
+
+    // Route: Pillar trend charts
+    if (action === "charts") {
+      return servePage_("ChartsView", { zone: params.zone || "ALL" });
+    }
+
+    // Route: Analytics KPI dashboard
+    if (action === "analytics") {
+      return servePage_("AnalyticsView", {});
+    }
+
+    // Route: Raise red tag form
+    if (action === "raiseredtag") {
+      return servePage_("RedTagForm", { zone: params.zone || "" });
+    }
+
     // Route: Zone specified
     if (zoneId) {
       // Validate zone ID against config (no Sheets call)

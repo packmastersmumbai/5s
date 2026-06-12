@@ -19,12 +19,15 @@
 // update ONLY here — all V2 code references these constants, not raw numbers.
 
 /** NC_CAPA sheet column indices (V1 schema: 20 columns A–T) */
+// NC_CAPA schema (16 columns): nc_id(0),zone_id(1),audit_date(2),description(3),
+// type(4),pillar(5),sqcdp_dimension(6),corrective_action(7),responsible_person(8),
+// target_date(9),actual_closure_date(10),status(11),root_cause(12),
+// verified_by(13),verification_date(14),recurrence_count(15)
 var NC_COL = {
-  NC_ID: 0, CREATED: 1, ZONE_ID: 2, ZONE_NAME: 3, AUDIT_DATE: 4,
-  CRITERION_ID: 5, CRITERION_LABEL: 6, SCORE: 7, AUDITOR: 8,
-  ROOT_CAUSE: 9, CORRECTIVE_ACTION: 10, PREVENTIVE_ACTION: 11,
-  RESPONSIBLE: 12, TARGET_DATE: 13, STATUS: 14, CLOSURE_DATE: 15,
-  VERIFIED_BY: 16, VERIFICATION_REMARKS: 17, IS_REPEAT: 18, REPEAT_COUNT: 19
+  NC_ID: 0, ZONE_ID: 1, AUDIT_DATE: 2, DESCRIPTION: 3,
+  TYPE: 4, PILLAR: 5, SQCDP_DIM: 6, CORRECTIVE_ACTION: 7,
+  RESPONSIBLE: 8, TARGET_DATE: 9, CLOSURE_DATE: 10, STATUS: 11,
+  ROOT_CAUSE: 12, VERIFIED_BY: 13, VERIFICATION_DATE: 14, RECURRENCE_COUNT: 15
 };
 
 /** TaskBoard sheet column indices (V2 schema: 18 columns) */

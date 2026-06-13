@@ -604,6 +604,9 @@ function buildBottomNav_(deployUrl, action, token, zone) {
     ["quickaudit", "✓", "Audit"],
     ["actionlist", "📋", "Actions"],
     ["sqcdp", "📊", "Boards"],
+    ["kanban", "📌", "Kanban"],
+    ["charts", "📈", "Charts"],
+    ["analytics", "📉", "Analytics"],
     ["more", "⋯", "More"]
   ];
 
@@ -656,6 +659,9 @@ function buildSidebar_(deployUrl, action, token, zone, zoneConfig) {
     ["quickaudit", "&#x2713;", "Audit"],
     ["actionlist", "&#x1F4CB;", "Actions"],
     ["sqcdp", "&#x1F4CA;", "Boards"],
+    ["kanban", "&#x1F4CC;", "Kanban"],
+    ["charts", "&#x1F4C8;", "Charts"],
+    ["analytics", "&#x1F4C9;", "Analytics"],
     ["redtag", "&#x1F6A9;", "Red Tag"],
     ["kaizen", "&#x1F4A1;", "Kaizen"],
     ["gembawalk", "&#x1F441;", "Gemba"],

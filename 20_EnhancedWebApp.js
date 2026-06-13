@@ -44,7 +44,6 @@ function handleV2Route_(params) {
 
       // Restricted to ZONE_LEAD+: Can manage tasks, red tags, kaizen
       case "taskboard":
-      case "kanban":
       case "redtag":
       case "redtagboard":
       case "kaizen":
@@ -55,6 +54,12 @@ function handleV2Route_(params) {
             userRoles.indexOf(ROLES.ADMIN) < 0) {
           throw new Error("Zone Lead or higher role required");
         }
+        break;
+      // Kanban/Charts/Analytics/RedTagForm: all authenticated users
+      case "kanban":
+      case "charts":
+      case "analytics":
+      case "raiseredtag":
         break;
 
       // Restricted to MANAGER+: Settings, Skills, Map Editor, Management Review
@@ -93,6 +98,9 @@ function handleV2Route_(params) {
     case "riskregister": return serveV2Page_("TierDashboard_Full", params);
     // ── Zone-level tools ─────────────────────────────────────────────────
     case "kanban":       return serveV2Page_("KanbanBoard", params);
+    case "charts":       return serveV2Page_("ChartsView", params);
+    case "analytics":    return serveV2Page_("AnalyticsView", params);
+    case "raiseredtag":  return serveV2Page_("RedTagForm", params);
     case "taskboard":    return serveV2Page_("TaskBoard", params);
     case "gembaboard":   return serveV2Page_("GembaBoard", params);
     case "gembawalk":    return serveV2Page_("GembaWalkForm", params);

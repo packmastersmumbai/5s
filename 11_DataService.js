@@ -50,16 +50,11 @@ function getZoneSummary(zoneId, month) {
   var headers = data[0];
   var result = null;
 
-  // Find the monthly row first, fall back to weekly
+  // New 15-col schema: zone_id(0), month(1), overall_score(2) — no period_type column
   for (var r = 1; r < data.length; r++) {
-    if (String(data[r][0]).trim() === zoneId && String(data[r][2]).trim() === month) {
-      if (String(data[r][4]).trim() === "monthly") {
-        result = rowToObject_(headers, data[r]);
-        break;
-      }
-      if (!result && String(data[r][4]).trim() === "weekly") {
-        result = rowToObject_(headers, data[r]);
-      }
+    if (String(data[r][0]).trim() === zoneId && String(data[r][1]).trim() === month) {
+      result = rowToObject_(headers, data[r]);
+      break;
     }
   }
 
@@ -122,9 +117,8 @@ function getZoneTrend(zoneId, months) {
   var results = [];
   for (var r = 1; r < data.length; r++) {
     if (String(data[r][0]).trim() !== zoneId) continue;
-    var rowMonth = String(data[r][2]).trim();
+    var rowMonth = String(data[r][1]).trim();
     if (rowMonth < cutoffMonth) continue;
-    if (String(data[r][4]).trim() !== "monthly") continue;
     results.push(rowToObject_(headers, data[r]));
   }
 
@@ -165,23 +159,19 @@ function getPlantSummary(month) {
   var monthlyFound = {};
   var weeklyFallback = {};
 
+  // New 15-col schema: zone_id(0), month(1), overall_score(2) — no period_type column
   for (var r = 1; r < data.length; r++) {
     var rowZone = String(data[r][0]).trim();
-    var rowMonth = String(data[r][2]).trim();
-    var periodType = String(data[r][4]).trim();
-
+    var rowMonth = String(data[r][1]).trim();
     if (rowMonth !== month) continue;
-
-    if (periodType === "monthly") {
+    if (!monthlyFound[rowZone]) {
       monthlyFound[rowZone] = rowToObject_(headers, data[r]);
-    } else if (periodType === "weekly" && !monthlyFound[rowZone]) {
-      weeklyFallback[rowZone] = rowToObject_(headers, data[r]);
     }
   }
 
   var zoneIds = Object.keys(zoneConfig).sort();
   zoneIds.forEach(function(zid) {
-    var row = monthlyFound[zid] || weeklyFallback[zid] || null;
+    var row = monthlyFound[zid] || null;
     if (row) {
       row.leader = zoneConfig[zid].leader || "";
       row.department = zoneConfig[zid].department || "";
@@ -193,8 +183,8 @@ function getPlantSummary(month) {
         leader: zoneConfig[zid].leader,
         month: month,
         hasData: false,
-        pct_score: 0, s1_avg: 0, s2_avg: 0, s3_avg: 0, s4_avg: 0, s5_avg: 0,
-        nc_count: 0, nc_closed: 0, daily_submission_rate: 0
+        overall_score: 0, s1_score: 0, s2_score: 0, s3_score: 0, s4_score: 0, s5_score: 0,
+        open_ncs: 0, closed_ncs: 0, active_red_tags: 0
       });
     }
   });
@@ -202,14 +192,14 @@ function getPlantSummary(month) {
   // Plant aggregates
   var zonesWithData = zones.filter(function(z) { return z.hasData !== false; });
   var plantAvg = zonesWithData.length > 0 ?
-    Math.round(zonesWithData.reduce(function(s, z) { return s + (Number(z.pct_score) || 0); }, 0) / zonesWithData.length * 100) / 100 : 0;
-  var totalNCs = zones.reduce(function(s, z) { return s + (Number(z.nc_count) || 0); }, 0);
-  var totalClosed = zones.reduce(function(s, z) { return s + (Number(z.nc_closed) || 0); }, 0);
+    Math.round(zonesWithData.reduce(function(s, z) { return s + (Number(z.overall_score) || 0); }, 0) / zonesWithData.length * 100) / 100 : 0;
+  var totalNCs = zones.reduce(function(s, z) { return s + (Number(z.open_ncs) || 0); }, 0);
+  var totalClosed = zones.reduce(function(s, z) { return s + (Number(z.closed_ncs) || 0); }, 0);
   var closureRate = totalNCs > 0 ? Math.round((totalClosed / totalNCs) * 100) : 100;
 
   // Pillar averages across plant
   var pillarAvgs = {};
-  ["s1_avg", "s2_avg", "s3_avg", "s4_avg", "s5_avg"].forEach(function(key) {
+  ["s1_score", "s2_score", "s3_score", "s4_score", "s5_score"].forEach(function(key) {
     if (zonesWithData.length > 0) {
       pillarAvgs[key] = Math.round(zonesWithData.reduce(function(s, z) { return s + (Number(z[key]) || 0); }, 0) / zonesWithData.length * 100) / 100;
     } else {
@@ -265,10 +255,10 @@ function getPlantTrend(months) {
   var zoneConfig = getZoneConfig();
   var zoneIds = Object.keys(zoneConfig).sort();
 
-  // Pre-index rows by month
+  // New 15-col schema: zone_id(0), month(1) — no period_type column
   var rowsByMonth = {};
   for (var r = 1; r < data.length; r++) {
-    var rowMonth = String(data[r][2]).trim();
+    var rowMonth = String(data[r][1]).trim();
     if (!rowsByMonth[rowMonth]) rowsByMonth[rowMonth] = [];
     rowsByMonth[rowMonth].push(data[r]);
   }
@@ -277,35 +267,29 @@ function getPlantTrend(months) {
   targetMonths.forEach(function(month) {
     var monthRows = rowsByMonth[month] || [];
     var monthlyFound = {};
-    var weeklyFallback = {};
 
     monthRows.forEach(function(row) {
       var rowZone = String(row[0]).trim();
-      var periodType = String(row[4]).trim();
-      if (periodType === "monthly") {
+      if (!monthlyFound[rowZone]) {
         monthlyFound[rowZone] = rowToObject_(headers, row);
-      } else if (periodType === "weekly" && !monthlyFound[rowZone]) {
-        weeklyFallback[rowZone] = rowToObject_(headers, row);
       }
     });
 
     var zones = [];
     zoneIds.forEach(function(zid) {
-      var zRow = monthlyFound[zid] || weeklyFallback[zid] || null;
-      if (zRow) {
-        zones.push(zRow);
-      }
+      var zRow = monthlyFound[zid] || null;
+      if (zRow) zones.push(zRow);
     });
 
-    var zonesWithData = zones.filter(function(z) { return z.pct_score > 0; });
+    var zonesWithData = zones.filter(function(z) { return Number(z.overall_score) > 0; });
     var plantAvg = zonesWithData.length > 0 ?
-      Math.round(zonesWithData.reduce(function(s, z) { return s + (Number(z.pct_score) || 0); }, 0) / zonesWithData.length * 100) / 100 : 0;
-    var totalNCs = zones.reduce(function(s, z) { return s + (Number(z.nc_count) || 0); }, 0);
-    var totalClosed = zones.reduce(function(s, z) { return s + (Number(z.nc_closed) || 0); }, 0);
+      Math.round(zonesWithData.reduce(function(s, z) { return s + (Number(z.overall_score) || 0); }, 0) / zonesWithData.length * 100) / 100 : 0;
+    var totalNCs = zones.reduce(function(s, z) { return s + (Number(z.open_ncs) || 0); }, 0);
+    var totalClosed = zones.reduce(function(s, z) { return s + (Number(z.closed_ncs) || 0); }, 0);
     var closureRate = totalNCs > 0 ? Math.round((totalClosed / totalNCs) * 100) : 100;
 
     var pillarAvgs = {};
-    ["s1_avg", "s2_avg", "s3_avg", "s4_avg", "s5_avg"].forEach(function(key) {
+    ["s1_score", "s2_score", "s3_score", "s4_score", "s5_score"].forEach(function(key) {
       pillarAvgs[key] = zonesWithData.length > 0 ?
         Math.round(zonesWithData.reduce(function(s, z) { return s + (Number(z[key]) || 0); }, 0) / zonesWithData.length * 100) / 100 : 0;
     });
@@ -421,12 +405,10 @@ function getHistoricalComparison(zoneId) {
   if (summarySheet && summarySheet.getLastRow() > 1) {
     var allData = summarySheet.getDataRange().getValues(); // BATCH_READ
     var headers = allData[0];
+    // New 15-col schema: zone_id(0), month(1) — no period_type
     for (var r = 1; r < allData.length; r++) {
       if (zoneId && String(allData[r][0]).trim() !== zoneId) continue;
-      if (String(allData[r][4]).trim() !== "monthly") continue;
-      var rowYear = String(allData[r][3]).trim();
-      var rowMonth = String(allData[r][2]).trim();
-      // Check if in current FY range
+      var rowMonth = String(allData[r][1]).trim();
       if (rowMonth >= Utilities.formatDate(currentFYStart, "Asia/Kolkata", "yyyy-MM")) {
         currentData.push(rowToObject_(headers, allData[r]));
       }
@@ -450,8 +432,7 @@ function getHistoricalComparison(zoneId) {
     var priorFYBegin = Utilities.formatDate(priorFYStart, "Asia/Kolkata", "yyyy-MM");
     for (var r2 = 1; r2 < allData2.length; r2++) {
       if (zoneId && String(allData2[r2][0]).trim() !== zoneId) continue;
-      if (String(allData2[r2][4]).trim() !== "monthly") continue;
-      var rm = String(allData2[r2][2]).trim();
+      var rm = String(allData2[r2][1]).trim();
       if (rm >= priorFYBegin && rm < priorFYEnd) {
         priorData.push(rowToObject_(headers2, allData2[r2]));
       }
@@ -474,8 +455,8 @@ function getHistoricalComparison(zoneId) {
       monthLabel: monthNames[m],
       currentMonth: targetMonthStr,
       priorMonth: priorTargetMonthStr,
-      currentPct: currentEntry ? Number(currentEntry.pct_score) : null,
-      priorPct: priorEntry ? Number(priorEntry.pct_score) : null
+      currentPct: currentEntry ? Number(currentEntry.overall_score) : null,
+      priorPct: priorEntry ? Number(priorEntry.overall_score) : null
     });
   }
 

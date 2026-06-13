@@ -449,12 +449,20 @@ function getQuickAuditConfig(zoneId) {
     var PILLAR_NAMES_ = {S1:'Sort',S2:'Set in Order',S3:'Shine',S4:'Standardize',S5:'Sustain'};
     var rawCriteria = getZoneCriteria(zoneId);
     var criteria = rawCriteria.map(function(c) {
+      var arr = c.sqdcp || [];
+      var sqcdp = Array.isArray(arr)
+        ? {S: arr.indexOf('S')>=0, Q: arr.indexOf('Q')>=0, C: arr.indexOf('C')>=0, D: arr.indexOf('D')>=0, P: arr.indexOf('P')>=0}
+        : arr;
       return {
         criterionId: c.id || c.criterionId || '',
         pillar:      c.pillar || '',
         pillarName:  PILLAR_NAMES_[c.pillar] || c.pillar || '',
         label:       c.labelEn || c.label || '',
         labelHi:     c.labelHi || '',
+        task:        c.helperEn || '',
+        taskHi:      c.helperHi || '',
+        trigger:     c.trigger || '',
+        sqcdp:       sqcdp,
         maxScore:    c.maxScore || 4
       };
     });

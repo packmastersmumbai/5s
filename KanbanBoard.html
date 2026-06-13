@@ -230,9 +230,9 @@ function renderBoard(dim) {
     return;
   }
   if (dim === 'NC') {
-    items = (_data.ncs || []).filter(function(n){ return n.status !== 'Closed'; });
+    items = (_data.ncs || []).filter(function(n){ return n.status.toUpperCase() !== 'CLOSED'; });
   } else {
-    items = (_data.ncs || []).filter(function(n){ return n.sqcdp === dim && n.status !== 'Closed'; });
+    items = (_data.ncs || []).filter(function(n){ return n.sqcdp === dim && n.status.toUpperCase() !== 'CLOSED'; });
   }
   if (_zoneFilter !== 'ALL') items = items.filter(function(n){ return n.zone === _zoneFilter; });
   items.sort(function(a,b){ return (b.daysOverdue || 0) - (a.daysOverdue || 0); });
@@ -245,13 +245,13 @@ function renderBoard(dim) {
 
 function updateCounts(data) {
   ['S','Q','C','D','P'].forEach(function(d) {
-    var cnt = (data.ncs || []).filter(function(n){ return n.sqcdp === d && n.status !== 'Closed'; }).length;
+    var cnt = (data.ncs || []).filter(function(n){ return n.sqcdp === d && n.status.toUpperCase() !== 'CLOSED'; }).length;
     document.getElementById('cnt-' + d).textContent = cnt;
   });
   document.getElementById('cnt-RT').textContent = (data.redTags || []).filter(function(r){
     return r.status !== 'Disposed' && r.status !== 'Returned' && r.status !== 'Scrapped';
   }).length;
-  document.getElementById('cnt-NC').textContent = (data.ncs || []).filter(function(n){ return n.status !== 'Closed'; }).length;
+  document.getElementById('cnt-NC').textContent = (data.ncs || []).filter(function(n){ return n.status.toUpperCase() !== 'CLOSED'; }).length;
 }
 
 function loadData() {

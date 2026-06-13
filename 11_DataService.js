@@ -883,6 +883,37 @@ function getKanbanData() {
   var ncs = [];
   var redTags = [];
 
+  // Build criterion → primary SQCDP dimension lookup
+  // Keyed by: full id (e.g. 'S1-1'), pillar prefix (e.g. 'S1'), and normalized label
+  var criterionSqcdpMap = {};
+  try {
+    var SQCDP_KEYS = ['S','Q','C','D','P'];
+    var pillarVotes = {}; // pillar → {S:n, Q:n, ...}
+    var anyCriteria = getZoneCriteria('Z-01');
+    anyCriteria.forEach(function(c) {
+      var sq = c.sqdcp || {};
+      var primary = '';
+      for (var ki = 0; ki < SQCDP_KEYS.length; ki++) {
+        if (sq[SQCDP_KEYS[ki]]) { primary = SQCDP_KEYS[ki]; break; }
+      }
+      if (!primary) return;
+      if (c.id) criterionSqcdpMap[c.id] = primary;
+      if (c.labelEn) criterionSqcdpMap[c.labelEn.toLowerCase().trim()] = primary;
+      // accumulate votes for pillar prefix
+      var pfx = c.pillar || (c.id || '').split('-')[0];
+      if (pfx) {
+        if (!pillarVotes[pfx]) pillarVotes[pfx] = {};
+        pillarVotes[pfx][primary] = (pillarVotes[pfx][primary] || 0) + 1;
+      }
+    });
+    // key by pillar prefix → most-voted SQCDP
+    Object.keys(pillarVotes).forEach(function(pfx) {
+      var votes = pillarVotes[pfx];
+      var best = Object.keys(votes).sort(function(a,b){return votes[b]-votes[a];})[0];
+      criterionSqcdpMap[pfx] = best;
+    });
+  } catch(e) {}
+
   var ncSh = ss.getSheetByName('NC_CAPA');
   if (ncSh && ncSh.getLastRow() > 1) {
     var ncData = ncSh.getDataRange().getValues();
@@ -906,7 +937,12 @@ function getKanbanData() {
         description: String(r[NC_COL.DESCRIPTION] || r[NC_COL.CORRECTIVE_ACTION] || ''),
         type: 'NC',
         pillar: String(r[NC_COL.PILLAR] || ''),
-        sqcdp: '',
+        sqcdp: (function() {
+          var cid = String(r[NC_COL.PILLAR]);
+          return criterionSqcdpMap[cid] ||
+                 criterionSqcdpMap[cid.split('-')[0]] ||
+                 criterionSqcdpMap[String(r[NC_COL.DESCRIPTION]).toLowerCase().trim()] || '';
+        })(),
         owner: String(r[NC_COL.RESPONSIBLE] || r[NC_COL.AUDITOR] || ''),
         targetDate: targetDate,
         status: status,

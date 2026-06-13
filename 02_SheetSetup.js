@@ -70,11 +70,11 @@ function getSheetDefinitions_() {
       namedRange: "CAPA_Data",
       type: "operational",
       headers: [
-        "nc_id", "zone_id", "audit_date", "description",
-        "type", "pillar", "sqcdp_dimension",
-        "corrective_action", "responsible_person", "target_date",
-        "actual_closure_date", "status",
-        "root_cause", "verified_by", "verification_date", "recurrence_count"
+        "nc_id", "created_date", "zone_id", "zone_name", "audit_date",
+        "criterion_id", "criterion_label", "score_given",
+        "auditor_email", "root_cause", "corrective_action", "preventive_action",
+        "responsible_person", "target_date", "status", "closure_date",
+        "verified_by", "verification_remarks", "is_repeat_nc", "repeat_count"
       ]
     },
     {

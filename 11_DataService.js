@@ -891,25 +891,27 @@ function getKanbanData() {
     //   target_date(9),actual_closure_date(10),status(11),root_cause(12),
     //   verified_by(13),verification_date(14),recurrence_count(15)
     ncData.slice(1).forEach(function(r) {
-      if (!r[0]) return;
-      var targetDate = r[9] ? Utilities.formatDate(new Date(r[9]), 'Asia/Kolkata', 'yyyy-MM-dd') : '';
+      if (!r[NC_COL.NC_ID]) return;
+      var td = r[NC_COL.TARGET_DATE];
+      var targetDate = td ? Utilities.formatDate(new Date(td), 'Asia/Kolkata', 'yyyy-MM-dd') : '';
+      var status = String(r[NC_COL.STATUS] || 'Open');
       var daysOverdue = 0;
-      if (r[9] && r[11] !== 'Closed') {
-        var diff = now - new Date(r[9]);
+      if (td && status.toUpperCase() !== 'CLOSED') {
+        var diff = now - new Date(td);
         daysOverdue = diff > 0 ? Math.floor(diff / 86400000) : 0;
       }
       ncs.push({
-        id: String(r[0]),
-        zone: String(r[1]),
-        description: String(r[3]),
-        type: String(r[4] || 'NC'),
-        pillar: String(r[5] || ''),
-        sqcdp: String(r[6] || ''),
-        owner: String(r[8] || ''),
+        id: String(r[NC_COL.NC_ID]),
+        zone: String(r[NC_COL.ZONE_ID]),
+        description: String(r[NC_COL.DESCRIPTION] || r[NC_COL.CORRECTIVE_ACTION] || ''),
+        type: 'NC',
+        pillar: String(r[NC_COL.PILLAR] || ''),
+        sqcdp: '',
+        owner: String(r[NC_COL.RESPONSIBLE] || r[NC_COL.AUDITOR] || ''),
         targetDate: targetDate,
-        status: String(r[11] || 'Open'),
+        status: status,
         daysOverdue: daysOverdue,
-        recurrenceCount: Number(r[15]) || 0
+        recurrenceCount: Number(r[NC_COL.RECURRENCE_COUNT]) || 0
       });
     });
   }
@@ -969,8 +971,11 @@ function getAnalyticsKPIs() {
   // Latest month scores per zone — keep row with max month string (YYYY-MM lexicographic)
   var latestScores = {};
   sumData.slice(1).forEach(function(r) {
-    if (!r[0] || !r[2]) return;
+    if (!r[0]) return;
+    var score = Number(r[2]);
+    if (isNaN(score) || score < 0 || score > 100) return; // skip stale rows with wrong schema
     var month = r[1] ? String(r[1]) : '';
+    if (!/^\d{4}-\d{2}$/.test(month)) return; // skip rows with Date objects in month col
     var existing = latestScores[r[0]];
     if (!existing || month > existing.month) {
       latestScores[r[0]] = { overall: Number(r[2]) || 0, delta: r[14] || 0, month: month,
@@ -986,19 +991,20 @@ function getAnalyticsKPIs() {
   var worstZone = zones.length ? zones[scores.indexOf(Math.min.apply(null,scores))] : '';
 
   var ncs = ncData.slice(1).filter(function(r){return r[0];});
-  var openNCs = ncs.filter(function(r){return String(r[4])==='NC' && String(r[11])!=='Closed';}).length;
-  var openOFIs = ncs.filter(function(r){return String(r[4])==='OFI' && String(r[11])!=='Closed';}).length;
+  var isOpen = function(r) { return String(r[NC_COL.STATUS]).toUpperCase() !== 'CLOSED'; };
+  var openNCs = ncs.filter(isOpen).length;
+  var openOFIs = 0;
   var overdueNCs = ncs.filter(function(r){
-    return String(r[11])!=='Closed' && r[9] && new Date(r[9]) < now;
+    return isOpen(r) && r[NC_COL.TARGET_DATE] && new Date(r[NC_COL.TARGET_DATE]) < now;
   }).length;
-  var repeatNCs = ncs.filter(function(r){return String(r[11])==='Repeat NC';}).length;
-  var closedNCs = ncs.filter(function(r){return String(r[4])==='NC' && String(r[11])==='Closed';}).length;
+  var repeatNCs = ncs.filter(function(r){return String(r[NC_COL.IS_REPEAT]).toLowerCase() === 'true';}).length;
+  var closedNCs = ncs.filter(function(r){return !isOpen(r);}).length;
   var closureRate = (openNCs + closedNCs) > 0 ? Math.round(closedNCs / (openNCs + closedNCs) * 100) : 0;
 
   var avgAgeDays = 0;
-  var openList = ncs.filter(function(r){return String(r[11])!=='Closed' && r[2];});
+  var openList = ncs.filter(function(r){return isOpen(r) && r[NC_COL.CREATED_DATE];});
   if (openList.length) {
-    var totalDays = openList.reduce(function(s,r){ return s + Math.floor((now - new Date(r[2])) / 86400000); }, 0);
+    var totalDays = openList.reduce(function(s,r){ return s + Math.floor((now - new Date(r[NC_COL.CREATED_DATE])) / 86400000); }, 0);
     avgAgeDays = Math.round(totalDays / openList.length);
   }
 
@@ -1008,17 +1014,13 @@ function getAnalyticsKPIs() {
     return st !== 'Disposed' && st !== 'Returned' && st !== 'Scrapped';
   }).length;
 
-  // SQCDP heatmap — open NCs per dimension
+  // SQCDP heatmap — no sqcdp_dim column in current schema; skip
   var sqcdpHeatmap = { S: 0, Q: 0, C: 0, D: 0, P: 0 };
-  ncs.filter(function(r){return String(r[4])==='NC' && String(r[11])!=='Closed';}).forEach(function(r) {
-    var dim = String(r[6]).trim().toUpperCase();
-    if (sqcdpHeatmap[dim] !== undefined) sqcdpHeatmap[dim]++;
-  });
 
-  // Pillar NC counts
+  // Pillar NC counts — col 5 = criterion_id (e.g. S1-C1 → pillar S1)
   var pillarNCs = { S1: 0, S2: 0, S3: 0, S4: 0, S5: 0 };
-  ncs.filter(function(r){return String(r[4])==='NC' && String(r[11])!=='Closed';}).forEach(function(r) {
-    var p = String(r[5]).trim().toUpperCase();
+  ncs.filter(isOpen).forEach(function(r) {
+    var p = String(r[NC_COL.PILLAR]).substring(0,2).toUpperCase();
     if (pillarNCs[p] !== undefined) pillarNCs[p]++;
   });
 

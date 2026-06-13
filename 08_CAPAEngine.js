@@ -91,28 +91,34 @@ function createCAPA(zoneId, description, type, pillar, sqcdpDim, responsiblePers
   var targetDateStr = Utilities.formatDate(targetDate, "Asia/Kolkata", "yyyy-MM-dd");
   var auditDateStr = Utilities.formatDate(now, "Asia/Kolkata", "yyyy-MM-dd");
 
-  // NC_CAPA column schema (16 columns):
-  // nc_id(0),zone_id(1),audit_date(2),description(3),type(4),pillar(5),
-  // sqcdp_dimension(6),corrective_action(7),responsible_person(8),target_date(9),
-  // actual_closure_date(10),status(11),root_cause(12),verified_by(13),
-  // verification_date(14),recurrence_count(15)
+  // NC_CAPA column schema (20 columns) — matches actual sheet:
+  // nc_id(0),created_date(1),zone_id(2),zone_name(3),audit_date(4),
+  // criterion_id(5),criterion_label(6),score_given(7),
+  // auditor_email(8),root_cause(9),corrective_action(10),preventive_action(11),
+  // responsible_person(12),target_date(13),status(14),closure_date(15),
+  // verified_by(16),verification_remarks(17),is_repeat_nc(18),repeat_count(19)
+  var zoneConfig = getZoneById_(zoneId) || {};
   capaSheet.appendRow([
     ncId,                       // 0: nc_id
-    zoneId,                     // 1: zone_id
-    auditDateStr,               // 2: audit_date
-    description || "",          // 3: description
-    type || "NC",               // 4: type
-    pillar || "",               // 5: pillar
-    sqcdpDim || "",             // 6: sqcdp_dimension
-    "",                         // 7: corrective_action
-    responsiblePerson || "",    // 8: responsible_person
-    targetDateStr,              // 9: target_date
-    "",                         // 10: actual_closure_date
-    "Open",                     // 11: status
-    "",                         // 12: root_cause
-    "",                         // 13: verified_by
-    "",                         // 14: verification_date
-    0                           // 15: recurrence_count
+    auditDateStr,               // 1: created_date
+    zoneId,                     // 2: zone_id
+    zoneConfig.name || "",      // 3: zone_name
+    auditDateStr,               // 4: audit_date
+    pillar || "",               // 5: criterion_id (e.g. S1-C1)
+    description || "",          // 6: criterion_label
+    "",                         // 7: score_given
+    responsiblePerson || "",    // 8: auditor_email
+    "",                         // 9: root_cause
+    "",                         // 10: corrective_action
+    "",                         // 11: preventive_action
+    responsiblePerson || "",    // 12: responsible_person
+    targetDateStr,              // 13: target_date
+    "Open",                     // 14: status
+    "",                         // 15: closure_date
+    "",                         // 16: verified_by
+    "",                         // 17: verification_remarks
+    "false",                    // 18: is_repeat_nc
+    0                           // 19: repeat_count
   ]);
 
   Logger.log("  📌 CAPA created: " + ncId + " | Zone: " + zoneId + " | Pillar: " + pillar);
@@ -259,7 +265,6 @@ function updateCAPAStatus(ncId, newStatus, verifiedBy, remarks, additionalFields
 
   if (newStatus === "CLOSED") {
     updates[NC_COL.CLOSURE_DATE] = Utilities.formatDate(new Date(), "Asia/Kolkata", "yyyy-MM-dd");
-    updates[NC_COL.VERIFICATION_DATE] = Utilities.formatDate(new Date(), "Asia/Kolkata", "yyyy-MM-dd");
   }
 
   if (additionalFields) {

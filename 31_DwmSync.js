@@ -156,12 +156,16 @@ var DWM = (function () {
       var sheet = ss.getSheetByName('DwmSyncLog');
       if (!sheet) {
         sheet = ss.insertSheet('DwmSyncLog');
-        sheet.getRange(1, 1, 1, 6).setValues([['timestamp', 'ref', 'title', 'ok', 'taskId/updated', 'error']]);
+        sheet.getRange(1, 1, 1, 8).setValues([['timestamp', 'ref', 'title', 'ok', 'taskId/updated', 'creator', 'assigned/unresolved', 'error']]);
         sheet.setFrozenRows(1);
       }
+      var unres = (result && result.unresolved && result.unresolved.length)
+        ? ('unresolved:' + result.unresolved.map(function (u) { return u.field + '=' + u.value; }).join(',')) : '';
       sheet.appendRow([new Date(), (fields && fields.ref) || '', (fields && fields.title) || '',
         result ? !!result.ok : false,
         result ? ((result.taskId || '') + (result.updated ? ' (updated)' : '')) : '',
+        (fields && fields.creator) || '',
+        (result && result.assigned ? 'assigned' : '') + (unres ? ' ' + unres : ''),
         errMsg || (result && !result.ok ? result.error : '') || '']);
     } catch (e) { /* never block */ }
   }
@@ -169,6 +173,34 @@ var DWM = (function () {
   return { upsertTask: upsertTask, syncTaskSafe: syncTaskSafe, EXEC_URL: EXEC_URL };
 })();
 
+
+/**
+ * Resolve a 5S identity (username, full name, or email) to the best value for DWM
+ * attribution: prefer EMAIL (survives renames), else the display name. Reads the Users sheet.
+ * Returns "" if nothing usable, so the caller omits the field (DWM falls back to Integration bot).
+ */
+function dwmResolveUser_(idOrName) {
+  var s = String(idOrName || "").trim();
+  if (!s || s.toLowerCase() === "worker" || s.toLowerCase() === "system") return "";
+  if (s.indexOf("@") > -1) return s;  // already an email
+  try {
+    var ss = (typeof v2GetSpreadsheet_ === "function") ? v2GetSpreadsheet_() : SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss && ss.getSheetByName("Users");
+    if (sheet) {
+      var data = sheet.getDataRange().getValues();
+      var low = s.toLowerCase();
+      for (var i = 1; i < data.length; i++) {
+        var uname = String(data[i][0] || "").trim().toLowerCase();   // username
+        var fname = String(data[i][3] || "").trim();                 // full_name
+        var email = String(data[i][5] || "").trim();                 // email
+        if (uname === low || fname.toLowerCase() === low) {
+          return email || fname || s;   // prefer email, else display name
+        }
+      }
+    }
+  } catch (e) {}
+  return s;  // pass through — DWM tries name/alias match
+}
 
 /** One-time helper: set the shared secret, then DELETE the call (don't commit the value). */
 function Dwm_setSecret(value) {

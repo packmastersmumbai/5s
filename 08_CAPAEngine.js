@@ -78,7 +78,7 @@ function generateNCId_() {
  * @param {string} auditorEmail — Auditor email
  * @returns {string} The generated NC ID
  */
-function createCAPA(zoneId, description, type, pillar, sqcdpDim, responsiblePerson) {
+function createCAPA(zoneId, description, type, pillar, sqcdpDim, responsiblePerson, createdBy) {
   var ss = (typeof v2GetSpreadsheet_ === 'function') ? v2GetSpreadsheet_() : SpreadsheetApp.getActiveSpreadsheet();
   var capaSheet = ss.getSheetByName("NC_CAPA");
   if (!capaSheet) {
@@ -127,7 +127,8 @@ function createCAPA(zoneId, description, type, pillar, sqcdpDim, responsiblePers
     DWM.syncTaskSafe({
       title: "CAPA: " + (description || ncId),
       ref: ncId, status: "open",
-      assignee: responsiblePerson || "",
+      assignee: (typeof dwmResolveUser_ === "function") ? dwmResolveUser_(responsiblePerson) : (responsiblePerson || ""),
+      creator: (typeof dwmResolveUser_ === "function") ? dwmResolveUser_(createdBy) : "",
       due: targetDateStr,
       desc: "5S NC " + ncId + " · zone " + zoneId + (pillar ? " · " + pillar : ""),
       photo: true

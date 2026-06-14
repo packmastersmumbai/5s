@@ -1142,7 +1142,8 @@ function raiseRedTag(formData) {
     proposedAction: String(formData.action || formData.reason || 'Discard'),
     estimatedValue: Number(formData.estValue) || 0,
     owner: String(formData.owner || formData.taggedBy || ''),
-    remarks: remarks
+    remarks: remarks,
+    createdBy: String(formData.createdBy || formData.taggedBy || '')
   });
   return {
     ok: !!(res && res.success),

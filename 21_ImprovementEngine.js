@@ -615,7 +615,10 @@ function submitQuickAudit(auditData) {
             actionsGenerated++;
             if (typeof DWM !== "undefined") {
               DWM.syncTaskSafe({ title: "CAPA: low score " + cid + " (" + score + ")", ref: ncId,
-                status: "open", assignee: user || "", desc: "Auto-raised from audit · zone " + zoneId + " · " + cid,
+                status: "open",
+                assignee: (typeof dwmResolveUser_ === "function") ? dwmResolveUser_(user) : (user || ""),
+                creator: (typeof dwmResolveUser_ === "function") ? dwmResolveUser_(user) : "",
+                desc: "Auto-raised from audit · zone " + zoneId + " · " + cid,
                 due: Utilities.formatDate(new Date(now.getTime() + 7 * 86400000), TZ, "yyyy-MM-dd"), photo: true });
             }
           }

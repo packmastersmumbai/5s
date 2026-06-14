@@ -866,7 +866,7 @@ function submitAuditCreate() {
     google.script.run
       .withSuccessHandler(function(r){ done(!!r, r ? ('NCR ' + r + ' created') : 'Failed to create NCR', 'ac-ncr-'); })
       .withFailureHandler(function(e){ done(false, 'Error: ' + e.message); })
-      .createCAPA(zone, desc, 'NC', c.pillar, sqcdp, resp);
+      .createCAPA(zone, desc, 'NC', c.pillar, sqcdp, resp, (_CFG && _CFG.auditor) || '');
 
   } else if (type === 'TASK') {
     var title = document.getElementById('qaTaskTitle').value.trim();
@@ -879,7 +879,8 @@ function submitAuditCreate() {
       assignedTo: document.getElementById('qaTaskAssign').value.trim(),
       dueDate: document.getElementById('qaTaskDue').value,
       source: 'AUDIT',
-      sourceRefId: c.criterionId || ''
+      sourceRefId: c.criterionId || '',
+      createdBy: (_CFG && _CFG.auditor) || ''
     };
     google.script.run
       .withSuccessHandler(function(r){ done(r && r.success, r && r.success ? ('Task ' + r.taskId + ' created') : (r && r.message) || 'Failed', 'ac-task-'); })

@@ -914,6 +914,7 @@ function escHtml(s) {
 }
 
 /* ── state ── */
+var CURRENT_USER = '<?= (typeof params !== "undefined" && params && params.currentUser) ? params.currentUser : "" ?>';
 var _filters = { type: '', status: 'OPEN', priority: '', zoneId: '' };
 var _lastCounts = { byType:{NC:0,TASK:0,RED_TAG:0}, byStatus:{OPEN:0,IN_PROGRESS:0,CLOSED:0}, byPriority:{}, total:0 };
 var _rcaPendingId = null;
@@ -1609,7 +1610,7 @@ function submitCreate() {
         btn.disabled = false; btn.textContent = 'Create';
         showToast('Error: ' + escHtml(e.message), 'error');
       })
-      .createCAPA(zone, desc, 'NC', pillar, sqcdp, person);
+      .createCAPA(zone, desc, 'NC', pillar, sqcdp, person, CURRENT_USER);
 
   } else if (_acType === 'TASK') {
     var title = document.getElementById('acTaskTitle').value.trim();
@@ -1637,7 +1638,8 @@ function submitCreate() {
         priority:    document.getElementById('acTaskPriority').value,
         assignedTo:  document.getElementById('acTaskAssigned').value.trim(),
         dueDate:     document.getElementById('acTaskDue').value,
-        source:      'MANUAL'
+        source:      'MANUAL',
+        createdBy:   CURRENT_USER
       });
 
   } else if (_acType === 'RED_TAG') {
@@ -1666,7 +1668,8 @@ function submitCreate() {
         category: document.getElementById('acRtCat').value,
         reason:   document.getElementById('acRtReason').value.trim(),
         action:   document.getElementById('acRtAction').value.trim(),
-        taggedBy: ''
+        taggedBy: CURRENT_USER,
+        createdBy: CURRENT_USER
       });
   }
 }

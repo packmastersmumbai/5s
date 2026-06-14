@@ -147,7 +147,9 @@ function createTask(taskData) {
     try { var c = CacheService.getScriptCache(); c.remove("pm5s_tasks_ALL_ALL"); c.remove("pm5s_tasks_" + d.zoneId + "_ALL"); } catch(e) {}
     if (typeof DWM !== "undefined") {
       DWM.syncTaskSafe({ title: d.title, ref: taskId, status: "open",
-        assignee: d.assignedTo || "", due: d.dueDate || "", priority: d.priority || "medium",
+        assignee: (typeof dwmResolveUser_ === "function") ? dwmResolveUser_(d.assignedTo) : (d.assignedTo || ""),
+        creator: (typeof dwmResolveUser_ === "function") ? dwmResolveUser_(taskData.createdBy) : "",
+        due: d.dueDate || "", priority: d.priority || "medium",
         desc: (d.description || "") + " · 5S task " + taskId + " · zone " + d.zoneId });
     }
     return { success: true, taskId: taskId, message: "Task created." };
@@ -280,7 +282,9 @@ function createRedTag(tagData) {
     try { var c = CacheService.getScriptCache(); c.remove("pm5s_redtags_ALL_ALL"); c.remove("pm5s_redtags_" + d.zoneId + "_ALL"); } catch(e) {}
     if (typeof DWM !== "undefined") {
       DWM.syncTaskSafe({ title: "Red Tag: " + d.itemDescription, ref: tagId, status: "open",
-        assignee: d.owner || "", due: v2FormatDate_(deadline),
+        assignee: (typeof dwmResolveUser_ === "function") ? dwmResolveUser_(d.owner) : (d.owner || ""),
+        creator: (typeof dwmResolveUser_ === "function") ? dwmResolveUser_(tagData.createdBy) : "",
+        due: v2FormatDate_(deadline),
         desc: (d.proposedAction || "") + " · 5S red tag " + tagId + " · zone " + d.zoneId, photo: true });
     }
     return { success: true, tagId: tagId, message: "Red Tag created." };

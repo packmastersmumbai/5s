@@ -49,9 +49,9 @@ function dumpDwmSyncLog(n) {
   n = n || 10;
   var last = sheet.getLastRow();
   var start = Math.max(2, last - n + 1);
-  var rows = sheet.getRange(start, 1, last - start + 1, 6).getValues();
+  var rows = sheet.getRange(start, 1, last - start + 1, 8).getValues();
   return rows.map(function(r) {
-    return [String(r[0]), r[1], "ok=" + r[3], r[4], r[5] ? ("ERR:" + r[5]) : ""].join(" | ");
+    return [String(r[0]), r[1], "ok=" + r[3], r[4], "by:" + (r[5] || "?"), r[6] || "", r[7] ? ("ERR:" + r[7]) : ""].join(" | ");
   });
 }
 

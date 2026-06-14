@@ -803,7 +803,7 @@ function buildActionBtns(a) {
     var raw2 = (a.rawStatus || a.status || '').toUpperCase();
     var nextPhase = nextRedTagPhase(raw2);
     if (nextPhase) {
-      html += '<button class="ah-btn phase" onclick="event.stopPropagation();doRedTagPhase(' + si + ',\'' + nextPhase.phase + '\',this)">' + escHtml(nextPhase.label) + '</button>';
+      html += '<button class="ah-btn phase" onclick="event.stopPropagation();doRedTagPhase(' + si + ',\'' + nextPhase.phase + '\',this)">' + nextPhase.label + '</button>';
     }
   }
   return html;

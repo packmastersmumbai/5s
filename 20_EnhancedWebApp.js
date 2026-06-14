@@ -101,12 +101,12 @@ function handleV2Route_(params) {
     case "charts":       return serveV2Page_("InsightsView", params);
     case "analytics":    return serveV2Page_("InsightsView", params);
     case "insights":     return serveV2Page_("InsightsView", params);
-    case "raiseredtag":  return serveV2Page_("RedTagDashboard", params);   // retired RedTagForm (broken legacy create path)
+    case "raiseredtag":  return serveV2Page_("ActionsHub", params);   // red tags created via QuickAudit; managed on Actions
     case "taskboard":    return serveV2Page_("TaskBoard", params);
     case "gembaboard":   return serveV2Page_("GembaBoard", params);
     case "gembawalk":    return serveV2Page_("GembaWalkForm", params);
-    case "redtag":       return serveV2Page_("RedTagDashboard", params);   // was RedTagForm (broken)
-    case "redtagboard":  return serveV2Page_("RedTagDashboard", params);
+    case "redtag":       return serveV2Page_("ActionsHub", params);   // Red Tag dashboard retired; Actions covers list/manage
+    case "redtagboard":  return serveV2Page_("ActionsHub", params);
     case "kaizen":       return serveV2Page_("KaizenForm", params);
     case "kaizenboard":  return serveV2Page_("KaizenBoard", params);
     case "audithistory": return serveV2Page_("AuditHistory", params);
@@ -199,7 +199,9 @@ function serveV2Page_(templateFile, params) {
     var output = template.evaluate();
 
     // Normalize retired aliases so nav highlights the correct item
-    var navAction = (action === "sqcdp" || action === "sqcdpboard" || action === "charts") ? "insights" : action;
+    var navAction = (action === "sqcdp" || action === "sqcdpboard" || action === "charts") ? "insights"
+                  : (action === "redtag" || action === "redtagboard" || action === "raiseredtag" || action === "kanban") ? "actionlist"
+                  : action;
 
     var bottomNavHtml = buildBottomNav_(
       deployUrl,
@@ -668,7 +670,6 @@ function buildSidebar_(deployUrl, action, token, zone, zoneConfig) {
     ["quickaudit", "&#x2713;", "Audit"],
     ["actionlist", "&#x1F4CB;", "Actions"],
     ["insights", "&#x1F4C8;", "Analytics"],
-    ["redtag", "&#x1F6A9;", "Red Tag"],
     ["kaizen", "&#x1F4A1;", "Kaizen"],
     ["gembawalk", "&#x1F441;", "Gemba"],
     ["settings", "&#x2699;", "Settings"]

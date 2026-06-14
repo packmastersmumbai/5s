@@ -15,6 +15,24 @@ function listSheetNames() {
   }).join(' | ');
 }
 
+/** Remove any RedTagRegister rows whose item description starts with 'E2E_TEST'
+ *  (created by the interaction E2E). Idempotent. Returns count deleted. */
+function deleteTestRedTags() {
+  var ss = v2GetSpreadsheet_();
+  var sh = ss.getSheetByName('RedTagRegister');
+  if (!sh || sh.getLastRow() < 2) return 'deleted 0';
+  var data = sh.getDataRange().getValues();
+  var deleted = 0;
+  for (var r = data.length - 1; r >= 1; r--) {
+    if (String(data[r][RT_COL.ITEM_DESC] || '').indexOf('E2E_TEST') === 0) {
+      sh.deleteRow(r + 1);
+      deleted++;
+    }
+  }
+  try { clearAnalyticsCache(); } catch (e) {}
+  return 'deleted ' + deleted;
+}
+
 function checkSummaryZones() {
   var ss = v2GetSpreadsheet_();
   var d = ss.getSheetByName('Summary').getDataRange().getValues();

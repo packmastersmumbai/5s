@@ -7,6 +7,7 @@
  *  2. Seeds Summary (3 months), NC_CAPA, RedTags with realistic demo data
  *
  * Idempotent: clears prior demo rows (keeps headers) before writing.
+ * Note: Node E2E files (e2e-*.js) are excluded from clasp via .claspignore.
  */
 function listSheetNames() {
   var ss = v2GetSpreadsheet_();

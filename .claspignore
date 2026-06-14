@@ -1,0 +1,21 @@
+# Node-based Playwright E2E harness — must NOT be pushed to Apps Script
+# (they use require()/module.exports and collide in the GAS global scope).
+e2e-lib-5s.js
+e2e-*.js
+node_modules/**
+package.json
+package-lock.json
+
+# Docs / GitHub Pages (served outside GAS)
+docs/**
+scripts/**
+
+# Local-only artifacts
+creds.json
+auth.json
+auth-gas.json
+*.md
+*.txt
+*.png
+*.yaml
+*.yml

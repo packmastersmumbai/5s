@@ -97,9 +97,10 @@ function handleV2Route_(params) {
     case "opl":          return serveV2Page_("OPLViewer", params);
     case "riskregister": return serveV2Page_("TierDashboard_Full", params);
     // ── Zone-level tools ─────────────────────────────────────────────────
-    case "kanban":       return serveV2Page_("KanbanBoard", params);
-    case "charts":       return serveV2Page_("ChartsView", params);
-    case "analytics":    return serveV2Page_("AnalyticsView", params);
+    case "kanban":       return serveV2Page_("ActionList", params);
+    case "charts":       return serveV2Page_("InsightsView", params);
+    case "analytics":    return serveV2Page_("InsightsView", params);
+    case "insights":     return serveV2Page_("InsightsView", params);
     case "raiseredtag":  return serveV2Page_("RedTagForm", params);
     case "taskboard":    return serveV2Page_("TaskBoard", params);
     case "gembaboard":   return serveV2Page_("GembaBoard", params);
@@ -612,9 +613,7 @@ function buildBottomNav_(deployUrl, action, token, zone) {
     ["quickaudit", "✓", "Audit"],
     ["actionlist", "📋", "Actions"],
     ["sqcdp", "📊", "Boards"],
-    ["kanban", "📌", "Kanban"],
-    ["charts", "📈", "Charts"],
-    ["analytics", "📉", "Analytics"],
+    ["insights", "📈", "Analytics"],
     ["more", "⋯", "More"]
   ];
 
@@ -667,9 +666,7 @@ function buildSidebar_(deployUrl, action, token, zone, zoneConfig) {
     ["quickaudit", "&#x2713;", "Audit"],
     ["actionlist", "&#x1F4CB;", "Actions"],
     ["sqcdp", "&#x1F4CA;", "Boards"],
-    ["kanban", "&#x1F4CC;", "Kanban"],
-    ["charts", "&#x1F4C8;", "Charts"],
-    ["analytics", "&#x1F4C9;", "Analytics"],
+    ["insights", "&#x1F4C8;", "Analytics"],
     ["redtag", "&#x1F6A9;", "Red Tag"],
     ["kaizen", "&#x1F4A1;", "Kaizen"],
     ["gembawalk", "&#x1F441;", "Gemba"],

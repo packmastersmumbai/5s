@@ -448,24 +448,19 @@ function buildSummaryRow_(zoneId, month, overallScore, submissionCount,
   if (ncSh && ncSh.getLastRow() > 1) {
     var ncData = ncSh.getDataRange().getValues();
     ncData.slice(1).forEach(function(r) {
-      if (!r[0] || r[1] !== zoneId) return;
-      var type = String(r[4]).trim();
-      var status = String(r[11]).trim();
-      if (type === 'NC') {
-        if (status === 'Closed') closedNCs++;
-        else openNCs++;
-      } else if (type === 'OFI' && status !== 'Closed') {
-        openOFIs++;
-      }
+      if (!r[0] || r[NC_COL.ZONE_ID] !== zoneId) return;
+      var status = String(r[NC_COL.STATUS]).trim().toUpperCase();
+      if (status === 'CLOSED') closedNCs++;
+      else openNCs++;
     });
   }
 
-  var rtSh = ss.getSheetByName('RedTags');
+  var rtSh = ss.getSheetByName('RedTagRegister');
   if (rtSh && rtSh.getLastRow() > 1) {
     var rtData = rtSh.getDataRange().getValues();
     rtData.slice(1).forEach(function(r) {
-      if (!r[0] || r[1] !== zoneId) return;
-      var status = String(r[8]).trim();
+      if (!r[0] || r[RT_COL.ZONE_ID] !== zoneId) return;
+      var status = String(r[RT_COL.STATUS]).trim();
       if (status !== 'Disposed' && status !== 'Returned' && status !== 'Scrapped') activeRedTags++;
     });
   }

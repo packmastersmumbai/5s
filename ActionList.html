@@ -242,6 +242,103 @@ body {
 .action-btn.disp  { background: var(--score-amber-bg);  color: var(--score-amber);  border: 1px solid var(--score-amber); }
 .action-item.resolved { opacity: .35; pointer-events: none; transition: opacity .4s; }
 
+/* ── RECORD DETAIL MODAL ───────────────── */
+.rd-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  z-index: 300;
+}
+.rd-backdrop.open { display: block; }
+
+.rd-modal {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--r) * 1.5);
+  box-shadow: var(--shadow-lg);
+  z-index: 301;
+  width: min(94vw, 520px);
+  max-height: 82vh;
+  overflow: hidden;
+  display: none;
+  flex-direction: column;
+}
+.rd-modal.open { display: flex; }
+
+.rd-modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.rd-modal__title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--pm-primary);
+}
+.rd-modal__close {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: var(--text-muted);
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background .15s;
+}
+.rd-modal__close:hover { background: var(--bg-card-2); color: var(--text-primary); }
+
+.rd-modal__body {
+  overflow-y: auto;
+  padding: 16px 18px 20px;
+  flex: 1;
+}
+
+.rd-dl {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 6px 10px;
+  font-size: 12px;
+}
+.rd-dt {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  font-size: 10px;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  padding-top: 2px;
+  line-height: 1.4;
+}
+.rd-dd {
+  color: var(--text-primary);
+  line-height: 1.5;
+  word-break: break-word;
+}
+.rd-dd.empty { color: var(--text-muted); font-style: italic; }
+.rd-divider {
+  grid-column: 1 / -1;
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 4px 0;
+}
+.card-clickable {
+  cursor: pointer;
+}
+.card-clickable:hover .title {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 /* Create button */
 .create-btn {
   background: var(--pm-primary);
@@ -361,7 +458,15 @@ function renderList(actions) {
   }
   var html = '<div class="actions-list">';
   actions.forEach(function(a) {
+    var isNcCapa = (a.type === 'NC/CAPA');
+    var safeId   = escHtml(a.id);
     html += '<div class="action-item ' + escHtml(a.urgency) + '">';
+
+    /* Card body — clickable only for NC/CAPA */
+    var bodyOpen = isNcCapa
+      ? '<div class="card-clickable" onclick="openRecordDetail(\'NC_CAPA\',\'' + safeId + '\')">'
+      : '<div>';
+    html += bodyOpen;
     html += '<div class="top"><div class="title">' + escHtml(a.title) + '</div>' +
             '<span class="badge-urg ' + escHtml(a.urgency) + '">' + escHtml(a.urgency) + '</span></div>';
     html += '<div class="detail">' + escHtml(a.detail) + '</div>';
@@ -371,22 +476,23 @@ function renderList(actions) {
             '<span>' + escHtml(a.dueDate || 'No date') + '</span>' +
             '<span>' + escHtml(a.type) + ' ' + escHtml(a.id) + '</span>' +
             '</div>';
+    html += '</div>'; /* end card-clickable / plain div */
 
     /* Action buttons — wired to server update functions */
     html += '<div class="action-btns">';
-    if (a.type === 'NC/CAPA') {
+    if (isNcCapa) {
       if (a.status !== 'IN_PROGRESS' && a.status !== 'CLOSED') {
-        html += '<button class="action-btn start" onclick="doAction(\'NC_CAPA\',\'' + escHtml(a.id) + '\',\'start\',this)">→ In Progress</button>';
+        html += '<button class="action-btn start" onclick="event.stopPropagation();doAction(\'NC_CAPA\',\'' + safeId + '\',\'start\',this)">→ In Progress</button>';
       }
-      html += '<button class="action-btn close" onclick="doAction(\'NC_CAPA\',\'' + escHtml(a.id) + '\',\'close\',this)">✓ Close</button>';
+      html += '<button class="action-btn close" onclick="event.stopPropagation();doAction(\'NC_CAPA\',\'' + safeId + '\',\'close\',this)">✓ Close</button>';
     } else if (a.type === 'TASK') {
-      html += '<button class="action-btn done" onclick="doAction(\'TASK\',\'' + escHtml(a.id) + '\',\'done\',this)">✓ Mark Done</button>';
+      html += '<button class="action-btn done" onclick="doAction(\'TASK\',\'' + safeId + '\',\'done\',this)">✓ Mark Done</button>';
     } else if (a.type === 'RED_TAG') {
-      html += '<button class="action-btn disp" onclick="doAction(\'RED_TAG\',\'' + escHtml(a.id) + '\',\'dispose\',this)">✓ Dispose</button>';
+      html += '<button class="action-btn disp" onclick="doAction(\'RED_TAG\',\'' + safeId + '\',\'dispose\',this)">✓ Dispose</button>';
     }
     html += '</div>';
 
-    html += '</div>';
+    html += '</div>'; /* end .action-item */
   });
   html += '</div>';
   document.getElementById('content').innerHTML = html;
@@ -470,6 +576,69 @@ function doAction(type, id, act, btn) {
   }
 }
 
+// ── Record Detail Modal ──
+function openRecordDetail(type, id) {
+  if (type !== 'NC_CAPA') return;
+  var modal    = document.getElementById('recordDetailModal');
+  var backdrop = document.getElementById('rdBackdrop');
+  var body     = document.getElementById('recordDetailBody');
+  body.innerHTML = '<div class="loading-msg" style="padding:30px 0">Loading…</div>';
+  modal.classList.add('open');
+  backdrop.classList.add('open');
+  google.script.run
+    .withSuccessHandler(renderRecordDetail)
+    .withFailureHandler(function(e) {
+      document.getElementById('recordDetailBody').innerHTML =
+        '<div class="loading-msg" style="color:var(--score-red)">' + escHtml(e.message) + '</div>';
+    })
+    .getNcDetail(id);
+}
+
+function closeRecordDetail() {
+  document.getElementById('recordDetailModal').classList.remove('open');
+  document.getElementById('rdBackdrop').classList.remove('open');
+}
+
+function renderRecordDetail(d) {
+  var body = document.getElementById('recordDetailBody');
+  if (!d) {
+    body.innerHTML = '<div class="loading-msg">Record not found.</div>';
+    return;
+  }
+  function row(label, val) {
+    var display = (val !== null && val !== undefined && val !== '')
+      ? escHtml(String(val))
+      : '<span class="empty">—</span>';
+    return '<dt class="rd-dt">' + label + '</dt><dd class="rd-dd">' + display + '</dd>';
+  }
+  var html = '<dl class="rd-dl">';
+  html += row('ID',                d.id);
+  html += row('Zone',              d.zoneName || d.zoneId);
+  html += row('Pillar',            d.pillar);
+  html += row('Status',            d.status);
+  html += row('Responsible',       d.responsible);
+  html += row('Target Date',       d.targetDate);
+  html += '<hr class="rd-divider">';
+  html += row('Description',       d.description);
+  html += row('Score Given',       d.scoreGiven);
+  html += '<hr class="rd-divider">';
+  html += row('Root Cause',        d.rootCause);
+  html += row('Corrective Action', d.correctiveAction);
+  html += row('Preventive Action', d.preventiveAction);
+  html += '<hr class="rd-divider">';
+  html += row('Auditor',           d.auditor);
+  html += row('Audit Date',        d.auditDate);
+  html += row('Created Date',      d.createdDate);
+  html += row('Closure Date',      d.closureDate);
+  html += row('Verified By',       d.verifiedBy);
+  html += row('Verification',      d.verificationRemarks);
+  html += '<hr class="rd-divider">';
+  html += row('Repeat?',           d.isRepeat ? 'Yes' : 'No');
+  html += row('Recurrence Count',  d.recurrenceCount);
+  html += '</dl>';
+  body.innerHTML = html;
+}
+
 // ── Create action handlers ──
 var DU = '<?= deployUrl ?>';
 
@@ -537,6 +706,16 @@ window.PM_TOUR_STEPS = [
 ];
 </script>
 <?!= include('GuidedTour') ?>
+
+<!-- Record Detail Modal -->
+<div class="rd-backdrop" id="rdBackdrop" onclick="closeRecordDetail()"></div>
+<div class="rd-modal" id="recordDetailModal" role="dialog" aria-modal="true" aria-labelledby="rdModalTitle">
+  <div class="rd-modal__header">
+    <span class="rd-modal__title" id="rdModalTitle">NC / CAPA Detail</span>
+    <button class="rd-modal__close" onclick="closeRecordDetail()" aria-label="Close">✕</button>
+  </div>
+  <div class="rd-modal__body" id="recordDetailBody"></div>
+</div>
 
 <!-- Quick Create Modal -->
 <div class="pm-drawer-backdrop" id="qcBackdrop" onclick="closeQuickCreate()"></div>

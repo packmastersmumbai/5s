@@ -952,26 +952,23 @@ function getKanbanData() {
     });
   }
 
-  var rtSh = ss.getSheetByName('RedTags');
+  var rtSh = ss.getSheetByName('RedTagRegister');
   if (rtSh && rtSh.getLastRow() > 1) {
     var rtData = rtSh.getDataRange().getValues();
-    // RedTags schema: tag_no(0),zone_id(1),item_description(2),quantity(3),reason(4),
-    //   category(5),date_tagged(6),tagged_by(7),status(8),suggested_action(9),
-    //   disposal_date(10),remarks(11)
     rtData.slice(1).forEach(function(r) {
-      if (!r[0]) return;
+      if (!r[RT_COL.TAG_ID]) return;
       var daysOpen = 0;
-      if (r[6]) {
-        var diff = now - new Date(r[6]);
+      if (r[RT_COL.CREATED]) {
+        var diff = now - new Date(r[RT_COL.CREATED]);
         daysOpen = diff > 0 ? Math.floor(diff / 86400000) : 0;
       }
       redTags.push({
-        tagNo: String(r[0]),
-        zone: String(r[1]),
-        item: String(r[2]),
-        reason: String(r[4] || ''),
-        taggedBy: String(r[7] || ''),
-        status: String(r[8] || 'Open'),
+        tagNo: String(r[RT_COL.TAG_ID]),
+        zone: String(r[RT_COL.ZONE_ID]),
+        item: String(r[RT_COL.ITEM_DESC] || ''),
+        reason: String(r[RT_COL.PROPOSED_ACTION] || r[RT_COL.ITEM_DESC] || ''),
+        taggedBy: String(r[RT_COL.TAGGED_BY] || ''),
+        status: String(r[RT_COL.STATUS] || 'Open'),
         daysOpen: daysOpen
       });
     });
@@ -998,7 +995,7 @@ function getAnalyticsKPIs() {
 
   var summary = ss.getSheetByName('Summary');
   var ncSh = ss.getSheetByName('NC_CAPA');
-  var rtSh = ss.getSheetByName('RedTags');
+  var rtSh = ss.getSheetByName('RedTagRegister');
 
   var sumData = summary ? summary.getDataRange().getValues() : [];
   var ncData = ncSh ? ncSh.getDataRange().getValues() : [];
@@ -1045,13 +1042,19 @@ function getAnalyticsKPIs() {
   }
 
   var activeRedTags = rtData.slice(1).filter(function(r){
-    if (!r[0]) return false;
-    var st = String(r[8]);
+    if (!r[RT_COL.TAG_ID]) return false;
+    var st = String(r[RT_COL.STATUS]);
     return st !== 'Disposed' && st !== 'Returned' && st !== 'Scrapped';
   }).length;
 
-  // SQCDP heatmap — no sqcdp_dim column in current schema; skip
+  // SQCDP heatmap — map pillar prefix (S1→S, S2→Q, S3→C, S4→D, S5→P) from open NCs
+  var pillarToSqcdp = { S1: 'S', S2: 'Q', S3: 'C', S4: 'D', S5: 'P' };
   var sqcdpHeatmap = { S: 0, Q: 0, C: 0, D: 0, P: 0 };
+  ncs.filter(isOpen).forEach(function(r) {
+    var pfx = String(r[NC_COL.PILLAR]).substring(0, 2).toUpperCase();
+    var letter = pillarToSqcdp[pfx];
+    if (letter) sqcdpHeatmap[letter]++;
+  });
 
   // Pillar NC counts — col 5 = criterion_id (e.g. S1-C1 → pillar S1)
   var pillarNCs = { S1: 0, S2: 0, S3: 0, S4: 0, S5: 0 };
@@ -1059,6 +1062,12 @@ function getAnalyticsKPIs() {
     var p = String(r[NC_COL.PILLAR]).substring(0,2).toUpperCase();
     if (pillarNCs[p] !== undefined) pillarNCs[p]++;
   });
+
+  // Zone scores array sorted by overall descending
+  var zoneScores = Object.keys(latestScores).map(function(zoneId) {
+    var z = latestScores[zoneId];
+    return { zoneId: zoneId, overall: z.overall, s1: z.s1, s2: z.s2, s3: z.s3, s4: z.s4, s5: z.s5, delta: z.delta };
+  }).sort(function(a, b) { return b.overall - a.overall; });
 
   var result = {
     plantAvg: plantAvg,
@@ -1074,7 +1083,8 @@ function getAnalyticsKPIs() {
     avgAgeDays: avgAgeDays,
     activeRedTags: activeRedTags,
     sqcdpHeatmap: sqcdpHeatmap,
-    pillarNCs: pillarNCs
+    pillarNCs: pillarNCs,
+    zoneScores: zoneScores
   };
 
   var json = JSON.stringify(result);
@@ -1112,24 +1122,78 @@ function updateNCStatus(ncId, newStatus) {
 
 function raiseRedTag(formData) {
   var ss = v2GetSpreadsheet_();
-  var sh = ss.getSheetByName('RedTags');
-  if (!sh) return { ok: false, error: 'RedTags sheet not found' };
+  var sh = ss.getSheetByName('RedTagRegister');
+  if (!sh) return { ok: false, error: 'RedTagRegister sheet not found' };
   var lastRow = sh.getLastRow();
   var tagNo = 'RT-' + new Date().getFullYear() + '-' + String(lastRow).padStart(4, '0');
+  // 19-col RT_COL order: TAG_ID:0, CREATED:1, ZONE_ID:2, ZONE_NAME:3, ITEM_DESC:4,
+  // ITEM_CATEGORY:5, EST_VALUE:6, PROPOSED_ACTION:7, PHOTO_URL:8, PHOTO_FILE_ID:9,
+  // TAGGED_BY:10, OWNER:11, DEADLINE:12, DISPOSITION:13, DISPOSED_DATE:14,
+  // DISPOSED_BY:15, REVIEW_NOTES:16, STATUS:17, REMARKS:18
   sh.appendRow([
-    tagNo,
-    String(formData.zone || ''),
-    String(formData.item || ''),
-    String(formData.quantity || ''),
-    String(formData.reason || ''),
-    '',
-    new Date(),
-    String(formData.taggedBy || ''),
-    'Open',
-    String(formData.action || ''),
-    '',
-    ''
+    tagNo,                               // TAG_ID
+    new Date(),                          // CREATED
+    String(formData.zone || ''),         // ZONE_ID
+    String(formData.zoneName || ''),     // ZONE_NAME
+    String(formData.item || ''),         // ITEM_DESC
+    String(formData.category || ''),     // ITEM_CATEGORY
+    String(formData.estValue || ''),     // EST_VALUE
+    String(formData.action || ''),       // PROPOSED_ACTION
+    '',                                  // PHOTO_URL
+    '',                                  // PHOTO_FILE_ID
+    String(formData.taggedBy || ''),     // TAGGED_BY
+    String(formData.owner || ''),        // OWNER
+    String(formData.deadline || ''),     // DEADLINE
+    '',                                  // DISPOSITION
+    '',                                  // DISPOSED_DATE
+    '',                                  // DISPOSED_BY
+    '',                                  // REVIEW_NOTES
+    'Open',                              // STATUS
+    String(formData.remarks || '')       // REMARKS
   ]);
   CacheService.getScriptCache().removeAll(['KANBAN_DATA', 'ANALYTICS_KPIS']);
-  return { ok: true, tagNo: tagNo };
+  return { ok: true, success: true, tagNo: tagNo };
+}
+
+
+// ============================================================================
+// NC DETAIL — returns full NC_CAPA row for a single NC
+// ============================================================================
+
+function getNcDetail(ncId) {
+  var ss = v2GetSpreadsheet_();
+  var sh = ss.getSheetByName('NC_CAPA');
+  if (!sh) return null;
+  var data = sh.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    var r = data[i];
+    if (String(r[NC_COL.NC_ID]) !== String(ncId)) continue;
+    var toIso = function(v) {
+      if (!v) return '';
+      try { return new Date(v).toISOString(); } catch(e) { return String(v); }
+    };
+    return {
+      id:                   String(r[NC_COL.NC_ID]),
+      createdDate:          toIso(r[NC_COL.CREATED_DATE]),
+      zoneId:               String(r[NC_COL.ZONE_ID]),
+      zoneName:             String(r[NC_COL.ZONE_NAME]),
+      auditDate:            toIso(r[NC_COL.AUDIT_DATE]),
+      pillar:               String(r[NC_COL.PILLAR]),
+      description:          String(r[NC_COL.DESCRIPTION]),
+      scoreGiven:           Number(r[NC_COL.SCORE_GIVEN]) || 0,
+      auditor:              String(r[NC_COL.AUDITOR]),
+      rootCause:            String(r[NC_COL.ROOT_CAUSE]),
+      correctiveAction:     String(r[NC_COL.CORRECTIVE_ACTION]),
+      preventiveAction:     String(r[NC_COL.PREVENTIVE_ACTION]),
+      responsible:          String(r[NC_COL.RESPONSIBLE]),
+      targetDate:           toIso(r[NC_COL.TARGET_DATE]),
+      status:               String(r[NC_COL.STATUS]),
+      closureDate:          toIso(r[NC_COL.CLOSURE_DATE]),
+      verifiedBy:           String(r[NC_COL.VERIFIED_BY]),
+      verificationRemarks:  String(r[NC_COL.VERIFICATION_REMARKS]),
+      isRepeat:             String(r[NC_COL.IS_REPEAT]).toLowerCase() === 'true',
+      recurrenceCount:      Number(r[NC_COL.RECURRENCE_COUNT]) || 0
+    };
+  }
+  return null;
 }

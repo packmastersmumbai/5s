@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>PackMasters — Raise Red Tag</title>
-<?!= include("CommonStyles") ?>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -152,22 +151,36 @@
 </div>
 
 <script>
-var ZONES = [
+var ZONES_FALLBACK = [
   'Z-01','Z-02','Z-03','Z-04','Z-05','Z-06','Z-07','Z-08','Z-09',
   'Z-10','Z-11','Z-12','Z-13','Z-14','Z-15','Z-16','Z-17','Z-18','Z-19',
   'Z-20','Z-21','Z-22','Z-23','Z-24','Z-25','Z-26','Z-27','Z-28'
 ];
 
-(function initZones() {
+function populateZones(zones) {
   var sel = document.getElementById('f-zone');
-  ZONES.forEach(function(z) {
+  var sorted = zones.slice().sort();
+  sorted.forEach(function(z) {
     var o = document.createElement('option');
     o.value = z; o.textContent = z;
     sel.appendChild(o);
   });
   var m = window.location.search.match(/zone=([^&]+)/);
   if (m) sel.value = decodeURIComponent(m[1]);
-})();
+}
+
+google.script.run
+  .withSuccessHandler(function(ids) {
+    if (ids && ids.length) {
+      populateZones(ids);
+    } else {
+      populateZones(ZONES_FALLBACK);
+    }
+  })
+  .withFailureHandler(function() {
+    populateZones(ZONES_FALLBACK);
+  })
+  .getAllZoneIds();
 
 function submitForm(e) {
   e.preventDefault();
@@ -192,7 +205,7 @@ function submitForm(e) {
   google.script.run
     .withSuccessHandler(function(result) {
       var r = typeof result === 'string' ? JSON.parse(result) : result;
-      if (r && r.success) {
+      if (r && (r.success || r.ok)) {
         document.getElementById('form-section').style.display = 'none';
         document.getElementById('success-section').style.display = 'block';
         document.getElementById('success-msg').textContent =
@@ -228,5 +241,6 @@ function goToBoard() {
   }).getScriptUrl();
 }
 </script>
+<?!= include("CommonStyles") ?>
 </body>
 </html>

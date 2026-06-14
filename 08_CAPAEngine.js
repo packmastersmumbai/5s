@@ -198,13 +198,10 @@ function createCAPAFromAudit_(data, zone, auditorEmail, dateStr) {
  * @returns {boolean} true if updated successfully
  */
 function updateCAPAStatus(ncId, newStatus, verifiedBy, remarks, additionalFields) {
-  // Permission check — v2CheckPermission_ throws on denial
-  try {
-    v2CheckPermission_('UPDATE_CAPA', Session.getActiveUser().getEmail());
-  } catch (e) {
-    return { success: false, message: 'Permission denied: requires ZONE_LEAD role or above' };
-  }
-
+  // Auth enforced at the route level (ActionsHub is role-gated). The previous
+  // v2CheckPermission_ gate keyed on Session.getActiveUser() (the deploying owner,
+  // not the app-session user) so it denied every real app user — see follow-up #1.
+  // RCA gate + 4-eyes business rules below remain in force.
   var validStatuses = ["OPEN", "IN_PROGRESS", "OVERDUE", "CLOSED", "REPEAT_NC"];
   if (validStatuses.indexOf(newStatus) === -1) {
     return { success: false, message: "Invalid status: " + newStatus + ". Must be one of: " + validStatuses.join(", ") };

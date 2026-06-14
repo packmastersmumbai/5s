@@ -1073,9 +1073,14 @@ function updateBadges(counts) {
   document.getElementById('cntTASK').textContent    = bt.TASK    || 0;
   document.getElementById('cntRED_TAG').textContent = bt.RED_TAG || 0;
 
-  document.getElementById('cntOPEN').textContent        = bs.OPEN        || 0;
-  document.getElementById('cntIN_PROGRESS').textContent = bs.IN_PROGRESS || 0;
-  document.getElementById('cntCLOSED').textContent      = bs.CLOSED      || 0;
+  // Status badges reflect the selected type tab (fall back to all-types totals)
+  var ss = bs;
+  if (_filters.type && counts.byTypeStatus && counts.byTypeStatus[_filters.type]) {
+    ss = counts.byTypeStatus[_filters.type];
+  }
+  document.getElementById('cntOPEN').textContent        = ss.OPEN        || 0;
+  document.getElementById('cntIN_PROGRESS').textContent = ss.IN_PROGRESS || 0;
+  document.getElementById('cntCLOSED').textContent      = ss.CLOSED      || 0;
 }
 
 /* ── render cards ── */

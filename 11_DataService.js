@@ -1371,6 +1371,11 @@ function getUnifiedActionList(filters) {
   var counts = {
     byType:     { NC: 0, TASK: 0, RED_TAG: 0 },
     byStatus:   { OPEN: 0, IN_PROGRESS: 0, CLOSED: 0 },
+    byTypeStatus: {
+      NC:      { OPEN: 0, IN_PROGRESS: 0, CLOSED: 0 },
+      TASK:    { OPEN: 0, IN_PROGRESS: 0, CLOSED: 0 },
+      RED_TAG: { OPEN: 0, IN_PROGRESS: 0, CLOSED: 0 }
+    },
     byPriority: { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 },
     total:      pool.length
   };
@@ -1378,6 +1383,7 @@ function getUnifiedActionList(filters) {
     var item = pool[c];
     if (counts.byType[item.type]     !== undefined) counts.byType[item.type]++;
     if (counts.byStatus[item.status] !== undefined) counts.byStatus[item.status]++;
+    if (counts.byTypeStatus[item.type] && counts.byTypeStatus[item.type][item.status] !== undefined) counts.byTypeStatus[item.type][item.status]++;
     if (counts.byPriority[item.priority] !== undefined) counts.byPriority[item.priority]++;
   }
 

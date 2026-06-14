@@ -3,81 +3,79 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PackMasters — Insights</title>
+<title>PackMasters — Insights &amp; SQCDP</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Plus Jakarta Sans',sans-serif;background:#f4f5f8;min-height:100vh}
 
-  .iv-header{background:#1a2235;color:#fff;padding:12px 20px;display:flex;align-items:center;gap:12px}
-  .iv-back{color:rgba(255,255,255,.7);text-decoration:none;font-size:12px;padding:4px 8px;border:1px solid rgba(255,255,255,.2);border-radius:6px;white-space:nowrap}
+  /* ── Header ── */
+  .iv-header{background:#1a2235;color:#fff;padding:10px 16px;display:flex;align-items:center;gap:10px}
+  .iv-back{color:rgba(255,255,255,.7);text-decoration:none;font-size:12px;padding:3px 8px;border:1px solid rgba(255,255,255,.2);border-radius:6px;white-space:nowrap}
   .iv-back:hover{color:#fff}
-  .iv-header h1{font-size:15px;font-weight:600;flex:1}
-  .iv-meta{font-size:11px;opacity:.6}
+  .iv-header h1{font-size:14px;font-weight:600;flex:1}
+  .iv-meta{font-size:11px;opacity:.6;white-space:nowrap}
 
-  .iv-toolbar{padding:14px 16px;background:#fff;border-bottom:1px solid #e0e4ee;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  .iv-filter-label{font-size:11px;font-weight:700;color:#5a6070;letter-spacing:.5px;margin-right:4px}
-  .iv-filter-btn{padding:4px 12px;border-radius:20px;border:1px solid #d0d4de;background:#fff;font-size:11px;font-family:'Plus Jakarta Sans',sans-serif;cursor:pointer;transition:all .12s;font-weight:500}
+  /* ── Zone filter toolbar ── */
+  .iv-toolbar{padding:8px 12px;background:#fff;border-bottom:1px solid #e0e4ee;display:flex;gap:6px;flex-wrap:nowrap;align-items:center;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .iv-filter-label{font-size:11px;font-weight:700;color:#5a6070;letter-spacing:.5px;flex-shrink:0}
+  .iv-filter-btn{padding:3px 10px;border-radius:20px;border:1px solid #d0d4de;background:#fff;font-size:11px;font-family:'Plus Jakarta Sans',sans-serif;cursor:pointer;transition:all .12s;font-weight:500;white-space:nowrap;flex-shrink:0}
   .iv-filter-btn.active{background:#1a2235;color:#fff;border-color:#1a2235}
 
-  .iv-body{padding:16px;display:flex;flex-direction:column;gap:16px}
+  /* ── Body ── */
+  .iv-body{padding:12px;display:flex;flex-direction:column;gap:12px}
 
-  /* KPI Strip */
-  .kpi-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
-  .kpi-card{background:#fff;border-radius:12px;border:1px solid #e0e4ee;padding:16px 18px}
-  .kpi-label{font-size:10px;font-weight:700;color:#8090a8;letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px}
-  .kpi-value{font-size:26px;font-weight:700;font-family:'JetBrains Mono',monospace;color:#1a2235;line-height:1}
-  .kpi-sub{font-size:11px;color:#8090a8;margin-top:4px}
+  /* ── Section card ── */
+  .s-card{background:#fff;border-radius:10px;border:1px solid #e0e4ee;padding:14px 16px}
+  .s-title{font-size:11px;font-weight:700;color:#5a6070;letter-spacing:.5px;text-transform:uppercase;margin-bottom:12px}
+
+  /* ── KPI strip ── */
+  .kpi-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+  .kpi-card{background:#fff;border-radius:10px;border:1px solid #e0e4ee;padding:12px 14px}
+  .kpi-label{font-size:10px;font-weight:700;color:#8090a8;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px}
+  .kpi-value{font-size:22px;font-weight:700;font-family:'JetBrains Mono',monospace;color:#1a2235;line-height:1}
+  .kpi-sub{font-size:10px;color:#8090a8;margin-top:3px}
   .kpi-card.accent-green{border-left:3px solid #2ba86e}
   .kpi-card.accent-red{border-left:3px solid #e85c2e}
   .kpi-card.accent-blue{border-left:3px solid #7c56d4}
   .kpi-card.accent-amber{border-left:3px solid #d4a010}
 
-  /* Section / Chart card */
-  .chart-card{background:#fff;border-radius:12px;border:1px solid #e0e4ee;padding:20px}
-  .chart-card-title{font-size:12px;font-weight:700;color:#5a6070;letter-spacing:.5px;text-transform:uppercase;margin-bottom:16px}
-  .section-card{background:#fff;border-radius:12px;border:1px solid #e0e4ee;padding:20px}
-  .section-title{font-size:12px;font-weight:700;color:#5a6070;letter-spacing:.5px;text-transform:uppercase;margin-bottom:16px}
-
-  /* Pillar bars */
-  .pillar-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
-  .pillar-bar-wrap{display:flex;flex-direction:column;gap:6px}
+  /* ── Pillar bars ── */
+  .pillar-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+  .pillar-bar-wrap{display:flex;flex-direction:column;gap:5px}
   .pillar-bar-label{display:flex;justify-content:space-between;align-items:center}
   .pillar-name{font-size:12px;font-weight:600;color:#1a2235}
   .pillar-pct{font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace}
-  .bar-track{height:10px;background:#f0f2f5;border-radius:6px;overflow:hidden}
+  .bar-track{height:8px;background:#f0f2f5;border-radius:6px;overflow:hidden}
   .bar-fill{height:100%;border-radius:6px;transition:width .6s ease}
-  .pillar-s1 .bar-fill,.pillar-s1 .pillar-pct{color:#e85c2e}
-  .pillar-s2 .bar-fill,.pillar-s2 .pillar-pct{color:#7c56d4}
-  .pillar-s3 .bar-fill,.pillar-s3 .pillar-pct{color:#2ba86e}
-  .pillar-s4 .bar-fill,.pillar-s4 .pillar-pct{color:#d4a010}
-  .pillar-s5 .bar-fill,.pillar-s5 .pillar-pct{color:#c04aaa}
 
-  /* Trend canvas */
+  /* ── Trend canvas ── */
   canvas{display:block;width:100% !important;max-width:100%}
-  .trend-wrap{position:relative;height:220px}
+  .trend-wrap{position:relative;height:200px}
   .trend-wrap canvas{position:absolute;top:0;left:0;height:100% !important}
 
-  /* Heatmap */
+  /* ── Heatmap ── */
+  .hm-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .hm-inner{min-width:340px}
   .hm-row{display:flex;gap:3px;align-items:center}
   .hm-label{font-size:10px;font-family:'JetBrains Mono',monospace;color:#6b7280;width:36px;flex-shrink:0}
-  .hm-cell{flex:1;height:28px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;transition:opacity .2s}
+  .hm-cell{flex:1;height:26px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;transition:opacity .2s}
   .hm-cell:hover{opacity:.85}
-  .hm-header{display:flex;gap:3px;margin-bottom:4px;padding-left:40px}
+  .hm-header{display:flex;gap:3px;margin-bottom:3px;padding-left:40px}
   .hm-col-label{flex:1;text-align:center;font-size:10px;font-weight:700;color:#6b7280;letter-spacing:.3px}
 
-  /* Zone Ranking */
+  /* ── Zone ranking ── */
   .zone-table{width:100%;border-collapse:collapse}
-  .zone-table th{font-size:10px;font-weight:700;color:#8090a8;letter-spacing:.5px;text-transform:uppercase;padding:6px 10px;text-align:left;border-bottom:1px solid #f0f2f5}
-  .zone-table td{padding:8px 10px;font-size:12px;color:#1a2235;border-bottom:1px solid #f7f8fa}
+  .zone-table th{font-size:10px;font-weight:700;color:#8090a8;letter-spacing:.4px;text-transform:uppercase;padding:5px 8px;text-align:left;border-bottom:1px solid #f0f2f5}
+  .zone-table td{padding:7px 8px;font-size:12px;color:#1a2235;border-bottom:1px solid #f7f8fa}
   .zone-table tr:last-child td{border-bottom:none}
   .zone-table tr:hover td{background:#fafbfc}
-  .score-pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace}
+  .score-pill{display:inline-block;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace}
   .score-green{background:#ecfdf5;color:#166534}
   .score-amber{background:#fefbe8;color:#92640a}
   .score-red{background:#fef2ee;color:#b83a14}
-  .rank-badge{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:11px;font-weight:700;background:#f0f2f5;color:#6b7280}
+  .rank-badge{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;font-size:11px;font-weight:700;background:#f0f2f5;color:#6b7280}
   .rank-1{background:#d4a010;color:#fff}
   .rank-2{background:#a0aab8;color:#fff}
   .rank-3{background:#c07040;color:#fff}
@@ -85,43 +83,89 @@
   .delta-up{color:#2ba86e}
   .delta-dn{color:#e85c2e}
 
-  /* SQCDP bars */
-  .sqcdp-grid{display:flex;flex-direction:column;gap:6px}
-  .sqcdp-row{display:flex;gap:8px;align-items:center}
-  .sqcdp-label{font-size:11px;font-weight:700;color:#1a2235;width:80px;flex-shrink:0}
-  .sqcdp-bar-track{flex:1;height:20px;background:#f0f2f5;border-radius:6px;overflow:hidden;position:relative}
-  .sqcdp-bar-fill{height:100%;border-radius:6px;transition:width .6s ease;display:flex;align-items:center;justify-content:flex-end;padding-right:8px}
+  /* ── SQCDP tiles ── */
+  .sqcdp-tiles-grid{display:grid;gap:10px;grid-template-columns:repeat(2,1fr)}
+  @media(min-width:600px){.sqcdp-tiles-grid{grid-template-columns:repeat(3,1fr)}}
+  @media(min-width:900px){.sqcdp-tiles-grid{grid-template-columns:repeat(5,1fr)}}
+  .sqcdp-tile{border-radius:10px;border:1px solid #e0e4ee;padding:12px;position:relative;background:#fff}
+  .sqcdp-tile-dim{font-size:10px;font-weight:700;color:#6b7280;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px}
+  .sqcdp-tile-val{font-size:20px;font-weight:700;font-family:'JetBrains Mono',monospace;color:#1a2235;line-height:1.1}
+  .sqcdp-tile-target{font-size:10px;color:#8090a8;margin-top:2px}
+  .sqcdp-tile-status{display:inline-block;padding:2px 6px;border-radius:6px;font-size:10px;font-weight:700;margin-top:5px}
+  .st-GREEN{background:#ecfdf5;color:#166534}
+  .st-AMBER{background:#fefbe8;color:#92640a}
+  .st-RED{background:#fef2ee;color:#b83a14}
+  .st-GRAY{background:#f0f2f5;color:#6b7280}
+  .sqcdp-tile-detail{font-size:10px;color:#6b7280;margin-top:5px;line-height:1.4}
+  .sqcdp-tile-spc{font-family:'JetBrains Mono',monospace;font-size:9px;color:#8090a8;margin-top:4px;line-height:1.5}
+  .sqcdp-tile.worst-metric{box-shadow:inset 0 0 0 2px #e85c2e}
+
+  /* ── Plant roll-up ── */
+  .plant-rollup{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .plant-stat{text-align:center;padding:10px 14px;background:#f7f8fa;border-radius:8px}
+  .plant-stat-val{font-size:22px;font-weight:700;font-family:'JetBrains Mono',monospace;color:#1a2235}
+  .plant-stat-label{font-size:10px;color:#8090a8;margin-top:2px}
+  .dim-rollup-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+  .dim-rollup-cell{border-radius:8px;padding:8px 4px;text-align:center;background:#f7f8fa}
+  .dim-rollup-name{font-size:10px;font-weight:700;color:#6b7280;margin-bottom:4px}
+  .dim-rollup-bars{display:flex;flex-direction:column;gap:2px}
+  .dim-bar-row{display:flex;align-items:center;gap:4px;font-size:9px}
+  .dim-bar-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .dim-bar-count{font-family:'JetBrains Mono',monospace;font-size:9px;color:#1a2235}
+
+  /* ── NCR side-by-side on desktop ── */
+  .ncr-row{display:flex;flex-direction:column;gap:12px}
+  @media(min-width:600px){.ncr-row{flex-direction:row}}
+  @media(min-width:600px){.ncr-row > .s-card{flex:1;min-width:0}}
+
+  /* ── Open NCRs by pillar ── */
+  .pillar-nc-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+  .pillar-nc-cell{background:#f7f8fa;border-radius:8px;padding:10px 6px;text-align:center}
+  .pillar-nc-name{font-size:10px;font-weight:700;color:#6b7280;letter-spacing:.3px;margin-bottom:4px}
+  .pillar-nc-val{font-size:18px;font-weight:700;font-family:'JetBrains Mono',monospace}
+  .pnc-s1{color:#e85c2e}.pnc-s2{color:#7c56d4}.pnc-s3{color:#2ba86e}.pnc-s4{color:#d4a010}.pnc-s5{color:#c04aaa}
+
+  /* ── SQCDP NC bars ── */
+  .sqcdp-grid{display:flex;flex-direction:column;gap:5px}
+  .sqcdp-row{display:flex;gap:6px;align-items:center}
+  .sqcdp-label{font-size:11px;font-weight:700;color:#1a2235;width:62px;flex-shrink:0}
+  .sqcdp-bar-track{flex:1;height:18px;background:#f0f2f5;border-radius:5px;overflow:hidden;position:relative}
+  .sqcdp-bar-fill{height:100%;border-radius:5px;transition:width .6s ease;display:flex;align-items:center;justify-content:flex-end;padding-right:6px}
   .sqcdp-bar-fill span{font-size:10px;font-weight:700;color:#fff}
-  .sqcdp-count{font-size:11px;font-family:'JetBrains Mono',monospace;color:#6b7280;width:28px;text-align:right;flex-shrink:0}
+  .sqcdp-count{font-size:11px;font-family:'JetBrains Mono',monospace;color:#6b7280;width:24px;text-align:right;flex-shrink:0}
 
-  /* Pillar NC cells */
-  .pillar-nc-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
-  .pillar-nc-cell{background:#f7f8fa;border-radius:8px;padding:12px 8px;text-align:center}
-  .pillar-nc-name{font-size:10px;font-weight:700;color:#6b7280;letter-spacing:.3px;margin-bottom:6px}
-  .pillar-nc-val{font-size:20px;font-weight:700;font-family:'JetBrains Mono',monospace}
-  .pnc-s1{color:#e85c2e}
-  .pnc-s2{color:#7c56d4}
-  .pnc-s3{color:#2ba86e}
-  .pnc-s4{color:#d4a010}
-  .pnc-s5{color:#c04aaa}
+  /* ── Pareto section ── */
+  .pareto-tabs{display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap}
+  .pareto-tab{padding:4px 12px;border-radius:16px;border:1px solid #d0d4de;background:#fff;font-size:11px;font-family:'Plus Jakarta Sans',sans-serif;cursor:pointer;font-weight:600;transition:all .12s}
+  .pareto-tab.active{background:#1a2235;color:#fff;border-color:#1a2235}
+  .pareto-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .pareto-cause{font-size:11px;color:#1a2235;width:130px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pareto-track{flex:1;height:16px;background:#f0f2f5;border-radius:4px;overflow:hidden}
+  .pareto-fill{height:100%;border-radius:4px;background:#7c56d4;transition:width .5s ease}
+  .pareto-pct{font-size:10px;font-family:'JetBrains Mono',monospace;color:#6b7280;width:34px;text-align:right;flex-shrink:0}
+  .pareto-empty{font-size:12px;color:#8090a8;padding:16px 0;text-align:center}
 
-  .iv-loading{text-align:center;padding:60px;color:#8090a8}
-  .spin{display:inline-block;width:24px;height:24px;border:3px solid #e0e4ec;border-top-color:#6b7280;border-radius:50%;animation:spin .7s linear infinite}
+  /* ── Utilities ── */
+  .iv-loading{text-align:center;padding:40px;color:#8090a8}
+  .spin{display:inline-block;width:22px;height:22px;border:3px solid #e0e4ec;border-top-color:#6b7280;border-radius:50%;animation:spin .7s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
-  .iv-error{text-align:center;padding:40px;color:#b83a14}
+  .iv-error{padding:12px 16px;color:#b83a14;font-size:12px;background:#fef2ee;border-radius:8px;border:1px solid #fecaca}
+  .warn-banner{padding:8px 12px;background:#fefbe8;border:1px solid #fde68a;border-radius:8px;font-size:11px;color:#92640a;margin-bottom:10px}
 </style>
 </head>
 <body>
 
 <div class="iv-header">
   <a class="iv-back" href="javascript:history.back()">&#8592; Back</a>
-  <h1>5S Analytics &amp; Insights</h1>
-  <div class="iv-meta" id="iv-meta">Loading...</div>
+  <h1>Analytics &amp; SQCDP</h1>
+  <div class="iv-meta" id="iv-meta">Loading…</div>
 </div>
 
 <div class="iv-toolbar">
   <span class="iv-filter-label">ZONE:</span>
-  <div id="zone-filters"><button class="iv-filter-btn active" onclick="setZoneFilter('ALL')">ALL</button></div>
+  <div id="zone-filters" style="display:flex;gap:6px;flex-wrap:nowrap">
+    <button class="iv-filter-btn active" onclick="setZoneFilter('ALL')">ALL</button>
+  </div>
 </div>
 
 <div class="iv-body" id="iv-body">
@@ -129,399 +173,380 @@
 </div>
 
 <script>
-var _kpis = null;
-var _trend = null;
+/* ── State ── */
+var _kpis     = null;
+var _trend    = null;
+var _sqcdp    = null;   // getSQCDPBoardData full result
 var _zoneFilter = 'ALL';
+var _paretoLoaded = {};   // {pillar: data}
+var _paretoActivePillar = 'S';
+
 var PILLARS = ['S1','S2','S3','S4','S5'];
-var PILLAR_NAMES = {S1:'Sort',S2:'Set in Order',S3:'Shine',S4:'Standardize',S5:'Sustain'};
+var PILLAR_NAMES  = {S1:'Sort',S2:'Set in Order',S3:'Shine',S4:'Standardize',S5:'Sustain'};
 var PILLAR_COLORS = {S1:'#e85c2e',S2:'#7c56d4',S3:'#2ba86e',S4:'#d4a010',S5:'#c04aaa'};
+var SQCDP_DIMS = [
+  {key:'S',label:'Safety',color:'#e85c2e'},
+  {key:'Q',label:'Quality',color:'#7c56d4'},
+  {key:'C',label:'Cost',color:'#d4a010'},
+  {key:'D',label:'Delivery',color:'#2ba86e'},
+  {key:'P',label:'People',color:'#c04aaa'}
+];
 
-function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-
-function heatColor(score) {
-  if (score === null || score === undefined) return '#e0e4ee';
-  if (score >= 90) return '#166534';
-  if (score >= 75) return '#2ba86e';
-  if (score >= 60) return '#d4a010';
-  if (score >= 40) return '#e85c2e';
-  return '#b83a14';
-}
-
-function scoreClass(s) {
-  if (s >= 80) return 'score-green';
-  if (s >= 60) return 'score-amber';
-  return 'score-red';
-}
-
-function deltaHtml(d) {
-  if (d === null || d === undefined || d === '') return '<span style="color:#c0c8d8">&#8212;</span>';
-  var n = Number(d);
-  if (isNaN(n)) return '<span style="color:#c0c8d8">&#8212;</span>';
-  if (n > 0) return '<span class="delta-up">&#9650;' + n.toFixed(1) + '</span>';
-  if (n < 0) return '<span class="delta-dn">&#9660;' + Math.abs(n).toFixed(1) + '</span>';
-  return '<span style="color:#a0aab8">&#8212;</span>';
-}
+/* ── Helpers ── */
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function heatColor(v){if(v===null||v===undefined)return '#e0e4ee';if(v>=90)return '#166534';if(v>=75)return '#2ba86e';if(v>=60)return '#d4a010';if(v>=40)return '#e85c2e';return '#b83a14';}
+function scoreClass(s){return s>=80?'score-green':s>=60?'score-amber':'score-red';}
+function deltaHtml(d){if(d===null||d===undefined||d==='')return '<span style="color:#c0c8d8">&#8212;</span>';var n=Number(d);if(isNaN(n))return '<span style="color:#c0c8d8">&#8212;</span>';if(n>0)return '<span class="delta-up">&#9650;'+n.toFixed(1)+'</span>';if(n<0)return '<span class="delta-dn">&#9660;'+Math.abs(n).toFixed(1)+'</span>';return '<span style="color:#a0aab8">&#8212;</span>';}
 
 /* ── Trend helpers ── */
-function getZones() {
-  if (!_trend) return [];
-  var zones = new Set();
-  PILLARS.forEach(function(p) {
-    if (_trend[p]) Object.keys(_trend[p]).forEach(function(z){ zones.add(z); });
-  });
-  return Array.from(zones).sort();
-}
-
-function getMonths() {
-  if (!_trend) return [];
-  var months = new Set();
-  PILLARS.forEach(function(p) {
-    if (!_trend[p]) return;
-    Object.values(_trend[p]).forEach(function(arr){
-      arr.forEach(function(pt){ months.add(pt.month); });
-    });
-  });
-  return Array.from(months).sort().slice(-6);
-}
-
-function avgScore(pillar, months) {
-  if (!_trend[pillar]) return null;
-  var zones = _zoneFilter === 'ALL' ? Object.keys(_trend[pillar]) : [_zoneFilter];
-  var totals = {}, counts = {};
-  months.forEach(function(m){ totals[m] = 0; counts[m] = 0; });
-  zones.forEach(function(z) {
-    if (!_trend[pillar][z]) return;
-    _trend[pillar][z].forEach(function(pt) {
-      if (totals[pt.month] !== undefined) { totals[pt.month] += pt.score; counts[pt.month]++; }
-    });
-  });
-  return months.map(function(m){ return counts[m] ? Math.round(totals[m]/counts[m]) : null; });
-}
-
-function latestScore(pillar) {
-  if (!_trend[pillar]) return null;
-  var zones = _zoneFilter === 'ALL' ? Object.keys(_trend[pillar]) : [_zoneFilter];
-  var vals = [];
-  zones.forEach(function(z) {
-    if (!_trend[pillar][z] || !_trend[pillar][z].length) return;
-    var sorted = _trend[pillar][z].slice().sort(function(a,b){ return a.month < b.month ? 1 : -1; });
-    vals.push(sorted[0].score);
-  });
-  if (!vals.length) return null;
-  return Math.round(vals.reduce(function(s,v){return s+v;},0) / vals.length);
-}
+function getZones(){if(!_trend)return[];var z={};PILLARS.forEach(function(p){if(_trend[p])Object.keys(_trend[p]).forEach(function(zz){z[zz]=1;});});return Object.keys(z).sort();}
+function getMonths(){if(!_trend)return[];var m={};PILLARS.forEach(function(p){if(!_trend[p])return;Object.values(_trend[p]).forEach(function(arr){arr.forEach(function(pt){m[pt.month]=1;});});});return Object.keys(m).sort().slice(-6);}
+function avgScore(pillar,months){if(!_trend[pillar])return null;var zones=_zoneFilter==='ALL'?Object.keys(_trend[pillar]):[_zoneFilter];var totals={},counts={};months.forEach(function(m){totals[m]=0;counts[m]=0;});zones.forEach(function(z){if(!_trend[pillar][z])return;_trend[pillar][z].forEach(function(pt){if(totals[pt.month]!==undefined){totals[pt.month]+=pt.score;counts[pt.month]++;}});});return months.map(function(m){return counts[m]?Math.round(totals[m]/counts[m]):null;});}
+function latestScore(pillar){if(!_trend[pillar])return null;var zones=_zoneFilter==='ALL'?Object.keys(_trend[pillar]):[_zoneFilter];var vals=[];zones.forEach(function(z){if(!_trend[pillar][z]||!_trend[pillar][z].length)return;var s=_trend[pillar][z].slice().sort(function(a,b){return a.month<b.month?1:-1;});vals.push(s[0].score);});if(!vals.length)return null;return Math.round(vals.reduce(function(s,v){return s+v;},0)/vals.length);}
 
 /* ── Zone filter ── */
-function buildZoneFilters(zones) {
-  var all = ['ALL'].concat(zones);
-  document.getElementById('zone-filters').innerHTML = all.map(function(z){
-    return '<button class="iv-filter-btn' + (z === _zoneFilter ? ' active' : '') +
-      '" onclick="setZoneFilter(\'' + escHtml(z) + '\')">' + escHtml(z) + '</button>';
+function buildZoneFilters(zones){
+  var all=['ALL'].concat(zones);
+  document.getElementById('zone-filters').innerHTML=all.map(function(z){
+    return '<button class="iv-filter-btn'+(z===_zoneFilter?' active':'')+'" onclick="setZoneFilter(\''+escHtml(z)+'\')">'+escHtml(z)+'</button>';
   }).join('');
 }
 
-function setZoneFilter(z) {
-  _zoneFilter = z;
-  document.querySelectorAll('.iv-filter-btn').forEach(function(b){
-    b.classList.toggle('active', b.textContent === z);
-  });
-  if (_trend) renderChartSections();
+function setZoneFilter(z){
+  _zoneFilter=z;
+  document.querySelectorAll('.iv-filter-btn').forEach(function(b){b.classList.toggle('active',b.textContent===z);});
+  if(_trend)renderChartSections();
+  if(_sqcdp)renderSqcdpSection();
+  // Reset pareto (zone changed; lazy-reload on next tab open)
+  _paretoLoaded={};
+  var pb=document.getElementById('iv-pareto-body');
+  if(pb)pb.innerHTML='<div class="pareto-empty">Select a pillar tab to load</div>';
 }
 
-/* ── Section renderers ── */
-
-function renderKPIs(kpis) {
-  var onTarget = kpis.zonesOnTarget || 0;
-  var total = kpis.totalZones || 28;
-  var best = kpis.bestZone ? escHtml(kpis.bestZone) : '—';
-  var worst = kpis.worstZone ? escHtml(kpis.worstZone) : '—';
-  return '<div class="kpi-strip">' +
-    '<div class="kpi-card accent-green">' +
-      '<div class="kpi-label">Plant Avg</div>' +
-      '<div class="kpi-value">' + (kpis.plantAvg || 0) + '<span style="font-size:14px;font-weight:400">%</span></div>' +
-      '<div class="kpi-sub">Best: ' + best + ' &middot; Worst: ' + worst + '</div>' +
-    '</div>' +
-    '<div class="kpi-card accent-blue">' +
-      '<div class="kpi-label">Zones on Target</div>' +
-      '<div class="kpi-value">' + onTarget + '<span style="font-size:14px;font-weight:400">/' + total + '</span></div>' +
-      '<div class="kpi-sub">&#8805;80% score</div>' +
-    '</div>' +
-    '<div class="kpi-card accent-red">' +
-      '<div class="kpi-label">Open NCRs</div>' +
-      '<div class="kpi-value">' + (kpis.openNCs || 0) + '</div>' +
-      '<div class="kpi-sub">Pending action</div>' +
-    '</div>' +
-    '<div class="kpi-card accent-amber">' +
-      '<div class="kpi-label">Overdue NCRs</div>' +
-      '<div class="kpi-value">' + (kpis.overdueNCs || 0) + '</div>' +
-      '<div class="kpi-sub">Past target date</div>' +
-    '</div>' +
-    '<div class="kpi-card">' +
-      '<div class="kpi-label">Active Red Tags</div>' +
-      '<div class="kpi-value">' + (kpis.activeRedTags || 0) + '</div>' +
-      '<div class="kpi-sub">Pending disposal</div>' +
-    '</div>' +
-    '<div class="kpi-card accent-green">' +
-      '<div class="kpi-label">Closure Rate</div>' +
-      '<div class="kpi-value">' + (kpis.closureRate || 0) + '<span style="font-size:14px;font-weight:400">%</span></div>' +
-      '<div class="kpi-sub">NC closure</div>' +
-    '</div>' +
-    '<div class="kpi-card">' +
-      '<div class="kpi-label">Avg NC Age</div>' +
-      '<div class="kpi-value">' + (kpis.avgAgeDays || 0) + '<span style="font-size:14px;font-weight:400">d</span></div>' +
-      '<div class="kpi-sub">Days open</div>' +
-    '</div>' +
+/* ── KPI strip ── */
+function renderKPIs(kpis){
+  var best=kpis.bestZone?escHtml(kpis.bestZone):'—';
+  var worst=kpis.worstZone?escHtml(kpis.worstZone):'—';
+  return '<div class="kpi-strip">'+
+    '<div class="kpi-card accent-green"><div class="kpi-label">Plant Avg</div><div class="kpi-value">'+(kpis.plantAvg||0)+'<span style="font-size:13px;font-weight:400">%</span></div><div class="kpi-sub">Best:'+best+' · Worst:'+worst+'</div></div>'+
+    '<div class="kpi-card accent-blue"><div class="kpi-label">Zones on Target</div><div class="kpi-value">'+(kpis.zonesOnTarget||0)+'<span style="font-size:13px;font-weight:400">/'+(kpis.totalZones||28)+'</span></div><div class="kpi-sub">≥80% score</div></div>'+
+    '<div class="kpi-card accent-red"><div class="kpi-label">Open NCRs</div><div class="kpi-value">'+(kpis.openNCs||0)+'</div><div class="kpi-sub">Pending action</div></div>'+
+    '<div class="kpi-card accent-amber"><div class="kpi-label">Overdue NCRs</div><div class="kpi-value">'+(kpis.overdueNCs||0)+'</div><div class="kpi-sub">Past target date</div></div>'+
+    '<div class="kpi-card"><div class="kpi-label">Active Red Tags</div><div class="kpi-value">'+(kpis.activeRedTags||0)+'</div><div class="kpi-sub">Pending disposal</div></div>'+
+    '<div class="kpi-card accent-green"><div class="kpi-label">Closure Rate</div><div class="kpi-value">'+(kpis.closureRate||0)+'<span style="font-size:13px;font-weight:400">%</span></div><div class="kpi-sub">NC closure</div></div>'+
+    '<div class="kpi-card"><div class="kpi-label">Avg NC Age</div><div class="kpi-value">'+(kpis.avgAgeDays||0)+'<span style="font-size:13px;font-weight:400">d</span></div><div class="kpi-sub">Days open</div></div>'+
   '</div>';
 }
 
-function renderPillarBars() {
-  var html = '<div class="chart-card"><div class="chart-card-title">Current Pillar Scores</div><div class="pillar-grid">';
-  PILLARS.forEach(function(p) {
-    var score = latestScore(p);
-    var pct = score !== null ? score : 0;
-    html += '<div class="pillar-bar-wrap pillar-' + p.toLowerCase() + '">' +
-      '<div class="pillar-bar-label">' +
-        '<span class="pillar-name">' + p + ' ' + PILLAR_NAMES[p] + '</span>' +
-        '<span class="pillar-pct" style="color:' + PILLAR_COLORS[p] + '">' + (score !== null ? pct + '%' : 'N/A') + '</span>' +
-      '</div>' +
-      '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%;background:' + PILLAR_COLORS[p] + '"></div></div>' +
-    '</div>';
+/* ── Pillar bars ── */
+function renderPillarBars(){
+  var html='<div class="s-card"><div class="s-title">Current Pillar Scores</div><div class="pillar-grid">';
+  PILLARS.forEach(function(p){
+    var score=latestScore(p);var pct=score!==null?score:0;
+    html+='<div class="pillar-bar-wrap"><div class="pillar-bar-label"><span class="pillar-name">'+p+' '+escHtml(PILLAR_NAMES[p])+'</span><span class="pillar-pct" style="color:'+PILLAR_COLORS[p]+'">'+(score!==null?pct+'%':'N/A')+'</span></div>'+
+      '<div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:'+PILLAR_COLORS[p]+'"></div></div></div>';
   });
-  html += '</div></div>';
-  return html;
+  html+='</div></div>';return html;
 }
 
-function renderTrendChart(months) {
-  var id = 'trend-canvas-' + Date.now();
-  var html = '<div class="chart-card"><div class="chart-card-title">Pillar Score Trends (Last 6 Months)</div>' +
-    '<div class="trend-wrap"><canvas id="' + id + '"></canvas></div></div>';
-  setTimeout(function() {
-    var canvas = document.getElementById(id);
-    if (!canvas) return;
-    var W = canvas.parentElement.offsetWidth;
-    var H = 220;
-    canvas.width = W; canvas.height = H;
-    var ctx = canvas.getContext('2d');
-    var PAD = {top:16,right:16,bottom:36,left:36};
-    var cw = W - PAD.left - PAD.right;
-    var ch = H - PAD.top - PAD.bottom;
+/* ── Trend chart ── */
+function renderTrendChart(months){
+  var id='tc-'+Date.now();
+  var html='<div class="s-card"><div class="s-title">Pillar Score Trends (Last 6 Months)</div><div class="trend-wrap"><canvas id="'+id+'"></canvas></div></div>';
+  setTimeout(function(){
+    var canvas=document.getElementById(id);if(!canvas)return;
+    var W=canvas.parentElement.offsetWidth,H=200;
+    canvas.width=W;canvas.height=H;
+    var ctx=canvas.getContext('2d');
+    var PAD={top:12,right:12,bottom:32,left:32};
+    var cw=W-PAD.left-PAD.right,ch=H-PAD.top-PAD.bottom;
     ctx.clearRect(0,0,W,H);
-    ctx.strokeStyle = '#f0f2f5'; ctx.lineWidth = 1;
-    [0,25,50,75,100].forEach(function(v) {
-      var y = PAD.top + ch - (v/100)*ch;
-      ctx.beginPath(); ctx.moveTo(PAD.left,y); ctx.lineTo(PAD.left+cw,y); ctx.stroke();
-      ctx.fillStyle = '#a0aab8'; ctx.font = '9px JetBrains Mono,monospace'; ctx.textAlign = 'right';
-      ctx.fillText(v, PAD.left - 4, y + 3);
+    ctx.strokeStyle='#f0f2f5';ctx.lineWidth=1;
+    [0,25,50,75,100].forEach(function(v){
+      var y=PAD.top+ch-(v/100)*ch;
+      ctx.beginPath();ctx.moveTo(PAD.left,y);ctx.lineTo(PAD.left+cw,y);ctx.stroke();
+      ctx.fillStyle='#a0aab8';ctx.font='9px JetBrains Mono,monospace';ctx.textAlign='right';
+      ctx.fillText(v,PAD.left-3,y+3);
     });
-    ctx.fillStyle = '#6b7280'; ctx.font = '9px Plus Jakarta Sans,sans-serif'; ctx.textAlign = 'center';
-    months.forEach(function(m,i) {
-      var x = PAD.left + (i/(months.length-1||1))*cw;
-      ctx.fillText(m.slice(0,7), x, H - PAD.bottom + 14);
+    ctx.fillStyle='#6b7280';ctx.font='9px Plus Jakarta Sans,sans-serif';ctx.textAlign='center';
+    months.forEach(function(m,i){
+      var x=PAD.left+(i/(months.length-1||1))*cw;
+      ctx.fillText(m.slice(0,7),x,H-PAD.bottom+12);
     });
-    PILLARS.forEach(function(p) {
-      var data = avgScore(p, months);
-      if (!data) return;
-      ctx.beginPath(); ctx.strokeStyle = PILLAR_COLORS[p]; ctx.lineWidth = 2; ctx.lineJoin = 'round';
-      var started = false;
-      data.forEach(function(v,i) {
-        if (v === null) return;
-        var x = PAD.left + (i/(months.length-1||1))*cw;
-        var y = PAD.top + ch - (v/100)*ch;
-        if (!started) { ctx.moveTo(x,y); started = true; } else { ctx.lineTo(x,y); }
-      });
+    PILLARS.forEach(function(p){
+      var data=avgScore(p,months);if(!data)return;
+      ctx.beginPath();ctx.strokeStyle=PILLAR_COLORS[p];ctx.lineWidth=2;ctx.lineJoin='round';
+      var started=false;
+      data.forEach(function(v,i){if(v===null)return;var x=PAD.left+(i/(months.length-1||1))*cw,y=PAD.top+ch-(v/100)*ch;if(!started){ctx.moveTo(x,y);started=true;}else{ctx.lineTo(x,y);}});
       ctx.stroke();
-      data.forEach(function(v,i) {
-        if (v === null) return;
-        var x = PAD.left + (i/(months.length-1||1))*cw;
-        var y = PAD.top + ch - (v/100)*ch;
-        ctx.beginPath(); ctx.arc(x,y,3.5,0,Math.PI*2); ctx.fillStyle = PILLAR_COLORS[p]; ctx.fill();
-      });
+      data.forEach(function(v,i){if(v===null)return;var x=PAD.left+(i/(months.length-1||1))*cw,y=PAD.top+ch-(v/100)*ch;ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fillStyle=PILLAR_COLORS[p];ctx.fill();});
     });
-    var lx = PAD.left;
-    PILLARS.forEach(function(p) {
-      ctx.fillStyle = PILLAR_COLORS[p]; ctx.fillRect(lx, H - 8, 12, 4);
-      ctx.fillStyle = '#6b7280'; ctx.font = '9px Plus Jakarta Sans,sans-serif'; ctx.textAlign = 'left';
-      ctx.fillText(p, lx + 14, H - 4); lx += 38;
+    var lx=PAD.left;
+    PILLARS.forEach(function(p){ctx.fillStyle=PILLAR_COLORS[p];ctx.fillRect(lx,H-7,10,4);ctx.fillStyle='#6b7280';ctx.font='9px Plus Jakarta Sans,sans-serif';ctx.textAlign='left';ctx.fillText(p,lx+12,H-3);lx+=36;});
+  },50);
+  return html;
+}
+
+/* ── Heatmap ── */
+function renderHeatmap(months,allZones){
+  var zones=_zoneFilter==='ALL'?allZones:[_zoneFilter];
+  if(!zones.length)return'';
+  var html='<div class="s-card"><div class="s-title">Zone × Pillar Heatmap (Latest)</div><div class="hm-scroll"><div class="hm-inner">'+
+    '<div class="hm-header">'+PILLARS.map(function(p){return'<div class="hm-col-label">'+p+'</div>';}).join('')+'</div>';
+  zones.forEach(function(z){
+    html+='<div class="hm-row"><div class="hm-label">'+escHtml(z)+'</div>';
+    PILLARS.forEach(function(p){
+      var score=null;
+      if(_trend[p]&&_trend[p][z]&&_trend[p][z].length){var s=_trend[p][z].slice().sort(function(a,b){return a.month<b.month?1:-1;});score=s[0].score;}
+      var bg=heatColor(score),label=score!==null?score:'--';
+      html+='<div class="hm-cell" style="background:'+bg+'" title="'+escHtml(z)+' '+p+': '+label+'">'+label+'</div>';
     });
-  }, 50);
-  return html;
-}
-
-function renderHeatmap(months, allZones) {
-  var zones = _zoneFilter === 'ALL' ? allZones : [_zoneFilter];
-  if (!zones.length) return '';
-  var html = '<div class="chart-card"><div class="chart-card-title">Zone &#215; Pillar Heatmap (Latest)</div>' +
-    '<div style="overflow-x:auto"><div style="min-width:360px">' +
-    '<div class="hm-header">' + PILLARS.map(function(p){ return '<div class="hm-col-label">' + p + '</div>'; }).join('') + '</div>';
-  zones.forEach(function(z) {
-    html += '<div class="hm-row"><div class="hm-label">' + escHtml(z) + '</div>';
-    PILLARS.forEach(function(p) {
-      var score = null;
-      if (_trend[p] && _trend[p][z] && _trend[p][z].length) {
-        var sorted = _trend[p][z].slice().sort(function(a,b){ return a.month < b.month ? 1 : -1; });
-        score = sorted[0].score;
-      }
-      var bg = heatColor(score);
-      var label = score !== null ? score : '--';
-      html += '<div class="hm-cell" style="background:' + bg + '" title="' + escHtml(z) + ' ' + p + ': ' + label + '">' + label + '</div>';
-    });
-    html += '</div>';
+    html+='</div>';
   });
-  html += '</div></div></div>';
-  return html;
+  html+='</div></div></div>';return html;
 }
 
-function renderZoneRanking(zoneScores) {
-  if (!zoneScores || !zoneScores.length) return '';
-  var sorted = zoneScores.slice().sort(function(a,b){ return b.overall - a.overall; });
-  var html = '<div class="section-card"><div class="section-title">Zone Rankings</div>' +
-    '<div style="overflow-x:auto"><table class="zone-table">' +
-    '<thead><tr><th>Rank</th><th>Zone</th><th>Score</th><th>S1</th><th>S2</th><th>S3</th><th>S4</th><th>S5</th><th>&#916; MoM</th></tr></thead><tbody>';
-  sorted.forEach(function(z, i) {
-    var rankCls = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : '';
-    html += '<tr>' +
-      '<td><span class="rank-badge ' + rankCls + '">' + (i+1) + '</span></td>' +
-      '<td><strong>' + escHtml(z.zoneId) + '</strong></td>' +
-      '<td><span class="score-pill ' + scoreClass(z.overall) + '">' + z.overall + '%</span></td>' +
-      '<td><span style="font-size:11px;color:#6b7280">' + (z.s1 !== undefined ? z.s1 : '--') + '</span></td>' +
-      '<td><span style="font-size:11px;color:#6b7280">' + (z.s2 !== undefined ? z.s2 : '--') + '</span></td>' +
-      '<td><span style="font-size:11px;color:#6b7280">' + (z.s3 !== undefined ? z.s3 : '--') + '</span></td>' +
-      '<td><span style="font-size:11px;color:#6b7280">' + (z.s4 !== undefined ? z.s4 : '--') + '</span></td>' +
-      '<td><span style="font-size:11px;color:#6b7280">' + (z.s5 !== undefined ? z.s5 : '--') + '</span></td>' +
-      '<td class="delta-cell">' + deltaHtml(z.delta) + '</td>' +
-    '</tr>';
+/* ── Zone ranking ── */
+function renderZoneRanking(zoneScores){
+  if(!zoneScores||!zoneScores.length)return'';
+  var sorted=zoneScores.slice().sort(function(a,b){return b.overall-a.overall;});
+  var html='<div class="s-card"><div class="s-title">Zone Rankings</div><div style="overflow-x:auto"><table class="zone-table"><thead><tr><th>Rank</th><th>Zone</th><th>Score</th><th>S1</th><th>S2</th><th>S3</th><th>S4</th><th>S5</th><th>ΔMoM</th></tr></thead><tbody>';
+  sorted.forEach(function(z,i){
+    var rc=i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'';
+    html+='<tr><td><span class="rank-badge '+rc+'">'+(i+1)+'</span></td>'+
+      '<td><strong>'+escHtml(z.zoneId)+'</strong></td>'+
+      '<td><span class="score-pill '+scoreClass(z.overall)+'">'+z.overall+'%</span></td>'+
+      '<td style="font-size:11px;color:#6b7280">'+(z.s1!==undefined?z.s1:'--')+'</td>'+
+      '<td style="font-size:11px;color:#6b7280">'+(z.s2!==undefined?z.s2:'--')+'</td>'+
+      '<td style="font-size:11px;color:#6b7280">'+(z.s3!==undefined?z.s3:'--')+'</td>'+
+      '<td style="font-size:11px;color:#6b7280">'+(z.s4!==undefined?z.s4:'--')+'</td>'+
+      '<td style="font-size:11px;color:#6b7280">'+(z.s5!==undefined?z.s5:'--')+'</td>'+
+      '<td class="delta-cell">'+deltaHtml(z.delta)+'</td></tr>';
   });
-  html += '</tbody></table></div></div>';
-  return html;
+  html+='</tbody></table></div></div>';return html;
 }
 
-function renderPillarNCs(pillarNCs) {
-  if (!pillarNCs) return '';
-  var pillars = [
-    {key:'S1',label:'Sort',cls:'pnc-s1'},
-    {key:'S2',label:'Set',cls:'pnc-s2'},
-    {key:'S3',label:'Shine',cls:'pnc-s3'},
-    {key:'S4',label:'Std',cls:'pnc-s4'},
-    {key:'S5',label:'Sustain',cls:'pnc-s5'}
-  ];
-  var html = '<div class="section-card"><div class="section-title">Open NCRs by 5S Pillar</div><div class="pillar-nc-grid">';
-  pillars.forEach(function(p) {
-    html += '<div class="pillar-nc-cell">' +
-      '<div class="pillar-nc-name">' + p.label + '</div>' +
-      '<div class="pillar-nc-val ' + p.cls + '">' + (pillarNCs[p.key] || 0) + '</div>' +
-    '</div>';
+/* ── Pillar NCs ── */
+function renderPillarNCs(pillarNCs){
+  if(!pillarNCs)return'';
+  var p=[{key:'S1',label:'Sort',cls:'pnc-s1'},{key:'S2',label:'Set',cls:'pnc-s2'},{key:'S3',label:'Shine',cls:'pnc-s3'},{key:'S4',label:'Std',cls:'pnc-s4'},{key:'S5',label:'Sustain',cls:'pnc-s5'}];
+  var html='<div class="s-card"><div class="s-title">Open NCRs by 5S Pillar</div><div class="pillar-nc-grid">';
+  p.forEach(function(pp){html+='<div class="pillar-nc-cell"><div class="pillar-nc-name">'+pp.label+'</div><div class="pillar-nc-val '+pp.cls+'">'+(pillarNCs[pp.key]||0)+'</div></div>';});
+  html+='</div></div>';return html;
+}
+
+/* ── NCRs by SQCDP ── */
+function renderSqcdpNCs(heatmap){
+  if(!heatmap)return'';
+  var max=Math.max.apply(null,SQCDP_DIMS.map(function(d){return heatmap[d.key]||0;}))||1;
+  var html='<div class="s-card"><div class="s-title">NCRs by SQCDP Dimension</div><div class="sqcdp-grid">';
+  SQCDP_DIMS.forEach(function(d){
+    var cnt=heatmap[d.key]||0,pct=Math.round((cnt/max)*100);
+    html+='<div class="sqcdp-row"><div class="sqcdp-label">'+d.label+'</div>'+
+      '<div class="sqcdp-bar-track"><div class="sqcdp-bar-fill" style="width:'+pct+'%;background:'+d.color+'"><span>'+cnt+'</span></div></div>'+
+      '<div class="sqcdp-count">'+cnt+'</div></div>';
   });
-  html += '</div></div>';
-  return html;
+  html+='</div></div>';return html;
 }
 
-function renderSqcdp(heatmap) {
-  if (!heatmap) return '';
-  var dims = [
-    {key:'S',label:'Safety',color:'#e85c2e'},
-    {key:'Q',label:'Quality',color:'#7c56d4'},
-    {key:'C',label:'Cost',color:'#d4a010'},
-    {key:'D',label:'Delivery',color:'#2ba86e'},
-    {key:'P',label:'People',color:'#c04aaa'}
-  ];
-  var max = Math.max.apply(null, dims.map(function(d){ return heatmap[d.key] || 0; })) || 1;
-  var html = '<div class="section-card"><div class="section-title">NCRs by SQCDP Dimension</div><div class="sqcdp-grid">';
-  dims.forEach(function(d) {
-    var cnt = heatmap[d.key] || 0;
-    var pct = Math.round((cnt / max) * 100);
-    html += '<div class="sqcdp-row">' +
-      '<div class="sqcdp-label">' + d.label + '</div>' +
-      '<div class="sqcdp-bar-track"><div class="sqcdp-bar-fill" style="width:' + pct + '%;background:' + d.color + '"><span>' + cnt + '</span></div></div>' +
-      '<div class="sqcdp-count">' + cnt + '</div>' +
-    '</div>';
-  });
-  html += '</div></div>';
-  return html;
-}
-
-/* ── Render orchestration ── */
-
-function renderKPISection() {
-  if (!_kpis) return;
-  var body = document.getElementById('iv-body');
-  // KPI strip is always first; replace only the kpi-strip placeholder
-  var kpiEl = document.getElementById('iv-kpi-section');
-  if (kpiEl) {
-    kpiEl.innerHTML = renderKPIs(_kpis);
+/* ── SQCDP Tiles ── */
+function renderSqcdpSection(){
+  var el=document.getElementById('iv-sqcdp-section');if(!el||!_sqcdp)return;
+  if(_zoneFilter==='ALL'){
+    el.innerHTML=renderPlantRollup();
   } else {
-    // First paint: scaffold body
-    body.innerHTML =
-      '<div id="iv-kpi-section">' + renderKPIs(_kpis) + '</div>' +
-      '<div id="iv-chart-section"><div class="iv-loading"><div class="spin"></div><p style="margin-top:12px;font-size:12px">Loading trend data…</p></div></div>' +
-      renderZoneRanking(_kpis.zoneScores) +
-      renderPillarNCs(_kpis.pillarNCs) +
-      renderSqcdp(_kpis.sqcdpHeatmap);
-    document.getElementById('iv-meta').textContent =
-      (_kpis.totalZones || 28) + ' zones · Plant avg ' + (_kpis.plantAvg || 0) + '%';
+    el.innerHTML=renderZoneTiles(_zoneFilter);
   }
 }
 
-function renderChartSections() {
-  if (!_trend) return;
-  var months = getMonths();
-  var allZones = getZones();
-  var el = document.getElementById('iv-chart-section');
-  if (el) {
-    el.innerHTML =
-      renderPillarBars() +
-      renderTrendChart(months) +
-      renderHeatmap(months, allZones);
+function renderPlantRollup(){
+  var plant=_sqcdp.plant||{};
+  // Count GREEN/AMBER/RED per dimension across all zones
+  var dimCounts={S:{G:0,A:0,R:0},Q:{G:0,A:0,R:0},C:{G:0,A:0,R:0},D:{G:0,A:0,R:0},P:{G:0,A:0,R:0}};
+  (_sqcdp.zones||[]).forEach(function(z){
+    ['S','Q','C','D','P'].forEach(function(dim){
+      var st=(z.sqcdp[dim]||{}).status;
+      if(st==='GREEN')dimCounts[dim].G++;
+      else if(st==='AMBER')dimCounts[dim].A++;
+      else if(st==='RED')dimCounts[dim].R++;
+    });
+  });
+  var warn=_sqcdp.isPartial?'<div class="warn-banner">⚠️ Partial data: '+escHtml((_sqcdp.warnings||[]).join(' '))+'</div>':'';
+  var html=warn+
+    '<div class="plant-rollup">'+
+      '<div class="plant-stat"><div class="plant-stat-val">'+escHtml(String(plant.greenPct||0))+'%</div><div class="plant-stat-label">Plant Green</div></div>'+
+      '<div class="plant-stat"><div class="plant-stat-val">'+escHtml(String(plant.greenCount||0))+'/'+escHtml(String(plant.totalDimensions||0))+'</div><div class="plant-stat-label">Green Dimensions</div></div>'+
+    '</div>'+
+    '<div class="dim-rollup-grid">';
+  ['S','Q','C','D','P'].forEach(function(dim){
+    var dc=dimCounts[dim];var total=dc.G+dc.A+dc.R;
+    html+='<div class="dim-rollup-cell"><div class="dim-rollup-name">'+dim+'</div><div class="dim-rollup-bars">'+
+      '<div class="dim-bar-row"><div class="dim-bar-dot" style="background:#2ba86e"></div><div class="dim-bar-count">'+dc.G+'</div></div>'+
+      '<div class="dim-bar-row"><div class="dim-bar-dot" style="background:#d4a010"></div><div class="dim-bar-count">'+dc.A+'</div></div>'+
+      '<div class="dim-bar-row"><div class="dim-bar-dot" style="background:#e85c2e"></div><div class="dim-bar-count">'+dc.R+'</div></div>'+
+    '</div></div>';
+  });
+  html+='</div>';
+  return html;
+}
+
+function renderZoneTiles(zoneId){
+  var zData=null;
+  (_sqcdp.zones||[]).forEach(function(z){if(z.zoneId===zoneId)zData=z;});
+  if(!zData)return'<div style="font-size:12px;color:#8090a8;padding:12px 0">No SQCDP data for '+escHtml(zoneId)+'</div>';
+  var worst=zData.sqcdp.worstMetric;
+  var html='<div class="sqcdp-tiles-grid">';
+  ['S','Q','C','D','P'].forEach(function(dim){
+    var m=zData.sqcdp[dim]||{};
+    var isWorst=worst===dim;
+    html+='<div class="sqcdp-tile'+(isWorst?' worst-metric':'')+'">'+
+      '<div class="sqcdp-tile-dim">'+escHtml(m.label||dim)+'</div>'+
+      '<div class="sqcdp-tile-val">'+escHtml(String(m.value!==undefined?m.value:'—'))+'</div>'+
+      '<div class="sqcdp-tile-target">Target: '+escHtml(String(m.target!==undefined?m.target:'—'))+'</div>'+
+      '<span class="sqcdp-tile-status st-'+(m.status||'GRAY')+'">'+escHtml(m.status||'—')+'</span>'+
+      '<div class="sqcdp-tile-detail">'+escHtml(m.detail||'')+'</div>'+
+      spcHtml(dim,m)+
+    '</div>';
+  });
+  html+='</div>';
+  return html;
+}
+
+function spcHtml(dim,m){
+  var spc=m.spc;
+  if((dim==='S'||dim==='Q')&&spc&&spc.n){
+    return '<div class="sqcdp-tile-spc">μ='+escHtml(String(Math.round(spc.mean*100)/100))+' σ='+escHtml(String(Math.round(spc.stddev*100)/100))+' UCL='+escHtml(String(Math.round(spc.ucl*100)/100))+' n='+escHtml(String(spc.n))+'</div>';
+  }
+  if(dim==='P'){
+    var trend=m.trend;
+    return '<div class="sqcdp-tile-spc">'+(trend&&trend!=='GRAY'?escHtml(trend):'Insufficient data')+'</div>';
+  }
+  return'';
+}
+
+/* ── Pareto section ── */
+function renderParetoSection(){
+  var html='<div class="s-card"><div class="s-title">Top Root Causes (Pareto)</div>'+
+    '<div class="pareto-tabs" id="pareto-tabs">'+
+    SQCDP_DIMS.map(function(d){
+      return'<button class="pareto-tab'+(d.key===_paretoActivePillar?' active':'')+'" onclick="openParetoTab(\''+d.key+'\')">'+d.label+'</button>';
+    }).join('')+
+    '</div>'+
+    '<div id="iv-pareto-body"><div class="pareto-empty">Select a pillar tab to load</div></div>'+
+  '</div>';
+  return html;
+}
+
+function openParetoTab(pillar){
+  _paretoActivePillar=pillar;
+  document.querySelectorAll('.pareto-tab').forEach(function(b){b.classList.toggle('active',b.textContent.trim()===SQCDP_DIMS.filter(function(d){return d.key===pillar;})[0].label);});
+  if(_paretoLoaded[pillar]){renderParetoBars(_paretoLoaded[pillar]);return;}
+  var pb=document.getElementById('iv-pareto-body');
+  if(pb)pb.innerHTML='<div class="iv-loading"><div class="spin"></div></div>';
+  var zid=_zoneFilter==='ALL'?null:_zoneFilter;
+  google.script.run
+    .withSuccessHandler(function(r){
+      var data=typeof r==='string'?JSON.parse(r):r;
+      _paretoLoaded[pillar]=data;
+      if(_paretoActivePillar===pillar)renderParetoBars(data);
+    })
+    .withFailureHandler(function(err){
+      var pb2=document.getElementById('iv-pareto-body');
+      if(pb2)pb2.innerHTML='<div class="iv-error">Pareto load error: '+escHtml(err.message)+'</div>';
+    })
+    .getParetoByCause(pillar,zid,6);
+}
+
+function renderParetoBars(data){
+  var pb=document.getElementById('iv-pareto-body');if(!pb)return;
+  var causes=data&&data.causes?data.causes:[];
+  if(!causes.length){pb.innerHTML='<div class="pareto-empty">No root cause data for this pillar</div>';return;}
+  var top=causes.slice(0,8);
+  var maxPct=top[0]?top[0].percentage||0:100;
+  var color=SQCDP_DIMS.filter(function(d){return d.key===_paretoActivePillar;})[0];
+  color=color?color.color:'#7c56d4';
+  var html='<div>';
+  top.forEach(function(c){
+    var w=maxPct?Math.round((c.percentage||0)/maxPct*100):0;
+    html+='<div class="pareto-bar-row">'+
+      '<div class="pareto-cause" title="'+escHtml(c.cause||'')+'">'+escHtml(c.cause||'Unknown')+'</div>'+
+      '<div class="pareto-track"><div class="pareto-fill" style="width:'+w+'%;background:'+color+'"></div></div>'+
+      '<div class="pareto-pct">'+escHtml(String(Math.round(c.percentage||0)))+'%</div>'+
+    '</div>';
+  });
+  html+='<div style="font-size:10px;color:#a0aab8;margin-top:8px">Total: '+escHtml(String(data.total||0))+' NCs · '+escHtml(data.pillarLabel||'')+'</div>';
+  html+='</div>';
+  pb.innerHTML=html;
+}
+
+/* ── Chart-section renderer (re-runs on zone change) ── */
+function renderChartSections(){
+  var months=getMonths(),allZones=getZones();
+  var el=document.getElementById('iv-chart-section');
+  if(el)el.innerHTML=renderPillarBars()+renderTrendChart(months)+renderHeatmap(months,allZones);
+}
+
+/* ── Full render orchestration ── */
+function tryRenderAll(){
+  if(!_kpis&&!_trend&&!_sqcdp)return;
+  var months=getMonths(),allZones=getZones();
+  if(allZones.length)buildZoneFilters(allZones);
+
+  var body=document.getElementById('iv-body');
+
+  // Only scaffold once; then update sub-sections in place
+  if(!document.getElementById('iv-kpi-section')){
+    body.innerHTML=
+      '<div id="iv-kpi-section">'+(_kpis?renderKPIs(_kpis):'<div class="iv-loading"><div class="spin"></div></div>')+'</div>'+
+      '<div id="iv-chart-section">'+(_trend?renderPillarBars()+renderTrendChart(months)+renderHeatmap(months,allZones):'<div class="iv-loading"><div class="spin"></div><p style="margin-top:10px;font-size:12px">Loading trend data…</p></div>')+'</div>'+
+      (_kpis?renderZoneRanking(_kpis.zoneScores):'')+
+      '<div class="s-card"><div class="s-title">SQCDP Operational Status</div><div id="iv-sqcdp-section"><div class="iv-loading"><div class="spin"></div></div></div></div>'+
+      renderParetoSection()+
+      '<div class="ncr-row">'+
+        '<div id="iv-pillar-nc">'+(_kpis?renderPillarNCs(_kpis.pillarNCs):'')+'</div>'+
+        '<div id="iv-sqcdp-nc">'+(_kpis?renderSqcdpNCs(_kpis.sqcdpHeatmap):'')+'</div>'+
+      '</div>';
+    if(_sqcdp)renderSqcdpSection();
+  } else {
+    // Patch individual sections
+    if(_kpis){
+      document.getElementById('iv-kpi-section').innerHTML=renderKPIs(_kpis);
+      var pnc=document.getElementById('iv-pillar-nc');if(pnc)pnc.innerHTML=renderPillarNCs(_kpis.pillarNCs);
+      var snc=document.getElementById('iv-sqcdp-nc');if(snc)snc.innerHTML=renderSqcdpNCs(_kpis.sqcdpHeatmap);
+    }
+    if(_trend)renderChartSections();
+    if(_sqcdp)renderSqcdpSection();
+  }
+
+  if(_kpis){
+    document.getElementById('iv-meta').textContent=
+      (allZones.length||_kpis.totalZones||28)+' zones · Plant avg '+(_kpis.plantAvg||0)+'%';
   }
 }
 
-function tryRenderAll() {
-  if (_kpis && _trend) {
-    // Both loaded: full render
-    var months = getMonths();
-    var allZones = getZones();
-    buildZoneFilters(allZones);
-    var body = document.getElementById('iv-body');
-    body.innerHTML =
-      '<div id="iv-kpi-section">' + renderKPIs(_kpis) + '</div>' +
-      '<div id="iv-chart-section">' +
-        renderPillarBars() +
-        renderTrendChart(months) +
-        renderHeatmap(months, allZones) +
-      '</div>' +
-      renderZoneRanking(_kpis.zoneScores) +
-      renderPillarNCs(_kpis.pillarNCs) +
-      renderSqcdp(_kpis.sqcdpHeatmap);
-    document.getElementById('iv-meta').textContent =
-      allZones.length + ' zones · Plant avg ' + (_kpis.plantAvg || 0) + '%';
-  } else if (_kpis) {
-    renderKPISection();
-  } else if (_trend) {
-    renderChartSections();
-  }
-}
-
-/* ── Data load (two parallel calls) ── */
+/* ── Data loads (three parallel calls) ── */
 google.script.run
-  .withSuccessHandler(function(result) {
-    _kpis = typeof result === 'string' ? JSON.parse(result) : result;
-    tryRenderAll();
-  })
-  .withFailureHandler(function(err) {
-    document.getElementById('iv-body').innerHTML =
-      '<div class="iv-error">&#9888;&#65039; KPI load error: ' + escHtml(err.message) + '</div>';
+  .withSuccessHandler(function(r){_kpis=typeof r==='string'?JSON.parse(r):r;tryRenderAll();})
+  .withFailureHandler(function(err){
+    document.getElementById('iv-body').innerHTML='<div class="iv-error">KPI load error: '+escHtml(err.message)+'</div>';
   })
   .getAnalyticsKPIs();
 
 google.script.run
-  .withSuccessHandler(function(result) {
-    _trend = typeof result === 'string' ? JSON.parse(result) : result;
-    tryRenderAll();
-  })
-  .withFailureHandler(function(err) {
-    var el = document.getElementById('iv-chart-section');
-    if (el) el.innerHTML = '<div class="iv-error">&#9888;&#65039; Trend load error: ' + escHtml(err.message) + '</div>';
+  .withSuccessHandler(function(r){_trend=typeof r==='string'?JSON.parse(r):r;tryRenderAll();})
+  .withFailureHandler(function(err){
+    var el=document.getElementById('iv-chart-section');
+    if(el)el.innerHTML='<div class="iv-error">Trend load error: '+escHtml(err.message)+'</div>';
   })
   .getPillarTrend();
+
+google.script.run
+  .withSuccessHandler(function(r){_sqcdp=typeof r==='string'?JSON.parse(r):r;tryRenderAll();})
+  .withFailureHandler(function(err){
+    var el=document.getElementById('iv-sqcdp-section');
+    if(el)el.innerHTML='<div class="iv-error">SQCDP load error: '+escHtml(err.message)+'</div>';
+  })
+  .getSQCDPBoardData();
 </script>
 
 <?!= include("CommonStyles") ?>

@@ -87,8 +87,8 @@ function handleV2Route_(params) {
 
   switch (action) {
     // ── Primary tool routes (bottom nav + HomePage strip) ────────────────
-    case "sqcdp":        return serveV2Page_("SQCDPBoard", params);
-    case "sqcdpboard":   return serveV2Page_("SQCDPBoard", params);  // Plan D alias
+    case "sqcdp":        return serveV2Page_("InsightsView", params);
+    case "sqcdpboard":   return serveV2Page_("InsightsView", params);  // retired SQCDPBoard
     case "actionlist":   return serveV2Page_("ActionsHub", params);
     case "quickaudit":   return serveV2Page_("QuickAudit", params);
     case "handover":     return serveV2Page_("ShiftHandover", params);
@@ -198,15 +198,18 @@ function serveV2Page_(templateFile, params) {
 
     var output = template.evaluate();
 
+    // Normalize retired aliases so nav highlights the correct item
+    var navAction = (action === "sqcdp" || action === "sqcdpboard" || action === "charts") ? "insights" : action;
+
     var bottomNavHtml = buildBottomNav_(
       deployUrl,
-      action,
+      navAction,
       params && params.token ? params.token : "",
       params && params.zone ? params.zone : ""
     );
     var sidebarHtml = buildSidebar_(
       deployUrl,
-      action,
+      navAction,
       params && params.token ? params.token : "",
       params && params.zone ? params.zone : "",
       zoneConfigObj
@@ -612,7 +615,6 @@ function buildBottomNav_(deployUrl, action, token, zone) {
     ["home", "🏠", "Home"],
     ["quickaudit", "✓", "Audit"],
     ["actionlist", "📋", "Actions"],
-    ["sqcdp", "📊", "Boards"],
     ["insights", "📈", "Analytics"],
     ["more", "⋯", "More"]
   ];
@@ -665,7 +667,6 @@ function buildSidebar_(deployUrl, action, token, zone, zoneConfig) {
     ["home", "&#x1F3E0;", "Home"],
     ["quickaudit", "&#x2713;", "Audit"],
     ["actionlist", "&#x1F4CB;", "Actions"],
-    ["sqcdp", "&#x1F4CA;", "Boards"],
     ["insights", "&#x1F4C8;", "Analytics"],
     ["redtag", "&#x1F6A9;", "Red Tag"],
     ["kaizen", "&#x1F4A1;", "Kaizen"],

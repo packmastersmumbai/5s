@@ -57,9 +57,9 @@
 - baseline @102 / main 9db58bf / runAllTests 128/0 / runDemoTests 59/59
 - 6a DWM connector @103 / self-test ok (taskId 2781033d) / secret in ScriptProperties only (NOT in git)
 - Phase 0 PIN login @103 / suites 128-0 + 59/59 / e2e-5s-render 8/8 via PIN login (admin/4860)
-  - PINs match DWM seed (recoverable): admin 1234, tbm 0000, bbm 9999, rajesh 4444
-  - PINs TEMP (DWM values hashed/unrecoverable — need user): khushi 2748, shikha 3905, anuj 6214, santosh 8537
-  - E2E_ADMIN_PIN default now 1234
+  - PINs mirror DWM EXACTLY (4 from seed code, 4 recovered by brute-forcing salt+hash):
+    admin 1234, tbm 0000, bbm 9999, rajesh 4444, khushi 1111, shikha 7777, anuj 2222, santosh 3333
+  - E2E_ADMIN_PIN default 1234. DWM temp helper (_tmp_pinrecover.js) created+removed, not committed.
   - Old password fns in 25_Authentication.js now DEAD (LoginPage.html no longer served) — kept; cleanup later
   - e2e-lib-5s.js loginAdmin now drives PIN; e2e-5s-render selector .action-card→.ah-card (stale from v102)
 - NEXT: Phase 1 (image upload + canonical Drive folders)

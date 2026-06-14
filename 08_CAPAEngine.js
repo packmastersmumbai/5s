@@ -113,7 +113,7 @@ function createCAPA(zoneId, description, type, pillar, sqcdpDim, responsiblePers
     "",                         // 11: preventive_action
     responsiblePerson || "",    // 12: responsible_person
     targetDateStr,              // 13: target_date
-    "Open",                     // 14: status
+    "OPEN",                     // 14: status (uppercase — matches STATUS enum & all comparisons)
     "",                         // 15: closure_date
     "",                         // 16: verified_by
     "",                         // 17: verification_remarks

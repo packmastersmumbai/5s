@@ -89,7 +89,7 @@ function handleV2Route_(params) {
     // ── Primary tool routes (bottom nav + HomePage strip) ────────────────
     case "sqcdp":        return serveV2Page_("SQCDPBoard", params);
     case "sqcdpboard":   return serveV2Page_("SQCDPBoard", params);  // Plan D alias
-    case "actionlist":   return serveV2Page_("ActionList", params);
+    case "actionlist":   return serveV2Page_("ActionsHub", params);
     case "quickaudit":   return serveV2Page_("QuickAudit", params);
     case "handover":     return serveV2Page_("ShiftHandover", params);
     case "tierdash":     return serveV2Page_("TierDashboard_Full", params);
@@ -97,7 +97,7 @@ function handleV2Route_(params) {
     case "opl":          return serveV2Page_("OPLViewer", params);
     case "riskregister": return serveV2Page_("TierDashboard_Full", params);
     // ── Zone-level tools ─────────────────────────────────────────────────
-    case "kanban":       return serveV2Page_("ActionList", params);
+    case "kanban":       return serveV2Page_("ActionsHub", params);
     case "charts":       return serveV2Page_("InsightsView", params);
     case "analytics":    return serveV2Page_("InsightsView", params);
     case "insights":     return serveV2Page_("InsightsView", params);

@@ -1194,3 +1194,205 @@ function getNcDetail(ncId) {
   }
   return null;
 }
+
+// ============================================================================
+// UNIFIED ACTION LIST  (NC + TASK + RED_TAG merged view)
+// ============================================================================
+
+/**
+ * Returns a merged, normalised list of NCs, Tasks, and Red Tags for the
+ * Actions page, plus count breakdowns for tab badges.
+ *
+ * NOTE ON COUNTS: byType / byStatus / byPriority are computed over the full
+ * zone-filtered set — BEFORE type / status / priority filters — so tab badges
+ * always reflect total numbers regardless of the active tab/filter.
+ *
+ * @param {Object} [filters]
+ * @param {string} [filters.zoneId]   — exact zone match; omit for all zones
+ * @param {string} [filters.type]     — 'NC' | 'TASK' | 'RED_TAG' | 'ALL'
+ * @param {string} [filters.status]   — 'OPEN' | 'IN_PROGRESS' | 'CLOSED' | 'ALL'
+ * @param {string} [filters.priority] — 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'ALL'
+ * @returns {{ items: Array, counts: Object }}
+ */
+function getUnifiedActionList(filters) {
+  filters = filters || {};
+  var typeFilter     = String(filters.type     || "ALL").toUpperCase();
+  var statusFilter   = String(filters.status   || "ALL").toUpperCase();
+  var priorityFilter = String(filters.priority || "ALL").toUpperCase();
+  var zoneFilter     = filters.zoneId ? String(filters.zoneId).trim() : "";
+
+  var now = new Date();
+
+  // ── helpers ──────────────────────────────────────────────────────────────
+
+  function daysSince(dateVal) {
+    if (!dateVal) return 0;
+    var d = (dateVal instanceof Date) ? dateVal : new Date(dateVal);
+    if (isNaN(d.getTime())) return 0;
+    return Math.max(0, Math.floor((now - d) / 86400000));
+  }
+
+  function mapNcStatus(raw) {
+    var s = String(raw || "").toUpperCase().trim();
+    if (s === "IN_PROGRESS" || s === "VERIFICATION") return "IN_PROGRESS";
+    if (s === "CLOSED") return "CLOSED";
+    // OPEN, ROOT_CAUSE, ACTION_PLANNED, OVERDUE and anything else → OPEN
+    return "OPEN";
+  }
+
+  function mapTaskStatus(raw) {
+    var s = String(raw || "").toUpperCase().trim();
+    if (s === "IN_PROGRESS") return "IN_PROGRESS";
+    if (s === "DONE" || s === "CLOSED") return "CLOSED";
+    return "OPEN";
+  }
+
+  function mapRedTagStatus(raw) {
+    var s = String(raw || "").toUpperCase().trim();
+    if (s === "DISPOSED") return "IN_PROGRESS";
+    if (s === "CLOSED") return "CLOSED";
+    return "OPEN";
+  }
+
+  var PRIORITY_RANK = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+
+  // ── read each source defensively ─────────────────────────────────────────
+
+  var ncItems = [];
+  try {
+    var ncRaw = getCAPAKanbanData({});
+    if (Array.isArray(ncRaw)) {
+      for (var i = 0; i < ncRaw.length; i++) {
+        var nc = ncRaw[i];
+        if (zoneFilter && nc.zoneId !== zoneFilter) continue;
+        var uStatus = mapNcStatus(nc.status);
+        var age = typeof nc.ageDays === "number" ? nc.ageDays : daysSince(nc.createdDate);
+        var overdue = !!nc.isOverdue;
+        var pri = overdue ? "CRITICAL" : (age > 7 ? "HIGH" : "MEDIUM");
+        ncItems.push({
+          id:          nc.ncId,
+          type:        "NC",
+          title:       nc.criterionLabel || ("NC " + nc.ncId),
+          description: nc.rootCause || nc.correctiveAction || "",
+          zone:        nc.zoneName,
+          zoneId:      nc.zoneId,
+          owner:       nc.responsible,
+          dueDate:     nc.targetDate || "",
+          rawStatus:   nc.status,
+          status:      uStatus,
+          priority:    pri,
+          ageDays:     age,
+          isOverdue:   overdue,
+          createdDate: nc.createdDate || ""
+        });
+      }
+    }
+  } catch (e) {
+    Logger.log("getUnifiedActionList: NC read error — " + e.message);
+  }
+
+  var taskItems = [];
+  try {
+    var taskRaw = getTaskBoardData({});
+    if (Array.isArray(taskRaw)) {
+      for (var j = 0; j < taskRaw.length; j++) {
+        var t = taskRaw[j];
+        if (zoneFilter && t.zoneId !== zoneFilter) continue;
+        var tStatus = mapTaskStatus(t.status);
+        var tAge    = daysSince(t.createdDate);
+        var tPri    = String(t.priority || "MEDIUM").toUpperCase().trim();
+        if (!PRIORITY_RANK.hasOwnProperty(tPri)) tPri = "MEDIUM";
+        var tDue    = t.dueDate || "";
+        var tOver   = tDue ? (new Date(tDue) < now && tStatus !== "CLOSED") : false;
+        taskItems.push({
+          id:          t.taskId,
+          type:        "TASK",
+          title:       t.title,
+          description: t.description,
+          zone:        t.zoneName,
+          zoneId:      t.zoneId,
+          owner:       t.assignedTo,
+          dueDate:     tDue,
+          rawStatus:   t.status,
+          status:      tStatus,
+          priority:    tPri,
+          ageDays:     tAge,
+          isOverdue:   tOver,
+          createdDate: t.createdDate || ""
+        });
+      }
+    }
+  } catch (e) {
+    Logger.log("getUnifiedActionList: Task read error — " + e.message);
+  }
+
+  var rtItems = [];
+  try {
+    var rtRaw = getRedTagData({});
+    if (Array.isArray(rtRaw)) {
+      for (var k = 0; k < rtRaw.length; k++) {
+        var rt = rtRaw[k];
+        if (zoneFilter && rt.zoneId !== zoneFilter) continue;
+        var rtStatus = mapRedTagStatus(rt.status);
+        var rtAge    = daysSince(rt.createdDate);
+        var rtPri    = rtAge > 14 ? "HIGH" : (rtAge > 7 ? "MEDIUM" : "LOW");
+        var rtDue    = rt.deadline || "";
+        var rtOver   = rtDue ? (new Date(rtDue) < now && rtStatus !== "CLOSED") : false;
+        rtItems.push({
+          id:          rt.tagId,
+          type:        "RED_TAG",
+          title:       rt.itemDescription,
+          description: rt.proposedAction || "",
+          zone:        rt.zoneName,
+          zoneId:      rt.zoneId,
+          owner:       rt.owner || rt.taggedBy || "",
+          dueDate:     rtDue,
+          rawStatus:   rt.status,
+          status:      rtStatus,
+          priority:    rtPri,
+          ageDays:     rtAge,
+          isOverdue:   rtOver,
+          createdDate: rt.createdDate || ""
+        });
+      }
+    }
+  } catch (e) {
+    Logger.log("getUnifiedActionList: RedTag read error — " + e.message);
+  }
+
+  // ── full zone-filtered pool (used for counts) ─────────────────────────────
+  var pool = ncItems.concat(taskItems).concat(rtItems);
+
+  // ── compute counts over zone-filtered pool (before type/status/pri filters)
+  var counts = {
+    byType:     { NC: 0, TASK: 0, RED_TAG: 0 },
+    byStatus:   { OPEN: 0, IN_PROGRESS: 0, CLOSED: 0 },
+    byPriority: { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 },
+    total:      pool.length
+  };
+  for (var c = 0; c < pool.length; c++) {
+    var item = pool[c];
+    if (counts.byType[item.type]     !== undefined) counts.byType[item.type]++;
+    if (counts.byStatus[item.status] !== undefined) counts.byStatus[item.status]++;
+    if (counts.byPriority[item.priority] !== undefined) counts.byPriority[item.priority]++;
+  }
+
+  // ── apply type / status / priority filters ───────────────────────────────
+  var filtered = pool.filter(function(item) {
+    if (typeFilter     !== "ALL" && item.type     !== typeFilter)     return false;
+    if (statusFilter   !== "ALL" && item.status   !== statusFilter)   return false;
+    if (priorityFilter !== "ALL" && item.priority !== priorityFilter) return false;
+    return true;
+  });
+
+  // ── sort: priority rank asc, isOverdue desc, ageDays desc ────────────────
+  filtered.sort(function(a, b) {
+    var pr = (PRIORITY_RANK[a.priority] || 2) - (PRIORITY_RANK[b.priority] || 2);
+    if (pr !== 0) return pr;
+    var ov = (b.isOverdue ? 1 : 0) - (a.isOverdue ? 1 : 0);
+    if (ov !== 0) return ov;
+    return b.ageDays - a.ageDays;
+  });
+
+  return { items: filtered, counts: counts };
+}

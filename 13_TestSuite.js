@@ -273,7 +273,7 @@ function runAllTests() {
       // Verify initial status (sheet col 15 = 1-based = NC_COL.STATUS index 14)
       var capaSheet = ss.getSheetByName("NC_CAPA");
       var lastRow = capaSheet.getLastRow();
-      assert("CAPA initial status = Open", String(capaSheet.getRange(lastRow, 15).getValue()) === "Open");
+      assert("CAPA initial status = OPEN", String(capaSheet.getRange(lastRow, 15).getValue()) === "OPEN");
 
       // Update to IN_PROGRESS — requires root_cause >= 50 chars and corrective_action non-empty (RCA gate).
       // updateCAPAStatus NEVER throws; it returns { success, message }.

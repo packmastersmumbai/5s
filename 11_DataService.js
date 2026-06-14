@@ -1265,6 +1265,7 @@ function getUnifiedActionList(filters) {
       for (var i = 0; i < ncRaw.length; i++) {
         var nc = ncRaw[i];
         if (zoneFilter && nc.zoneId !== zoneFilter) continue;
+        if (String(nc.status || "").toUpperCase().trim() === "DELETED") continue;
         var uStatus = mapNcStatus(nc.status);
         var age = typeof nc.ageDays === "number" ? nc.ageDays : daysSince(nc.createdDate);
         var overdue = !!nc.isOverdue;
@@ -1298,6 +1299,7 @@ function getUnifiedActionList(filters) {
       for (var j = 0; j < taskRaw.length; j++) {
         var t = taskRaw[j];
         if (zoneFilter && t.zoneId !== zoneFilter) continue;
+        if (String(t.status || "").toUpperCase().trim() === "DELETED") continue;
         var tStatus = mapTaskStatus(t.status);
         var tAge    = daysSince(t.createdDate);
         var tPri    = String(t.priority || "MEDIUM").toUpperCase().trim();
@@ -1333,6 +1335,7 @@ function getUnifiedActionList(filters) {
       for (var k = 0; k < rtRaw.length; k++) {
         var rt = rtRaw[k];
         if (zoneFilter && rt.zoneId !== zoneFilter) continue;
+        if (String(rt.status || "").toUpperCase().trim() === "DELETED") continue;
         var rtStatus = mapRedTagStatus(rt.status);
         var rtAge    = daysSince(rt.createdDate);
         var rtPri    = rtAge > 14 ? "HIGH" : (rtAge > 7 ? "MEDIUM" : "LOW");

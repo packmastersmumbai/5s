@@ -310,6 +310,49 @@ function updateCAPAStatus(ncId, newStatus, verifiedBy, remarks, additionalFields
   return { success: true, message: ncId + " updated to " + newStatus };
 }
 
+/**
+ * Edit editable NC fields (description, responsible, target date, pillar).
+ * @param {string} ncId
+ * @param {Object} updates — { description, responsible, targetDate, pillar }
+ */
+function editCAPA(ncId, updates) {
+  return v2SafeExecute_(function() {
+    updates = updates || {};
+    var ss = v2GetSpreadsheet_(), sheet = ss.getSheetByName("NC_CAPA");
+    if (!sheet) return { success: false, message: "NC_CAPA sheet not found." };
+    var data = sheet.getDataRange().getValues();
+    for (var r = 1; r < data.length; r++) {
+      if (String(data[r][NC_COL.NC_ID]).trim() !== ncId) continue;
+      var e = {};
+      if (updates.description !== undefined) e[NC_COL.DESCRIPTION] = String(updates.description).substring(0, 1000);
+      if (updates.responsible !== undefined) e[NC_COL.RESPONSIBLE] = String(updates.responsible).substring(0, 100);
+      if (updates.targetDate !== undefined) e[NC_COL.TARGET_DATE] = updates.targetDate;
+      if (updates.pillar !== undefined) e[NC_COL.PILLAR] = String(updates.pillar).substring(0, 20);
+      v2BatchUpdateRow_(sheet, r + 1, e, data[r]);
+      return { success: true, message: "NC " + ncId + " updated." };
+    }
+    return { success: false, message: "NC not found: " + ncId };
+  }, "editCAPA:" + ncId, { success: false, message: "Server error." });
+}
+
+/** Soft-delete an NC (STATUS=DELETED). NCs are compliance records — never hard-deleted. */
+function deleteCAPA(ncId) {
+  return v2SafeExecute_(function() {
+    // Auth enforced at the route level (ActionsHub is role-gated). Consistent with
+    // create/edit/status fns which also trust page-level auth (see follow-up #1).
+    var ss = v2GetSpreadsheet_(), sheet = ss.getSheetByName("NC_CAPA");
+    if (!sheet) return { success: false, message: "NC_CAPA sheet not found." };
+    var data = sheet.getDataRange().getValues();
+    for (var r = 1; r < data.length; r++) {
+      if (String(data[r][NC_COL.NC_ID]).trim() !== ncId) continue;
+      var u = {}; u[NC_COL.STATUS] = "DELETED"; u[NC_COL.VERIFICATION_REMARKS] = "Deleted by " + v2GetCurrentUser_();
+      v2BatchUpdateRow_(sheet, r + 1, u, data[r]);
+      return { success: true, message: "NC " + ncId + " deleted." };
+    }
+    return { success: false, message: "NC not found: " + ncId };
+  }, "deleteCAPA:" + ncId, { success: false, message: "Server error." });
+}
+
 
 /**
  * Public wrapper: creates a new NC/CAPA and logs the creation to AuditTrail.

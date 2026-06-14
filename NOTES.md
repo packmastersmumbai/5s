@@ -24,10 +24,10 @@
 | 6a | DWM one-step test | 31_DwmSync.js (drop-in) | Dwm_selfTest ok:true | ✅ taskId 2781033d (secret set, NOT committed) |
 | 0 | PIN login (replace pwd) | 25b_PinAuth.js, PinLogin.html, Users sheet, seedUsers | render 8/8 via PIN | ✅ @103 |
 | 1 | Image upload + canonical Drive | 00_Diag(provisionZonePhotoFolders), 05_WebApp.js | upload OK | ✅ @104 b0b685a (28 zones, YYYY/MM nest) |
-| 2 | Per-criterion photo+remark+reset | QuickAudit.html, 21_ImprovementEngine.js, AuditLineItems sheet | e2e-5s-photo | ⬜ |
-| 3 | View filled audit + images | 11_DataService(getAuditDetail), ActionsHub.html (Audits tab) | e2e-5s-audit-view | ⬜ |
-| 4 | Edit/soft-delete NC/Task/RedTag | ActionsHub.html, 08_CAPAEngine(editCAPA/deleteCAPA), 19_KanbanTaskService | e2e-5s-crud | ⬜ |
-| 6b | Wire DWM sync into creates+status | 08_CAPAEngine, 19_KanbanTaskService | e2e-5s-dwmsync | ⬜ |
+| 2 | Per-criterion photo+remark+reset | QuickAudit.html, 21_ImprovementEngine.js, AuditLineItems sheet | (server) | ✅ @105 5ce7b6e |
+| 3 | View filled audit + images | 11_DataService(getRecentAudits/getAuditDetail), ActionsHub.html (Audits tab) | audit-view 4/4 | ✅ @105 5ce7b6e |
+| 4 | Edit/soft-delete NC/Task/RedTag | ActionsHub.html, 08_CAPAEngine(editCAPA/deleteCAPA), 19_KanbanTaskService | crud 3/3 | ✅ @107 |
+| 6b | Wire DWM sync into creates+status | 08_CAPAEngine, 19_KanbanTaskService | DWM updated:true | ✅ @106 3fb09f5 |
 
 ## Field & Function Map (verbatim — do not guess)
 ### DWM connector (from docs/integration/DwmIntegration.gs)
@@ -62,4 +62,10 @@
   - E2E_ADMIN_PIN default 1234. DWM temp helper (_tmp_pinrecover.js) created+removed, not committed.
   - Old password fns in 25_Authentication.js now DEAD (LoginPage.html no longer served) — kept; cleanup later
   - e2e-lib-5s.js loginAdmin now drives PIN; e2e-5s-render selector .action-card→.ah-card (stale from v102)
-- NEXT: Phase 1 (image upload + canonical Drive folders)
+- Phase 1 image upload @104 b0b685a; Phase 2+3 per-criterion+Audits view @105 5ce7b6e;
+  Phase 6b DWM sync @106 3fb09f5; Phase 4 edit/soft-delete @107.
+- ALL PHASES COMPLETE (0,1,2,3,4,6a,6b). Deletes: removed broken Session-based perm gate
+  on deleteCAPA/deleteTask (page is route-gated; consistent w/ create/edit). DELETED excluded
+  from getUnifiedActionList (3 guards added).
+- Remaining follow-up: CAPA permission model (#1) — make updateCAPAStatus honor app session role.
+- Test data left in DWM/sheets: ref CONNECTIVITY-TEST, NC-2026-06-0001 (deleted), some Z-02/Z-03 test rows.

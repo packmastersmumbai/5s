@@ -749,6 +749,20 @@ body {
   <div class="rd-modal__body" id="recordDetailBody"></div>
 </div>
 
+<!-- ── Edit Modal ── -->
+<div class="rd-backdrop" id="editBackdrop" onclick="closeEditModal()"></div>
+<div class="rd-modal" id="editModal" role="dialog" aria-modal="true" aria-labelledby="edModalTitle">
+  <div class="rd-modal__header">
+    <span class="rd-modal__title" id="edModalTitle">Edit</span>
+    <button class="rd-modal__close" onclick="closeEditModal()" aria-label="Close">✕</button>
+  </div>
+  <div class="rd-modal__body" id="editBody"></div>
+  <div style="padding:12px;display:flex;gap:8px;justify-content:flex-end">
+    <button class="ah-btn" onclick="closeEditModal()">Cancel</button>
+    <button class="ah-create-btn" onclick="submitEdit()">Save</button>
+  </div>
+</div>
+
 <!-- ── Inline Detail Modal (TASK / RED_TAG) ── -->
 <div class="rd-backdrop" id="idBackdrop" onclick="closeInlineDetail()"></div>
 <div class="id-modal" id="inlineDetailModal" role="dialog" aria-modal="true" aria-labelledby="idModalTitle">
@@ -1156,7 +1170,74 @@ function buildActionBtns(a) {
       html += '<button class="ah-btn phase" onclick="event.stopPropagation();doRedTagPhase(' + si + ',\'' + nextPhase.phase + '\',this)">' + nextPhase.label + '</button>';
     }
   }
+  /* Edit + Delete available for all types/states */
+  var aj = escHtml(JSON.stringify(a));
+  html += '<button class="ah-btn edit" onclick="event.stopPropagation();openEditModal(' + aj + ')">&#9998; Edit</button>';
+  html += '<button class="ah-btn del" onclick="event.stopPropagation();doDelete(' + escHtml(JSON.stringify(a.type)) + ',' + escHtml(JSON.stringify(a.id)) + ',this)">&#128465; Delete</button>';
   return html;
+}
+
+/* ── Edit modal ── */
+function openEditModal(a) {
+  var b = document.getElementById('editBody');
+  var rows = '';
+  function field(label, id, val, type) {
+    return '<label style="display:block;font-size:12px;color:var(--text-muted);margin:8px 0 2px">' + label + '</label>' +
+      (type === 'textarea'
+        ? '<textarea id="' + id + '" rows="2" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px">' + escHtml(val || '') + '</textarea>'
+        : '<input id="' + id + '" type="' + (type || 'text') + '" value="' + escHtml(val || '') + '" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px">');
+  }
+  if (a.type === 'NC') {
+    rows += field('Description', 'edDesc', a.title, 'textarea');
+    rows += field('Responsible', 'edOwner', a.owner);
+    rows += field('Target date (YYYY-MM-DD)', 'edDue', a.dueDate);
+  } else if (a.type === 'TASK') {
+    rows += field('Title', 'edTitle', a.title);
+    rows += field('Description', 'edDesc', a.description, 'textarea');
+    rows += field('Assigned to', 'edOwner', a.owner);
+    rows += field('Due date (YYYY-MM-DD)', 'edDue', a.dueDate);
+    rows += field('Priority (urgent/high/medium/low)', 'edPri', a.priority);
+  } else {
+    rows += field('Item description', 'edDesc', a.title, 'textarea');
+    rows += field('Owner', 'edOwner', a.owner);
+    rows += field('Deadline (YYYY-MM-DD)', 'edDue', a.dueDate);
+  }
+  b.innerHTML = rows;
+  b.setAttribute('data-type', a.type);
+  b.setAttribute('data-id', a.id);
+  document.getElementById('edModalTitle').textContent = 'Edit ' + typeName(a.type);
+  document.getElementById('editBackdrop').classList.add('open');
+  document.getElementById('editModal').classList.add('open');
+}
+function closeEditModal() {
+  document.getElementById('editModal').classList.remove('open');
+  document.getElementById('editBackdrop').classList.remove('open');
+}
+function submitEdit() {
+  var b = document.getElementById('editBody');
+  var type = b.getAttribute('data-type'), id = b.getAttribute('data-id');
+  function v(x) { var el = document.getElementById(x); return el ? el.value : undefined; }
+  var fn, updates;
+  if (type === 'NC') {
+    fn = 'editCAPA'; updates = { description: v('edDesc'), responsible: v('edOwner'), targetDate: v('edDue') };
+  } else if (type === 'TASK') {
+    fn = 'editTask'; updates = { title: v('edTitle'), description: v('edDesc'), assignedTo: v('edOwner'), dueDate: v('edDue'), priority: v('edPri') };
+  } else {
+    fn = 'editRedTag'; updates = { itemDescription: v('edDesc'), owner: v('edOwner'), deadline: v('edDue') };
+  }
+  google.script.run
+    .withSuccessHandler(function(r) { closeEditModal(); fetchAndRender(); })
+    .withFailureHandler(function(e) { alert('Edit failed: ' + e.message); })
+    [fn](id, updates);
+}
+function doDelete(type, id, btn) {
+  if (!confirm('Delete this ' + typeName(type) + '? (soft-delete — recoverable)')) return;
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  var fn = type === 'NC' ? 'deleteCAPA' : type === 'TASK' ? 'deleteTask' : 'deleteRedTag';
+  google.script.run
+    .withSuccessHandler(function(r) { fetchAndRender(); })
+    .withFailureHandler(function(e) { alert('Delete failed: ' + e.message); if (btn) { btn.disabled = false; btn.textContent = '🗑 Delete'; } })
+    [fn](id);
 }
 
 function nextRedTagPhase(raw) {

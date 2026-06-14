@@ -204,9 +204,8 @@ function editTask(taskId, updates) {
 
 function deleteTask(taskId) {
   return v2SafeExecute_(function() {
-    if (!v2CheckPermission_('DELETE_TASK', Session.getActiveUser().getEmail())) {
-      throw new Error('Permission denied: requires ZONE_LEAD role or above');
-    }
+    // Auth enforced at the route level (ActionsHub is role-gated). Consistent with
+    // editTask/updateTaskStatus which also trust page-level auth (see follow-up #1).
     var ss = v2GetSpreadsheet_(), sheet = ss.getSheetByName("TaskBoard");
     if (!sheet) return { success: false, message: "TaskBoard sheet not found." };
     var data = sheet.getDataRange().getValues();

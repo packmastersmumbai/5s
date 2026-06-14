@@ -67,5 +67,12 @@
 - ALL PHASES COMPLETE (0,1,2,3,4,6a,6b). Deletes: removed broken Session-based perm gate
   on deleteCAPA/deleteTask (page is route-gated; consistent w/ create/edit). DELETED excluded
   from getUnifiedActionList (3 guards added).
+- v108 fixes (15b9434): reset icon → scored-row (post-score, adjacent to score); audit detail
+  shows criterion label (from ChecklistSchema) + photo hover-zoom; Back to Dashboard → deployUrl
+  (QA_DEPLOY_URL from serveV2Page_); audit auto-NCs sync to DWM; DwmSyncLog sheet logs every sync.
+- DWM sync VERIFIED from owner/clasp context (NC+Task+RedTag all updated:true). If live web-app
+  submissions still don't appear in DWM, check DwmSyncLog sheet for the error (likely web-app
+  re-auth for script.external_request → owner runs Dwm_selfTest in editor to re-consent).
+- OPEN clarification: "audit button in card" — ambiguous, asked user.
 - Remaining follow-up: CAPA permission model (#1) — make updateCAPAStatus honor app session role.
 - Test data left in DWM/sheets: ref CONNECTIVITY-TEST, NC-2026-06-0001 (deleted), some Z-02/Z-03 test rows.

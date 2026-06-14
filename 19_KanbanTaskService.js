@@ -144,6 +144,7 @@ function createTask(taskData) {
     sheet.appendRow(row);
     // ✅ CACHE INVALIDATION: Clear dependent caches
     if (typeof invalidateTaskCache_ === "function") invalidateTaskCache_(d.zoneId);
+    try { var c = CacheService.getScriptCache(); c.remove("pm5s_tasks_ALL_ALL"); c.remove("pm5s_tasks_" + d.zoneId + "_ALL"); } catch(e) {}
     if (typeof DWM !== "undefined") {
       DWM.syncTaskSafe({ title: d.title, ref: taskId, status: "open",
         assignee: d.assignedTo || "", due: d.dueDate || "", priority: d.priority || "medium",
@@ -276,6 +277,7 @@ function createRedTag(tagData) {
     sheet.appendRow(row);
     // ✅ CACHE INVALIDATION: Clear dependent caches
     if (typeof invalidateRedTagCache_ === "function") invalidateRedTagCache_(d.zoneId);
+    try { var c = CacheService.getScriptCache(); c.remove("pm5s_redtags_ALL_ALL"); c.remove("pm5s_redtags_" + d.zoneId + "_ALL"); } catch(e) {}
     if (typeof DWM !== "undefined") {
       DWM.syncTaskSafe({ title: "Red Tag: " + d.itemDescription, ref: tagId, status: "open",
         assignee: d.owner || "", due: v2FormatDate_(deadline),

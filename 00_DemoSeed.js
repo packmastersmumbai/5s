@@ -34,6 +34,54 @@ function deleteTestRedTags() {
   return 'deleted ' + deleted;
 }
 
+function dumpZonesHeader() {
+  var sh = v2GetSpreadsheet_().getSheetByName('Zones');
+  return 'cols=' + sh.getLastColumn() + ' rows=' + sh.getLastRow() + ' | ' +
+         sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String).join(' | ');
+}
+
+/** Rebuild the Zones sheet from canonical getDefaultZoneMetadata_ (all 28, correct
+ *  names), preserving any existing email / driveFolderId / targetScore / nameHi. */
+function rebuildZonesSheet() {
+  var ss = v2GetSpreadsheet_();
+  var sh = ss.getSheetByName('Zones');
+  var meta = getDefaultZoneMetadata_();
+  var existing = {};
+  if (sh.getLastRow() > 1) {
+    sh.getDataRange().getValues().slice(1).forEach(function(r) {
+      if (r[0]) existing[String(r[0]).trim()] = r;
+    });
+    sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).clearContent();
+  }
+  var ncols = sh.getLastColumn();
+  var ids = Object.keys(meta).sort();
+  var rows = ids.map(function(z) {
+    var m = meta[z], e = existing[z] || [];
+    // 0:id 1:name 2:nameHi 3:leader 4:email 5:auditDay 6:auditDayNum 7:department 8:driveFolderId 9:targetScore
+    var row = [
+      z, m.name, e[2] || m.nameHi || '', m.leader || e[3] || '',
+      e[4] || m.email || '', e[5] || m.auditDay || '',
+      (e[6] !== undefined && e[6] !== '') ? e[6] : (m.auditDayNum || 0),
+      e[7] || m.department || '', e[8] || m.driveFolderId || '',
+      (e[9] !== undefined && e[9] !== '') ? e[9] : 70
+    ];
+    return row.slice(0, ncols);
+  });
+  sh.getRange(2, 1, rows.length, Math.min(rows[0].length, ncols)).setValues(rows);
+  return 'Zones rebuilt: ' + rows.length + ' rows';
+}
+
+function dumpZoneNames() {
+  var cfg = getZoneConfig();
+  var meta = getDefaultZoneMetadata_();
+  var out = [];
+  Object.keys(cfg).sort().forEach(function(z) {
+    var live = cfg[z].name, def = meta[z] ? meta[z].name : '(none)';
+    out.push(z + ': live="' + live + '"' + (live !== def ? ' DEFAULT="' + def + '"' : ' OK'));
+  });
+  return out.join('\n');
+}
+
 function checkSummaryZones() {
   var ss = v2GetSpreadsheet_();
   var d = ss.getSheetByName('Summary').getDataRange().getValues();

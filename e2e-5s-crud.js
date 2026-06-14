@@ -25,17 +25,17 @@ async function main() {
     frame = await acquireAhFrame(page);
     if (!frame) throw new Error('ActionsHub frame not found');
     // ensure cards present
-    for (let i = 0; i < 30 && !(await frame.evaluate(() => document.querySelector('#ahContent .ah-card'))); i++) await page.waitForTimeout(500);
+    for (let i = 0; i < 30 && !(await frame.evaluate(() => document.querySelector('#ahContent .ah-tr'))); i++) await page.waitForTimeout(500);
   } catch (e) { console.error('FATAL:', e.message); process.exit(2); }
 
-  await runner.check('Edit + Delete buttons render on cards', async () => {
+  await runner.check('Edit + Delete buttons render on rows', async () => {
     const ok = await frame.evaluate(() =>
-      !!document.querySelector('.ah-btn.edit') && !!document.querySelector('.ah-btn.del')).catch(() => false);
+      !!document.querySelector('.ah-ibtn.edit') && !!document.querySelector('.ah-ibtn.del')).catch(() => false);
     return ok || 'edit/delete buttons missing';
   });
 
   await runner.check('Edit modal opens and saves', async () => {
-    await frame.evaluate(() => document.querySelector('.ah-btn.edit').click());
+    await frame.evaluate(() => document.querySelector('.ah-ibtn.edit').click());
     for (let i = 0; i < 20; i++) {
       const open = await frame.evaluate(() => document.getElementById('editModal').classList.contains('open')).catch(() => false);
       if (open) break; await page.waitForTimeout(300);
@@ -57,13 +57,13 @@ async function main() {
   await runner.check('Delete removes a card from the list', async () => {
     let before = 0;
     for (let i = 0; i < 30; i++) {
-      before = await frame.evaluate(() => document.querySelectorAll('#ahContent .ah-card').length).catch(() => 0);
+      before = await frame.evaluate(() => document.querySelectorAll('#ahContent .ah-tr').length).catch(() => 0);
       if (before > 0) break; await page.waitForTimeout(500);
     }
     if (!before) return 'no cards to delete (list did not repopulate)';
-    await frame.evaluate(() => document.querySelector('#ahContent .ah-card .ah-btn.del').click());
+    await frame.evaluate(() => document.querySelector('#ahContent .ah-tr .ah-ibtn.del').click());
     for (let i = 0; i < 25; i++) {
-      const after = await frame.evaluate(() => document.querySelectorAll('#ahContent .ah-card').length).catch(() => before);
+      const after = await frame.evaluate(() => document.querySelectorAll('#ahContent .ah-tr').length).catch(() => before);
       if (after < before) return true; await page.waitForTimeout(500);
     }
     return 'card count did not decrease after delete';

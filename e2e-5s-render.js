@@ -122,7 +122,7 @@ async function main() {
     if (!frame) return 'frame unavailable after nav to actionlist';
     for (let i = 0; i < 30; i++) {
       const count = await frame.evaluate(() =>
-        document.querySelectorAll('.ah-card, [class*="ah-card"], .action-card, .capa-card, .action-item').length
+        document.querySelectorAll('.ah-tr, .ah-card, .action-card, .capa-card, .action-item').length
       ).catch(() => 0);
       if (count > 0) return true;
       await page.waitForTimeout(500);

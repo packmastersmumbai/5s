@@ -97,7 +97,7 @@ function createCAPA(zoneId, description, type, pillar, sqcdpDim, responsiblePers
   // auditor_email(8),root_cause(9),corrective_action(10),preventive_action(11),
   // responsible_person(12),target_date(13),status(14),closure_date(15),
   // verified_by(16),verification_remarks(17),is_repeat_nc(18),repeat_count(19)
-  var zoneConfig = getZoneById_(zoneId) || {};
+  var zoneConfig = getZoneConfig()[zoneId] || {};
   capaSheet.appendRow([
     ncId,                       // 0: nc_id
     auditDateStr,               // 1: created_date

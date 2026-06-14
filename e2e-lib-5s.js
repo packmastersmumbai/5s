@@ -115,11 +115,15 @@ async function loginAdmin(browser) {
       const frame = await findAppFrame(page);
       if (!frame) throw new Error('app frame not found after 30s');
 
-      // Fill login form
-      await frame.waitForSelector('#loginForm', { timeout: 20000 });
-      await frame.fill('#username', process.env.E2E_ADMIN_USER || 'admin');
-      await frame.fill('#password', process.env.E2E_ADMIN_PASS || 'Admin@123');
-      await frame.click('#loginBtn');
+      // PIN login: pick user, tap PIN digits (auto-submits on 4th).
+      const pinUser = process.env.E2E_ADMIN_USER || 'admin';
+      const pin = process.env.E2E_ADMIN_PIN || '4860';
+      await frame.waitForSelector('.user[data-id="' + pinUser + '"]', { timeout: 20000 });
+      await frame.click('.user[data-id="' + pinUser + '"]');
+      for (const d of pin.split('')) {
+        await frame.click('.key[data-k="' + d + '"]');
+        await page.waitForTimeout(120);
+      }
 
       // After login the GAS sandbox iframe detaches and a new one loads from googleusercontent.com.
       // Re-acquire the frame that has actual app content (not the outer GAS wrapper).

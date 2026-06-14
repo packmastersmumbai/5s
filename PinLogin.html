@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PackMasters 5S — Login</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      background: linear-gradient(160deg,#0f172a,#1e293b); color: #f1f5f9;
+      min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .card { width: 100%; max-width: 380px; background: #1e293b; border: 1px solid #334155;
+      border-radius: 18px; padding: 28px 24px; box-shadow: 0 12px 40px rgba(0,0,0,.4); }
+    .brand { text-align: center; margin-bottom: 18px; }
+    .brand h1 { font-size: 20px; font-weight: 700; letter-spacing: .5px; }
+    .brand p { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+    .users { display: flex; gap: 10px; overflow-x: auto; padding: 6px 2px 12px; }
+    .user { flex: 0 0 auto; text-align: center; cursor: pointer; opacity: .55;
+      transition: all .15s; width: 58px; }
+    .user.sel { opacity: 1; transform: scale(1.06); }
+    .ava { width: 46px; height: 46px; border-radius: 50%; margin: 0 auto 4px;
+      display: flex; align-items: center; justify-content: center; font-weight: 700;
+      color: #fff; font-size: 16px; border: 2px solid transparent; }
+    .user.sel .ava { border-color: #38bdf8; box-shadow: 0 0 0 3px rgba(56,189,248,.25); }
+    .uname { font-size: 11px; color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .err { min-height: 18px; text-align: center; font-size: 13px; color: #f87171; margin: 4px 0 10px; }
+    .dots { display: flex; gap: 14px; justify-content: center; margin: 6px 0 20px; }
+    .dot { width: 14px; height: 14px; border-radius: 50%; background: transparent;
+      border: 2px solid #64748b; transition: all .12s; }
+    .dot.fill { background: #38bdf8; border-color: #38bdf8; }
+    .pad { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+    .key { padding: 16px 0; font-size: 22px; font-weight: 600; background: #334155;
+      border: none; color: #f1f5f9; border-radius: 12px; cursor: pointer; transition: background .1s; }
+    .key:active { background: #475569; }
+    .key.ghost { background: transparent; }
+    .shake { animation: shk .45s; }
+    @keyframes shk { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-8px)} 40%,80%{transform:translateX(8px)} }
+    .ver { text-align: center; font-size: 10px; color: #475569; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <div class="brand"><h1>PackMasters 5S</h1><p>Tap your name, enter your PIN</p></div>
+    <div class="users" id="users"></div>
+    <div class="err" id="err"></div>
+    <div class="dots" id="dots">
+      <span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    </div>
+    <div class="pad" id="pad"></div>
+    <div class="ver">5S QMS</div>
+  </div>
+
+  <script>
+    var DEPLOY_URL = '<?= deployUrl ?>';
+    var CLEAR_STALE = <?= clearStaleToken ? 'true' : 'false' ?>;
+    if (CLEAR_STALE) { try { localStorage.removeItem('pm5s_token'); } catch (e) {} }
+
+    var users = [], selectedId = null, pin = '', locked = false;
+
+    function initials(name) {
+      var p = (name || '').trim().split(/\s+/);
+      return ((p[0] || '?')[0] + (p[1] ? p[1][0] : '')).toUpperCase();
+    }
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+    function renderUsers() {
+      var html = users.map(function (u) {
+        return '<div class="user' + (u.id === selectedId ? ' sel' : '') + '" data-id="' + esc(u.id) + '">' +
+          '<div class="ava" style="background:' + esc(u.avatarColor) + '">' + esc(initials(u.name)) + '</div>' +
+          '<div class="uname">' + esc(u.name) + '</div></div>';
+      }).join('');
+      document.getElementById('users').innerHTML = html;
+      Array.prototype.forEach.call(document.querySelectorAll('.user'), function (el) {
+        el.addEventListener('click', function () {
+          selectedId = el.getAttribute('data-id'); pin = ''; setErr(''); renderUsers(); renderDots();
+        });
+      });
+    }
+    function renderDots() {
+      var dots = document.querySelectorAll('#dots .dot');
+      for (var i = 0; i < dots.length; i++) dots[i].className = 'dot' + (i < pin.length ? ' fill' : '');
+    }
+    function setErr(msg) { document.getElementById('err').textContent = msg || ''; }
+    function shake() {
+      var c = document.getElementById('card'); c.classList.remove('shake');
+      void c.offsetWidth; c.classList.add('shake');
+    }
+
+    function addDigit(d) {
+      if (locked || pin.length >= 4 || !selectedId) { if (!selectedId) setErr('Select your name first'); return; }
+      pin += d; renderDots();
+      if (pin.length === 4) submitPin();
+    }
+    function backspace() { if (pin.length) { pin = pin.slice(0, -1); renderDots(); } }
+
+    function submitPin() {
+      var entered = pin;
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (res && res.success) {
+            try { localStorage.setItem('pm5s_token', res.token); } catch (e) {}
+            window.top.location.href = DEPLOY_URL + '?v2=1&action=home&token=' + encodeURIComponent(res.token);
+            return;
+          }
+          pin = ''; renderDots(); shake();
+          if (res && res.error === 'locked') {
+            locked = true; setErr('Locked. Try again in ' + res.minutesLeft + ' min');
+            setTimeout(function () { locked = false; setErr(''); }, 60000);
+          } else if (res && res.error === 'invalid_pin') {
+            setErr('Wrong PIN — ' + res.attemptsLeft + ' attempt(s) left');
+          } else {
+            setErr('Login failed');
+          }
+        })
+        .withFailureHandler(function (err) { pin = ''; renderDots(); shake(); setErr('Server error'); })
+        .validatePin(selectedId, entered);
+    }
+
+    function renderPad() {
+      var keys = ['1','2','3','4','5','6','7','8','9','','0','del'];
+      document.getElementById('pad').innerHTML = keys.map(function (k) {
+        if (k === '') return '<button class="key ghost" disabled></button>';
+        if (k === 'del') return '<button class="key" data-k="del">⌫</button>';
+        return '<button class="key" data-k="' + k + '">' + k + '</button>';
+      }).join('');
+      Array.prototype.forEach.call(document.querySelectorAll('.key[data-k]'), function (b) {
+        b.addEventListener('click', function () {
+          var k = b.getAttribute('data-k');
+          if (k === 'del') backspace(); else addDigit(k);
+        });
+      });
+    }
+
+    renderPad(); renderDots();
+    google.script.run.withSuccessHandler(function (list) {
+      users = (list || []).filter(function (u) { return u.id !== '__error__'; });
+      if (users.length && !selectedId) selectedId = users[0].id;
+      if (!users.length) setErr('No users — run seedUsers()');
+      renderUsers();
+    }).withFailureHandler(function (e) { setErr('Could not load users'); }).getUsersForLogin();
+  </script>
+</body>
+</html>

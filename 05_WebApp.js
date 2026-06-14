@@ -101,7 +101,7 @@ function doGet(e) {
           return serveZoneSelector_();
         }
         // Protected action requested without session → show login
-        var loginTmpl = HtmlService.createTemplateFromFile("LoginPage");
+        var loginTmpl = HtmlService.createTemplateFromFile("PinLogin");
         loginTmpl.deployUrl = ScriptApp.getService().getUrl();
         loginTmpl.clearStaleToken = token ? true : false;
         return loginTmpl.evaluate()
@@ -122,7 +122,7 @@ function doGet(e) {
 
     // Route: Login page
     if (isLoginAction) {
-      var loginTmpl = HtmlService.createTemplateFromFile("LoginPage");
+      var loginTmpl = HtmlService.createTemplateFromFile("PinLogin");
       loginTmpl.deployUrl = ScriptApp.getService().getUrl();
       loginTmpl.clearStaleToken = token ? true : false;
       return loginTmpl.evaluate()

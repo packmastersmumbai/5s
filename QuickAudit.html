@@ -552,6 +552,10 @@ function loadAudit() {
 
 /* Pillar display names */
 var PILLAR_NAMES = {S1:'SORT', S2:'SET IN ORDER', S3:'SHINE', S4:'STANDARDIZE', S5:'SUSTAIN'};
+/* Pillar prefix → SQCDP dimension letter */
+var SQCDP_MAP = {S1:'S', S2:'Q', S3:'C', S4:'D', S5:'P'};
+/* Current audit config — set in renderAudit so create modals can read criteria by index */
+var _CFG = null;
 
 function renderAudit(cfg) {
   if (!cfg || !cfg.criteria) {
@@ -559,6 +563,7 @@ function renderAudit(cfg) {
       '<div style="text-align:center;padding:40px">No criteria found</div>';
     return;
   }
+  _CFG = cfg;
 
   document.getElementById('auditInfo').textContent =
     cfg.zoneName + ' · ' + cfg.dateDisplay + ' · ' + cfg.auditor;
@@ -625,7 +630,9 @@ function renderAudit(cfg) {
       html += '<button class="qa-ac" onclick="toggleWDGLL(' + idx + ')" title="Standard"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></button>';
     }
     html += '<button class="qa-ac" id="ac-rem-' + idx + '" onclick="toggleRemark(' + idx + ')" title="Remark"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>';
-    html += '<button class="qa-ac" id="ac-ncr-' + idx + '" onclick="raiseNCR(' + idx + ')" title="Raise NCR"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></button>';
+    html += '<button class="qa-ac" id="ac-ncr-' + idx + '" onclick="openAuditCreate(' + idx + ',\'NC\')" title="Raise NCR"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></button>';
+    html += '<button class="qa-ac" id="ac-task-' + idx + '" onclick="openAuditCreate(' + idx + ',\'TASK\')" title="Create Task"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></button>';
+    html += '<button class="qa-ac" id="ac-rt-' + idx + '" onclick="openAuditCreate(' + idx + ',\'REDTAG\')" title="Raise Red Tag"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></button>';
     html += '</div></div>';
 
     /* Remark */
@@ -785,9 +792,111 @@ function toggleRemarkField(idx) {
   if (!showing) setTimeout(function() { ta.focus(); }, 50);
 }
 
-function raiseNCR(idx) {
-  var ac = document.getElementById('ac-ncr-' + idx);
-  if (ac) ac.classList.toggle('on-ncr');
+/* ── Create NCR / Task / Red Tag from an audit criterion ─────────────────── */
+var _qaCreate = { idx: -1, type: '' };
+
+function openAuditCreate(idx, type) {
+  if (!_CFG || !_CFG.criteria || !_CFG.criteria[idx]) { alert('Criterion not loaded'); return; }
+  var zone = getZoneId();
+  if (!zone) { alert('No zone selected for this audit'); return; }
+  _qaCreate = { idx: idx, type: type };
+  var c = _CFG.criteria[idx];
+  var label = c.label || c.criterionId || '';
+
+  document.getElementById('qaCrModalTitle').textContent =
+    (type === 'NC' ? 'Raise NCR' : type === 'TASK' ? 'Create Task' : 'Raise Red Tag');
+  document.getElementById('qaCrContext').textContent =
+    (_CFG.zoneName || zone) + ' · ' + (PILLAR_NAMES[c.pillar] || c.pillar || '') + ' · ' + label;
+
+  // Show only the field group for this type; prefill description/title from criterion
+  ['NC', 'TASK', 'REDTAG'].forEach(function(t) {
+    document.getElementById('qaCr-' + t).style.display = (t === type ? 'block' : 'none');
+  });
+  document.getElementById('qaNcDesc').value   = type === 'NC'   ? ('Non-conformance: ' + label) : '';
+  document.getElementById('qaNcResp').value    = '';
+  document.getElementById('qaTaskTitle').value = type === 'TASK' ? ('Action: ' + label) : '';
+  document.getElementById('qaTaskDesc').value  = '';
+  document.getElementById('qaTaskAssign').value = '';
+  document.getElementById('qaTaskDue').value   = '';
+  document.getElementById('qaRtItem').value    = '';
+  document.getElementById('qaRtQty').value     = '1';
+  document.getElementById('qaRtReason').value  = type === 'REDTAG' ? ('Flagged during audit: ' + label) : '';
+  document.getElementById('qaRtAction').value  = '';
+
+  document.getElementById('qaCreateBackdrop').classList.add('open');
+  document.getElementById('qaCreateModal').classList.add('open');
+}
+
+function closeAuditCreate() {
+  document.getElementById('qaCreateBackdrop').classList.remove('open');
+  document.getElementById('qaCreateModal').classList.remove('open');
+}
+
+function submitAuditCreate() {
+  var idx = _qaCreate.idx, type = _qaCreate.type;
+  if (idx < 0 || !_CFG || !_CFG.criteria[idx]) return;
+  var c = _CFG.criteria[idx];
+  var zone = getZoneId();
+  var btn = document.getElementById('qaCrSubmit');
+  btn.disabled = true; btn.textContent = 'Creating…';
+
+  function done(ok, msg, acId) {
+    btn.disabled = false; btn.textContent = 'Create';
+    if (ok) {
+      closeAuditCreate();
+      var ac = document.getElementById(acId + idx);
+      if (ac) ac.classList.add('on-ncr');
+      alert(msg);
+    } else {
+      alert(msg || 'Failed to create');
+    }
+  }
+
+  if (type === 'NC') {
+    var desc = document.getElementById('qaNcDesc').value.trim();
+    if (!desc) { done(false, 'Description is required'); return; }
+    var resp = document.getElementById('qaNcResp').value.trim();
+    var sqcdp = SQCDP_MAP[c.pillar] || '';
+    google.script.run
+      .withSuccessHandler(function(r){ done(!!r, r ? ('NCR ' + r + ' created') : 'Failed to create NCR', 'ac-ncr-'); })
+      .withFailureHandler(function(e){ done(false, 'Error: ' + e.message); })
+      .createCAPA(zone, desc, 'NC', c.pillar, sqcdp, resp);
+
+  } else if (type === 'TASK') {
+    var title = document.getElementById('qaTaskTitle').value.trim();
+    if (!title) { done(false, 'Title is required'); return; }
+    var payload = {
+      title: title,
+      zoneId: zone,
+      description: document.getElementById('qaTaskDesc').value.trim(),
+      priority: document.getElementById('qaTaskPrio').value,
+      assignedTo: document.getElementById('qaTaskAssign').value.trim(),
+      dueDate: document.getElementById('qaTaskDue').value,
+      source: 'AUDIT',
+      sourceRefId: c.criterionId || ''
+    };
+    google.script.run
+      .withSuccessHandler(function(r){ done(r && r.success, r && r.success ? ('Task ' + r.taskId + ' created') : (r && r.message) || 'Failed', 'ac-task-'); })
+      .withFailureHandler(function(e){ done(false, 'Error: ' + e.message); })
+      .createTask(payload);
+
+  } else if (type === 'REDTAG') {
+    var item = document.getElementById('qaRtItem').value.trim();
+    if (!item) { done(false, 'Item description is required'); return; }
+    var form = {
+      zone: zone,
+      item: item,
+      quantity: parseInt(document.getElementById('qaRtQty').value, 10) || 1,
+      category: document.getElementById('qaRtCat').value,
+      reason: document.getElementById('qaRtReason').value.trim(),
+      action: document.getElementById('qaRtAction').value.trim(),
+      taggedBy: (_CFG && _CFG.auditor) || ''
+    };
+    google.script.run
+      .withSuccessHandler(function(r){ var ok = r && (r.ok || r.success); done(ok, ok ? ('Red Tag ' + r.tagNo + ' created') : 'Failed to create Red Tag', 'ac-rt-'); })
+      .withFailureHandler(function(e){ done(false, 'Error: ' + e.message); })
+      .raiseRedTag(form);
+  }
 }
 
 function toggleWDGLL(idx) {
@@ -990,5 +1099,67 @@ window.PM_TOUR_STEPS = [
 ];
 </script>
 <?!= include('GuidedTour') ?>
+
+<!-- ── Audit Create Modal (NCR / Task / Red Tag) ─────────────────────────── -->
+<style>
+  #qaCreateBackdrop { position:fixed; inset:0; background:rgba(0,0,0,.45); opacity:0; visibility:hidden; transition:opacity .2s; z-index:998; }
+  #qaCreateBackdrop.open { opacity:1; visibility:visible; }
+  #qaCreateModal { position:fixed; left:50%; bottom:0; transform:translate(-50%,100%); width:min(96vw,460px);
+    background:#fff; border-radius:16px 16px 0 0; box-shadow:0 -8px 30px rgba(0,0,0,.2); z-index:999;
+    transition:transform .25s ease; max-height:88vh; overflow-y:auto; }
+  #qaCreateModal.open { transform:translate(-50%,0); }
+  .qacr-hd { display:flex; align-items:center; justify-content:space-between; padding:16px 18px 8px; }
+  .qacr-hd h3 { margin:0; font-size:17px; font-weight:700; }
+  .qacr-x { background:none; border:none; font-size:20px; cursor:pointer; color:#888; line-height:1; }
+  .qacr-ctx { padding:0 18px 12px; font-size:12px; color:#667; border-bottom:1px solid #eef; }
+  .qacr-body { padding:14px 18px 4px; }
+  .qacr-f { margin-bottom:12px; }
+  .qacr-f label { display:block; font-size:12px; font-weight:600; color:#445; margin-bottom:5px; }
+  .qacr-f input, .qacr-f select, .qacr-f textarea { width:100%; box-sizing:border-box; padding:10px 12px;
+    border:1px solid #d4d8e2; border-radius:9px; font-size:14px; font-family:inherit; }
+  .qacr-row { display:flex; gap:10px; } .qacr-row > * { flex:1; }
+  .qacr-foot { padding:6px 18px 20px; }
+  .qacr-submit { width:100%; padding:13px; border:none; border-radius:10px; background:#2563eb; color:#fff;
+    font-size:15px; font-weight:600; cursor:pointer; }
+  .qacr-submit:disabled { opacity:.6; cursor:default; }
+</style>
+<div id="qaCreateBackdrop" onclick="closeAuditCreate()"></div>
+<div id="qaCreateModal" role="dialog" aria-modal="true">
+  <div class="qacr-hd">
+    <h3 id="qaCrModalTitle">Create</h3>
+    <button class="qacr-x" onclick="closeAuditCreate()" aria-label="Close">✕</button>
+  </div>
+  <div class="qacr-ctx" id="qaCrContext"></div>
+  <div class="qacr-body">
+    <!-- NC fields -->
+    <div id="qaCr-NC">
+      <div class="qacr-f"><label>Description *</label><textarea id="qaNcDesc" rows="3" placeholder="Describe the non-conformance"></textarea></div>
+      <div class="qacr-f"><label>Responsible person</label><input id="qaNcResp" type="text" placeholder="Optional — who will fix it"></div>
+    </div>
+    <!-- Task fields -->
+    <div id="qaCr-TASK" style="display:none">
+      <div class="qacr-f"><label>Title *</label><input id="qaTaskTitle" type="text" placeholder="Task title"></div>
+      <div class="qacr-f"><label>Description</label><textarea id="qaTaskDesc" rows="2" placeholder="Details (optional)"></textarea></div>
+      <div class="qacr-row">
+        <div class="qacr-f"><label>Priority</label><select id="qaTaskPrio"><option value="LOW">Low</option><option value="MEDIUM" selected>Medium</option><option value="HIGH">High</option></select></div>
+        <div class="qacr-f"><label>Due date</label><input id="qaTaskDue" type="date"></div>
+      </div>
+      <div class="qacr-f"><label>Assigned to</label><input id="qaTaskAssign" type="text" placeholder="Optional"></div>
+    </div>
+    <!-- Red Tag fields -->
+    <div id="qaCr-REDTAG" style="display:none">
+      <div class="qacr-row">
+        <div class="qacr-f" style="flex:2"><label>Item *</label><input id="qaRtItem" type="text" placeholder="What is being tagged"></div>
+        <div class="qacr-f"><label>Qty</label><input id="qaRtQty" type="number" min="1" value="1"></div>
+      </div>
+      <div class="qacr-f"><label>Category</label><select id="qaRtCat"><option>Equipment</option><option>Material</option><option>Tool</option><option>Document</option><option>Other</option></select></div>
+      <div class="qacr-f"><label>Reason</label><textarea id="qaRtReason" rows="2" placeholder="Why is it being tagged"></textarea></div>
+      <div class="qacr-f"><label>Proposed action</label><input id="qaRtAction" type="text" placeholder="e.g. Dispose / Relocate / Return"></div>
+    </div>
+  </div>
+  <div class="qacr-foot">
+    <button class="qacr-submit" id="qaCrSubmit" onclick="submitAuditCreate()">Create</button>
+  </div>
+</div>
 </body>
 </html>

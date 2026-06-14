@@ -34,6 +34,61 @@ function deleteTestRedTags() {
   return 'deleted ' + deleted;
 }
 
+/** Smoke-test the three audit create paths with the exact args the QuickAudit
+ *  modal sends. Creates one of each, reports results, then cleans them up. */
+function smokeAuditCreates() {
+  var out = [];
+  var ss = v2GetSpreadsheet_();
+
+  // 1. NCR
+  var ncId = createCAPA('Z-01', 'SMOKE_TEST NCR from audit', 'NC', 'S1', 'S', '');
+  out.push('createCAPA -> ' + ncId);
+
+  // 2. Task
+  var t = createTask({ title: 'SMOKE_TEST task', zoneId: 'Z-01', priority: 'MEDIUM',
+    source: 'AUDIT', sourceRefId: 'S1-C1' });
+  out.push('createTask -> success=' + t.success + ' id=' + t.taskId);
+
+  // 3. Red Tag
+  var rt = raiseRedTag({ zone: 'Z-01', item: 'SMOKE_TEST redtag', quantity: 1,
+    category: 'Equipment', reason: 'audit', action: 'dispose', taggedBy: 'auditor' });
+  out.push('raiseRedTag -> ok=' + (rt && (rt.ok || rt.success)) + ' tagNo=' + (rt && rt.tagNo));
+
+  // Cleanup
+  function purge(sheetName, col, prefix) {
+    var sh = ss.getSheetByName(sheetName); if (!sh || sh.getLastRow() < 2) return 0;
+    var d = sh.getDataRange().getValues(), n = 0;
+    for (var r = d.length - 1; r >= 1; r--) {
+      if (String(d[r][col] || '').indexOf(prefix) === 0) { sh.deleteRow(r + 1); n++; }
+    }
+    return n;
+  }
+  var del = purge('NC_CAPA', NC_COL.DESCRIPTION, 'SMOKE_TEST') +
+            purge('TaskBoard', TASK_COL.TITLE, 'SMOKE_TEST') +
+            purge('RedTagRegister', RT_COL.ITEM_DESC, 'SMOKE_TEST');
+  out.push('cleanup deleted=' + del);
+  try { clearAnalyticsCache(); } catch (e) {}
+  return out.join(' | ');
+}
+
+/** Delete any NC_CAPA / TaskBoard / RedTagRegister rows whose text starts with
+ *  'SMOKE_TEST' (created by audit-create smoke/E2E). Idempotent. */
+function purgeSmokeTestData() {
+  var ss = v2GetSpreadsheet_();
+  function purge(sheetName, col) {
+    var sh = ss.getSheetByName(sheetName); if (!sh || sh.getLastRow() < 2) return 0;
+    var d = sh.getDataRange().getValues(), n = 0;
+    for (var r = d.length - 1; r >= 1; r--) {
+      if (String(d[r][col] || '').indexOf('SMOKE_TEST') === 0) { sh.deleteRow(r + 1); n++; }
+    }
+    return n;
+  }
+  var n = purge('NC_CAPA', NC_COL.DESCRIPTION) + purge('TaskBoard', TASK_COL.TITLE) +
+          purge('RedTagRegister', RT_COL.ITEM_DESC);
+  try { clearAnalyticsCache(); } catch (e) {}
+  return 'purged ' + n;
+}
+
 function dumpZonesHeader() {
   var sh = v2GetSpreadsheet_().getSheetByName('Zones');
   return 'cols=' + sh.getLastColumn() + ' rows=' + sh.getLastRow() + ' | ' +

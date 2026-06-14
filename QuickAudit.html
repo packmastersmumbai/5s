@@ -126,6 +126,9 @@ body {
   opacity: 0.55;
   pointer-events: none;
 }
+/* keep the scored row (and its reset button) clickable on a scored card */
+.qa-card.scored .qa-scored-row { pointer-events: auto; }
+.qa-card.scored .qa-s-reset { pointer-events: auto; }
 
 /* Pillar left border */
 .qa-card::before {

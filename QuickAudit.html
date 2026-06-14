@@ -516,6 +516,8 @@ function escHtml(s) {
 }
 
 var scores = {}, totalCriteria = 0, timerStart = null, timerInterval = null;
+var criterionPhotos = {};   /* criterionId -> watermarked dataURL (optional per-parameter photo) */
+var _activeCrit = null;     /* {idx, cid} while a per-criterion camera capture is in flight */
 
 var _ZONE_ID = '<?= (typeof params !== "undefined" && params && params.zone) ? String(params.zone).replace(/['"<>&]/g,"") : "" ?>';
 var _SELECTED_ZONE = '';
@@ -625,7 +627,7 @@ function renderAudit(cfg) {
     html += '</div>';
     html += '<div class="qa-vsep"></div>';
     html += '<div class="qa-acts">';
-    html += '<button class="qa-ac" id="ac-cam-' + idx + '" onclick="openCamera_()" title="Photo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>';
+    html += '<button class="qa-ac" id="ac-cam-' + idx + '" onclick="openCriterionCamera_(' + idx + ',\'' + escHtml(c.criterionId) + '\')" title="Photo (optional)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>';
     if (c.wdgllPhotos && c.wdgllPhotos.length > 0) {
       html += '<button class="qa-ac" onclick="toggleWDGLL(' + idx + ')" title="Standard"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></button>';
     }
@@ -633,6 +635,7 @@ function renderAudit(cfg) {
     html += '<button class="qa-ac" id="ac-ncr-' + idx + '" onclick="openAuditCreate(' + idx + ',\'NC\')" title="Raise NCR"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></button>';
     html += '<button class="qa-ac" id="ac-task-' + idx + '" onclick="openAuditCreate(' + idx + ',\'TASK\')" title="Create Task"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></button>';
     html += '<button class="qa-ac" id="ac-rt-' + idx + '" onclick="openAuditCreate(' + idx + ',\'REDTAG\')" title="Raise Red Tag"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></button>';
+    html += '<button class="qa-ac" id="ac-reset-' + idx + '" onclick="resetCriterion_(' + idx + ',\'' + escHtml(c.criterionId) + '\')" title="Reset score/remark/photo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button>';
     html += '</div></div>';
 
     /* Remark */
@@ -917,7 +920,13 @@ function submitAudit() {
     var v = ta.value.trim();
     if (v) criteriaRemarks[ta.getAttribute('data-cid')] = v;
   });
-  var payload = { zoneId: getZoneId(), zone: getZoneId(), scores: scores, remarks: criteriaRemarks, photo_b64: photoB64 };
+  /* Per-criterion line items: score + optional remark + optional photo */
+  var lineItems = Object.keys(scores).map(function(cid) {
+    var li = { criterionId: cid, score: scores[cid], remark: criteriaRemarks[cid] || '' };
+    if (criterionPhotos[cid]) li.photo_b64 = criterionPhotos[cid].split(',')[1];
+    return li;
+  });
+  var payload = { zoneId: getZoneId(), zone: getZoneId(), scores: scores, remarks: criteriaRemarks, photo_b64: photoB64, lineItems: lineItems };
 
   function queueOffline_(reason) {
     if (typeof offlineQueue !== 'undefined') {
@@ -1003,8 +1012,36 @@ function selectZone(zid) {
 }
 
 function openCamera_() {
+  _activeCrit = null;   /* audit-level photo */
   var raw = document.getElementById('photoInputRaw');
   if (raw) raw.click();
+}
+
+function openCriterionCamera_(idx, cid) {
+  _activeCrit = { idx: idx, cid: cid };
+  var raw = document.getElementById('photoInputRaw');
+  if (raw) raw.click();
+}
+
+function resetCriterion_(idx, cid) {
+  delete scores[cid];
+  delete criterionPhotos[cid];
+  var ta = document.getElementById('remark-' + idx); if (ta) ta.value = '';
+  for (var s = 0; s <= 4; s++) {
+    var b = document.getElementById('btn-' + idx + '-' + s);
+    if (b) b.classList.remove('selected');
+  }
+  var cam = document.getElementById('ac-cam-' + idx); if (cam) cam.classList.remove('on-cam');
+  var dot = document.getElementById('score-dot-' + idx); if (dot) { dot.textContent = ''; dot.className = 'qa-s-dot'; }
+  var card = document.getElementById('card-' + idx);
+  var body = document.getElementById('body-' + idx);
+  var scoredRow = document.getElementById('scored-row-' + idx);
+  if (scoredRow) scoredRow.classList.remove('show');
+  if (card) card.classList.remove('scored');
+  if (body) { body.classList.remove('fading'); body.style.display = ''; }
+  var scored = Object.keys(scores).length;
+  var pb = document.getElementById('progressBar');
+  if (pb && totalCriteria) pb.style.width = Math.round(scored / totalCriteria * 100) + '%';
 }
 
 (function wirePhotoInput_() {
@@ -1049,6 +1086,13 @@ function applyWatermark_(dataUrl) {
     ctx.fillStyle = '#a0aec0';
     ctx.fillText(right, c.width - ctx.measureText(right).width - 10, midY);
     var watermarked = c.toDataURL('image/jpeg', 0.88);
+    if (_activeCrit) {
+      criterionPhotos[_activeCrit.cid] = watermarked;
+      var camBtn = document.getElementById('ac-cam-' + _activeCrit.idx);
+      if (camBtn) camBtn.classList.add('on-cam');
+      _activeCrit = null;
+      return;
+    }
     var hidden = document.getElementById('photoDataUrl');
     var thumb  = document.getElementById('photoThumb');
     var prev   = document.getElementById('photoPreviewImg');

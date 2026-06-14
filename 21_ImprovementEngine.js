@@ -534,6 +534,12 @@ function submitQuickAudit(auditData) {
     var zoneId = validation.data.zoneId;
     var scores = auditData.scores || {};
 
+    // Per-criterion line items (score + optional remark + optional photo) — authoritative store
+    var submissionId = Utilities.getUuid();
+    try {
+      writeAuditLineItems_(ss, submissionId, zoneId, now, user, auditData.lineItems || [], scores, auditData.remarks || {});
+    } catch (e) { Logger.log("AuditLineItems write skipped: " + e.message); }
+
     // Write to DailySubmissions (delegate to V1 if available)
     if (typeof submitDailyAudit === "function") {
       return submitDailyAudit({
@@ -621,6 +627,56 @@ function submitQuickAudit(auditData) {
       percentage: maxTotal > 0 ? Math.round(100 * total / maxTotal) : 0
     };
   }, "submitQuickAudit", { success: false, message: "Error submitting audit" }, "critical");
+}
+
+var AUDIT_LINEITEMS_HEADERS = ["SUBMISSION_ID","ZONE_ID","ZONE_NAME","TIMESTAMP","AUDITOR",
+  "CRITERION_ID","PILLAR","SCORE","REMARK","PHOTO_URL","PHOTO_FILE_ID"];
+
+/** Ensure the AuditLineItems sheet exists with headers. */
+function ensureAuditLineItemsSheet_(ss) {
+  var sheet = ss.getSheetByName("AuditLineItems");
+  if (!sheet) {
+    sheet = ss.insertSheet("AuditLineItems");
+    sheet.getRange(1, 1, 1, AUDIT_LINEITEMS_HEADERS.length).setValues([AUDIT_LINEITEMS_HEADERS]);
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+/**
+ * Persist one row per scored criterion. Uploads optional per-criterion photo with a
+ * canonical name: <zoneId>_<yyyyMMdd-HHmmss>_<criterionId>_<auditorSlug>.jpg
+ */
+function writeAuditLineItems_(ss, submissionId, zoneId, now, user, lineItems, scores, remarks) {
+  var sheet = ensureAuditLineItemsSheet_(ss);
+  var zoneName = v2GetZoneName_(zoneId);
+  var tz = (typeof TZ !== "undefined" && TZ) ? TZ : (Session.getScriptTimeZone() || "Asia/Kolkata");
+  var stamp = Utilities.formatDate(now, tz, "yyyyMMdd-HHmmss");
+  var slug = String(user || "auditor").replace(/[^A-Za-z0-9]/g, "").toLowerCase().substring(0, 16) || "auditor";
+
+  // Normalize to a list keyed by criterionId (prefer explicit lineItems, fall back to scores map)
+  var items = (lineItems && lineItems.length)
+    ? lineItems
+    : Object.keys(scores || {}).map(function (cid) { return { criterionId: cid, score: scores[cid], remark: (remarks || {})[cid] || "" }; });
+
+  var rows = items.map(function (li) {
+    var cid = String(li.criterionId);
+    var pillar = cid.indexOf("-") >= 0 ? cid.split("-")[0] : cid;
+    var photoUrl = "", photoFileId = "";
+    if (li.photo_b64) {
+      try {
+        var name = zoneId + "_" + stamp + "_" + cid + "_" + slug + ".jpg";
+        var res = uploadPhotoToDrive(li.photo_b64, name, zoneId);
+        if (res && res.thumbnailUrl) { photoUrl = res.thumbnailUrl; photoFileId = res.fileId || ""; }
+      } catch (e) { Logger.log("line photo skipped (" + cid + "): " + e.message); }
+    }
+    return [submissionId, zoneId, zoneName, now, user, cid, pillar,
+            (li.score !== undefined && li.score !== "") ? parseInt(li.score, 10) : "",
+            li.remark || "", photoUrl, photoFileId];
+  });
+
+  if (rows.length) sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, AUDIT_LINEITEMS_HEADERS.length).setValues(rows);
+  return { ok: true, submissionId: submissionId, count: rows.length };
 }
 
 

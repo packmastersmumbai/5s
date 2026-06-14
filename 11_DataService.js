@@ -1396,3 +1396,62 @@ function getUnifiedActionList(filters) {
 
   return { items: filtered, counts: counts };
 }
+
+// ============================================================================
+// AUDIT DETAIL VIEW — per-criterion scores/remarks/photos (AuditLineItems sheet)
+// ============================================================================
+
+/** List recent submitted audits (grouped from AuditLineItems), newest first. */
+function getRecentAudits(limit) {
+  return v2SafeExecute_(function () {
+    var ss = v2GetSpreadsheet_();
+    var sheet = ss.getSheetByName("AuditLineItems");
+    if (!sheet || sheet.getLastRow() < 2) return { audits: [] };
+    var data = sheet.getDataRange().getValues();
+    var groups = {};
+    for (var i = 1; i < data.length; i++) {
+      var r = data[i];
+      var sid = String(r[0]); if (!sid) continue;
+      if (!groups[sid]) {
+        groups[sid] = { submissionId: sid, zoneId: String(r[1]), zoneName: String(r[2]),
+          timestamp: r[3] ? new Date(r[3]).toISOString() : "", tsMs: r[3] ? new Date(r[3]).getTime() : 0,
+          auditor: String(r[4]), count: 0, scoreSum: 0, maxSum: 0, photos: 0 };
+      }
+      var g = groups[sid];
+      g.count++;
+      var sc = parseInt(r[7], 10);
+      if (!isNaN(sc)) { g.scoreSum += sc; g.maxSum += 4; }
+      if (r[9]) g.photos++;
+    }
+    var list = Object.keys(groups).map(function (k) {
+      var g = groups[k];
+      g.pct = g.maxSum > 0 ? Math.round(100 * g.scoreSum / g.maxSum) : 0;
+      return g;
+    });
+    list.sort(function (a, b) { return b.tsMs - a.tsMs; });
+    if (limit) list = list.slice(0, limit);
+    return { audits: list };
+  }, "getRecentAudits", { audits: [] });
+}
+
+/** Full per-criterion detail for one submitted audit. */
+function getAuditDetail(submissionId) {
+  return v2SafeExecute_(function () {
+    var ss = v2GetSpreadsheet_();
+    var sheet = ss.getSheetByName("AuditLineItems");
+    if (!sheet || sheet.getLastRow() < 2) return { found: false };
+    var data = sheet.getDataRange().getValues();
+    var header = null, items = [];
+    for (var i = 1; i < data.length; i++) {
+      var r = data[i];
+      if (String(r[0]) !== String(submissionId)) continue;
+      if (!header) header = { submissionId: String(r[0]), zoneId: String(r[1]),
+        zoneName: String(r[2]), timestamp: r[3] ? new Date(r[3]).toISOString() : "", auditor: String(r[4]) };
+      items.push({ criterionId: String(r[5]), pillar: String(r[6]),
+        score: r[7] === "" ? null : parseInt(r[7], 10), remark: String(r[8] || ""),
+        photoUrl: String(r[9] || ""), photoFileId: String(r[10] || "") });
+    }
+    if (!header) return { found: false };
+    return { found: true, header: header, items: items };
+  }, "getAuditDetail", { found: false });
+}

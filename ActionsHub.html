@@ -712,6 +712,7 @@ body {
   <button class="ah-type-tab"        data-type="NC"      onclick="setTypeTab(this)">NCs     <span class="tab-badge" id="cntNC">0</span></button>
   <button class="ah-type-tab"        data-type="TASK"    onclick="setTypeTab(this)">Tasks   <span class="tab-badge" id="cntTASK">0</span></button>
   <button class="ah-type-tab"        data-type="RED_TAG" onclick="setTypeTab(this)">Red Tags<span class="tab-badge" id="cntRED_TAG">0</span></button>
+  <button class="ah-type-tab"        data-type="AUDITS"  onclick="setTypeTab(this)">Audits</button>
 </div>
 
 <!-- STATUS TABS -->
@@ -907,8 +908,74 @@ var _rcaPendingId = null;
 function setTypeTab(btn) {
   document.querySelectorAll('.ah-type-tab').forEach(function(b) { b.classList.remove('active'); });
   btn.classList.add('active');
-  _filters.type = btn.getAttribute('data-type') === 'ALL' ? '' : btn.getAttribute('data-type');
+  var t = btn.getAttribute('data-type');
+  var isAudits = (t === 'AUDITS');
+  var st = document.getElementById('ahStatusTabs');
+  var fr = document.querySelector('.ah-filter-row');
+  if (st) st.style.display = isAudits ? 'none' : '';
+  if (fr) fr.style.display = isAudits ? 'none' : '';
+  if (isAudits) { renderAuditsView(); return; }
+  _filters.type = t === 'ALL' ? '' : t;
   fetchAndRender();
+}
+
+/* ── Audits view (per-criterion filled audits with photos) ── */
+function renderAuditsView() {
+  document.getElementById('ahContent').innerHTML = '<div class="ah-loading">Loading audits…</div>';
+  google.script.run
+    .withSuccessHandler(function(res) {
+      var audits = (res && res.audits) || [];
+      if (!audits.length) {
+        document.getElementById('ahContent').innerHTML = '<div class="ah-empty">No submitted audits yet.</div>';
+        return;
+      }
+      var html = audits.map(function(a) {
+        var pcls = a.pct >= 80 ? 'g' : a.pct >= 60 ? 'a' : 'r';
+        var when = a.timestamp ? new Date(a.timestamp).toLocaleString() : '';
+        return '<div class="ah-card" onclick="openAuditDetail(\'' + escHtml(a.submissionId) + '\')" style="cursor:pointer">' +
+          '<div class="ah-card__body"><div class="ah-card__top">' +
+          '<span class="ah-card__title">' + escHtml(a.zoneId) + ' · ' + escHtml(a.zoneName) + '</span>' +
+          '<span class="ah-pct ' + pcls + '" style="font-weight:700">' + a.pct + '%</span></div>' +
+          '<div class="ah-card__meta">' + escHtml(when) + ' · ' + a.count + ' criteria · ' +
+          a.photos + ' photo(s) · ' + escHtml(a.auditor) + '</div></div></div>';
+      }).join('');
+      document.getElementById('ahContent').innerHTML = html;
+    })
+    .withFailureHandler(function(e) {
+      document.getElementById('ahContent').innerHTML = '<div class="ah-empty">Error: ' + escHtml(e.message) + '</div>';
+    })
+    .getRecentAudits(50);
+}
+
+function openAuditDetail(submissionId) {
+  document.getElementById('recordDetailBody').innerHTML = '<div class="ah-loading">Loading…</div>';
+  document.getElementById('rdModalTitle').textContent = 'Filled Audit';
+  document.getElementById('rdBackdrop').classList.add('open');
+  document.getElementById('recordDetailModal').classList.add('open');
+  google.script.run
+    .withSuccessHandler(function(d) {
+      if (!d || !d.found) { document.getElementById('recordDetailBody').innerHTML = '<div class="ah-empty">Not found.</div>'; return; }
+      var h = '<div style="margin-bottom:10px;font-size:13px;color:var(--text-muted)">' +
+        escHtml(d.header.zoneId) + ' · ' + escHtml(d.header.zoneName) + ' · ' +
+        (d.header.timestamp ? new Date(d.header.timestamp).toLocaleString() : '') + ' · ' + escHtml(d.header.auditor) + '</div>';
+      h += d.items.map(function(it) {
+        var sc = (it.score === null || it.score === undefined) ? '—' : it.score;
+        var scls = it.score <= 1 ? 'r' : it.score <= 2 ? 'a' : 'g';
+        var photo = it.photoUrl
+          ? '<a href="https://drive.google.com/file/d/' + escHtml(it.photoFileId) + '/view" target="_blank">' +
+            '<img src="' + escHtml(it.photoUrl) + '" style="width:64px;height:64px;object-fit:cover;border-radius:6px;border:1px solid var(--border)"></a>'
+          : '';
+        return '<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border)">' +
+          '<span class="ah-pct ' + scls + '" style="min-width:34px;font-weight:700">' + sc + '</span>' +
+          '<div style="flex:1"><div style="font-weight:600;font-size:13px">' + escHtml(it.criterionId) +
+          ' <span style="color:var(--text-muted);font-weight:400">(' + escHtml(it.pillar) + ')</span></div>' +
+          (it.remark ? '<div style="font-size:12px;color:var(--text-muted);margin-top:2px">' + escHtml(it.remark) + '</div>' : '') +
+          '</div>' + photo + '</div>';
+      }).join('');
+      document.getElementById('recordDetailBody').innerHTML = h;
+    })
+    .withFailureHandler(function(e) { document.getElementById('recordDetailBody').innerHTML = '<div class="ah-empty">Error: ' + escHtml(e.message) + '</div>'; })
+    .getAuditDetail(submissionId);
 }
 
 function setStatusTab(btn) {

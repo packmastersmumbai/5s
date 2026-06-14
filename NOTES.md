@@ -23,7 +23,7 @@
 |---|---|---|---|---|
 | 6a | DWM one-step test | 31_DwmSync.js (drop-in) | Dwm_selfTest ok:true | ✅ taskId 2781033d (secret set, NOT committed) |
 | 0 | PIN login (replace pwd) | 25b_PinAuth.js, PinLogin.html, Users sheet, seedUsers | render 8/8 via PIN | ✅ @103 |
-| 1 | Image upload + canonical Drive | 00_Diag(provisionZonePhotoFolders), 05_WebApp.js | manual+ | ⬜ |
+| 1 | Image upload + canonical Drive | 00_Diag(provisionZonePhotoFolders), 05_WebApp.js | upload OK | ✅ @104 b0b685a (28 zones, YYYY/MM nest) |
 | 2 | Per-criterion photo+remark+reset | QuickAudit.html, 21_ImprovementEngine.js, AuditLineItems sheet | e2e-5s-photo | ⬜ |
 | 3 | View filled audit + images | 11_DataService(getAuditDetail), ActionsHub.html (Audits tab) | e2e-5s-audit-view | ⬜ |
 | 4 | Edit/soft-delete NC/Task/RedTag | ActionsHub.html, 08_CAPAEngine(editCAPA/deleteCAPA), 19_KanbanTaskService | e2e-5s-crud | ⬜ |

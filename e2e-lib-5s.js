@@ -49,7 +49,12 @@ async function getGoogleAccessToken() {
 }
 
 async function launch() {
-  const browser = await chromium.launch({ headless: true });
+  // Headed when E2E_HEADED=1 (visible browser); slow-mo aids observation.
+  const headed = process.env.E2E_HEADED === '1';
+  const browser = await chromium.launch({
+    headless: !headed,
+    slowMo: headed ? (parseInt(process.env.E2E_SLOWMO, 10) || 150) : 0
+  });
   return browser;
 }
 

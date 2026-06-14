@@ -77,16 +77,8 @@ function getSheetDefinitions_() {
         "verified_by", "verification_remarks", "is_repeat_nc", "repeat_count"
       ]
     },
-    {
-      name: "RedTags",
-      namedRange: "RedTag_Data",
-      type: "operational",
-      headers: [
-        "tag_no", "zone_id", "item_description", "quantity", "reason",
-        "category", "date_tagged", "tagged_by", "status",
-        "suggested_action", "disposal_date", "remarks"
-      ]
-    },
+    // NOTE: Red tags live in the V2 'RedTagRegister' sheet (19-col RT_COL schema),
+    // created by createEnhancedSheets(). The old 12-col 'RedTags' sheet is retired.
     {
       name: "PhotoLog",
       namedRange: "Photo_Data",
@@ -351,7 +343,7 @@ function columnToLetter_(col) {
  * @private
  */
 function protectHeaders_(ss) {
-  var dataSheets = ["DailySubmissions", "WeeklyAudit", "NC_CAPA", "RedTags", "PhotoLog", "Summary", "AdminLog", "QR_Master"];
+  var dataSheets = ["DailySubmissions", "WeeklyAudit", "NC_CAPA", "RedTagRegister", "PhotoLog", "Summary", "AdminLog", "QR_Master"];
 
   dataSheets.forEach(function(sheetName) {
     var sheet = ss.getSheetByName(sheetName);

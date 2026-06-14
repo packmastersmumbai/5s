@@ -286,7 +286,7 @@ function seedDemoData() {
         disposed ? new Date() : '',                            // 14 DISPOSED_DATE
         disposed ? 'manager' : '',                             // 15 DISPOSED_BY
         '',                                                    // 16 REVIEW_NOTES
-        disposed ? 'Disposed' : 'Open',                        // 17 STATUS
+        disposed ? 'DISPOSED' : 'IDENTIFIED',                  // 17 STATUS (V2 phases)
         ''                                                     // 18 REMARKS
       ]);
     });

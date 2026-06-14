@@ -101,7 +101,7 @@ function handleV2Route_(params) {
     case "charts":       return serveV2Page_("InsightsView", params);
     case "analytics":    return serveV2Page_("InsightsView", params);
     case "insights":     return serveV2Page_("InsightsView", params);
-    case "raiseredtag":  return serveV2Page_("RedTagForm", params);
+    case "raiseredtag":  return serveV2Page_("RedTagDashboard", params);   // retired RedTagForm (broken legacy create path)
     case "taskboard":    return serveV2Page_("TaskBoard", params);
     case "gembaboard":   return serveV2Page_("GembaBoard", params);
     case "gembawalk":    return serveV2Page_("GembaWalkForm", params);

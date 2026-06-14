@@ -259,8 +259,8 @@ function test_redTagRoundTrip_(assert) {
         assert('T09-f ITEM_CATEGORY === TestCat',
           String(rowData[RT_COL.ITEM_CATEGORY]) === 'TestCat',
           'got: ' + String(rowData[RT_COL.ITEM_CATEGORY]));
-        assert('T09-g STATUS === Open',
-          String(rowData[RT_COL.STATUS]) === 'Open',
+        assert('T09-g STATUS === IDENTIFIED',
+          String(rowData[RT_COL.STATUS]) === 'IDENTIFIED',
           'got: ' + String(rowData[RT_COL.STATUS]));
         break;
       }

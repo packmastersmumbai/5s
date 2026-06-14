@@ -12,7 +12,7 @@ function getSheetHeaders() {
   var ss = v2GetSpreadsheet_();
   if (!ss) return 'no spreadsheet';
   var out = [];
-  ['NC_CAPA','Summary','RedTags'].forEach(function(name) {
+  ['NC_CAPA','Summary','RedTagRegister'].forEach(function(name) {
     var sh = ss.getSheetByName(name);
     if (!sh) { out.push(name + ': NOT FOUND'); return; }
     var cols = sh.getLastColumn();

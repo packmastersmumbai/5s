@@ -1043,8 +1043,9 @@ function getAnalyticsKPIs() {
 
   var activeRedTags = rtData.slice(1).filter(function(r){
     if (!r[RT_COL.TAG_ID]) return false;
-    var st = String(r[RT_COL.STATUS]);
-    return st !== 'Disposed' && st !== 'Returned' && st !== 'Scrapped';
+    var st = String(r[RT_COL.STATUS]).toUpperCase();
+    // Active = not yet disposed/closed/deleted (V2 phases: IDENTIFIED, EVALUATED)
+    return st !== 'DISPOSED' && st !== 'CLOSED' && st !== 'DELETED';
   }).length;
 
   // SQCDP heatmap — map pillar prefix (S1→S, S2→Q, S3→C, S4→D, S5→P) from open NCs
@@ -1120,39 +1121,35 @@ function updateNCStatus(ncId, newStatus) {
 // RAISE RED TAG — for RedTagForm
 // ============================================================================
 
+/**
+ * Compatibility adapter — maps the legacy form payload to the canonical V2
+ * createRedTag() so every red tag is written with a unique ID, zone name,
+ * STATUS=IDENTIFIED, and correct cache invalidation. Quantity (no column in
+ * RT_COL) is folded into remarks.
+ * @param {Object} formData — { zone, item, quantity, category, reason, action, taggedBy, remarks }
+ * @returns {Object} { ok, success, tagNo, message }
+ */
 function raiseRedTag(formData) {
-  var ss = v2GetSpreadsheet_();
-  var sh = ss.getSheetByName('RedTagRegister');
-  if (!sh) return { ok: false, error: 'RedTagRegister sheet not found' };
-  var lastRow = sh.getLastRow();
-  var tagNo = 'RT-' + new Date().getFullYear() + '-' + String(lastRow).padStart(4, '0');
-  // 19-col RT_COL order: TAG_ID:0, CREATED:1, ZONE_ID:2, ZONE_NAME:3, ITEM_DESC:4,
-  // ITEM_CATEGORY:5, EST_VALUE:6, PROPOSED_ACTION:7, PHOTO_URL:8, PHOTO_FILE_ID:9,
-  // TAGGED_BY:10, OWNER:11, DEADLINE:12, DISPOSITION:13, DISPOSED_DATE:14,
-  // DISPOSED_BY:15, REVIEW_NOTES:16, STATUS:17, REMARKS:18
-  sh.appendRow([
-    tagNo,                               // TAG_ID
-    new Date(),                          // CREATED
-    String(formData.zone || ''),         // ZONE_ID
-    String(formData.zoneName || ''),     // ZONE_NAME
-    String(formData.item || ''),         // ITEM_DESC
-    String(formData.category || ''),     // ITEM_CATEGORY
-    String(formData.estValue || ''),     // EST_VALUE
-    String(formData.action || ''),       // PROPOSED_ACTION
-    '',                                  // PHOTO_URL
-    '',                                  // PHOTO_FILE_ID
-    String(formData.taggedBy || ''),     // TAGGED_BY
-    String(formData.owner || ''),        // OWNER
-    String(formData.deadline || ''),     // DEADLINE
-    '',                                  // DISPOSITION
-    '',                                  // DISPOSED_DATE
-    '',                                  // DISPOSED_BY
-    '',                                  // REVIEW_NOTES
-    'Open',                              // STATUS
-    String(formData.remarks || '')       // REMARKS
-  ]);
-  CacheService.getScriptCache().removeAll(['KANBAN_DATA', 'ANALYTICS_KPIS']);
-  return { ok: true, success: true, tagNo: tagNo };
+  formData = formData || {};
+  var remarks = String(formData.remarks || formData.reason || '');
+  if (formData.quantity && Number(formData.quantity) > 1) {
+    remarks = ('Qty: ' + formData.quantity + (remarks ? ' — ' + remarks : '')).trim();
+  }
+  var res = createRedTag({
+    zoneId: String(formData.zone || ''),
+    itemDescription: String(formData.item || ''),
+    itemCategory: String(formData.category || 'Other'),
+    proposedAction: String(formData.action || formData.reason || 'Discard'),
+    estimatedValue: Number(formData.estValue) || 0,
+    owner: String(formData.owner || formData.taggedBy || ''),
+    remarks: remarks
+  });
+  return {
+    ok: !!(res && res.success),
+    success: !!(res && res.success),
+    tagNo: res && res.tagId,
+    message: res && res.message
+  };
 }
 
 

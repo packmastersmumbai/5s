@@ -117,7 +117,7 @@ async function loginAdmin(browser) {
 
       // PIN login: pick user, tap PIN digits (auto-submits on 4th).
       const pinUser = process.env.E2E_ADMIN_USER || 'admin';
-      const pin = process.env.E2E_ADMIN_PIN || '4860';
+      const pin = process.env.E2E_ADMIN_PIN || '1234';
       await frame.waitForSelector('.user[data-id="' + pinUser + '"]', { timeout: 20000 });
       await frame.click('.user[data-id="' + pinUser + '"]');
       for (const d of pin.split('')) {

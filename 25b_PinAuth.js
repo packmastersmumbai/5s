@@ -142,15 +142,17 @@ function seedUsers() {
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
 
   // username, full_name, role, email, avatarColor, tempPin
+  // PINs mirror DWM where recoverable from DWM seed code. Khushi/Shikha/Anuj/Santosh
+  // were set interactively in DWM (hashed, unrecoverable) — temp PINs here pending values.
   var roster = [
-    ["admin",   "Admin",   "ADMIN",     "",                       "#1A73E8", "4860"],
-    ["tbm",     "TBM",     "ADMIN",     "tu55h4r@gmail.com",      "#1A73E8", "7321"],
-    ["bbm",     "BBM",     "ADMIN",     "",                       "#F59E0B", "5190"],
+    ["admin",   "Admin",   "ADMIN",     "",                       "#1A73E8", "1234"],
+    ["tbm",     "TBM",     "ADMIN",     "tu55h4r@gmail.com",      "#1A73E8", "0000"],
+    ["bbm",     "BBM",     "ADMIN",     "",                       "#7C3AED", "9999"],
+    ["rajesh",  "Rajesh",  "ZONE_LEAD", "",                       "#10B981", "4444"],
     ["khushi",  "Khushi",  "MANAGER",   "khushi009810@gmail.com", "#34A853", "2748"],
     ["shikha",  "Shikha",  "MANAGER",   "",                       "#EC4899", "3905"],
     ["anuj",    "Anuj",    "ZONE_LEAD", "pathakanuj142@gmail.com","#9334E6", "6214"],
-    ["santosh", "Santosh", "ZONE_LEAD", "",                       "#EA4335", "8537"],
-    ["rajesh",  "Rajesh",  "ZONE_LEAD", "",                       "#10B981", "1472"]
+    ["santosh", "Santosh", "ZONE_LEAD", "",                       "#EA4335", "8537"]
   ];
 
   var now = new Date();

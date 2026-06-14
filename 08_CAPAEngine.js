@@ -122,6 +122,17 @@ function createCAPA(zoneId, description, type, pillar, sqcdpDim, responsiblePers
   ]);
 
   Logger.log("  📌 CAPA created: " + ncId + " | Zone: " + zoneId + " | Pillar: " + pillar);
+
+  if (typeof DWM !== "undefined") {
+    DWM.syncTaskSafe({
+      title: "CAPA: " + (description || ncId),
+      ref: ncId, status: "open",
+      assignee: responsiblePerson || "",
+      due: targetDateStr,
+      desc: "5S NC " + ncId + " · zone " + zoneId + (pillar ? " · " + pillar : ""),
+      photo: true
+    });
+  }
   return ncId;
 }
 
@@ -292,6 +303,10 @@ function updateCAPAStatus(ncId, newStatus, verifiedBy, remarks, additionalFields
     logAdminAction_("updateCAPAStatus", ncId + " → " + newStatus + " by " + actorEmail);
   }
 
+  if (typeof DWM !== "undefined") {
+    DWM.syncTaskSafe({ title: "CAPA: " + String(rowData[NC_COL.DESCRIPTION] || ncId), ref: ncId,
+      status: (newStatus === "CLOSED" ? "completed" : newStatus === "IN_PROGRESS" ? "in-progress" : "open") });
+  }
   return { success: true, message: ncId + " updated to " + newStatus };
 }
 

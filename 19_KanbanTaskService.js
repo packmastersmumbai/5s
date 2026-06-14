@@ -144,6 +144,11 @@ function createTask(taskData) {
     sheet.appendRow(row);
     // ✅ CACHE INVALIDATION: Clear dependent caches
     if (typeof invalidateTaskCache_ === "function") invalidateTaskCache_(d.zoneId);
+    if (typeof DWM !== "undefined") {
+      DWM.syncTaskSafe({ title: d.title, ref: taskId, status: "open",
+        assignee: d.assignedTo || "", due: d.dueDate || "", priority: d.priority || "medium",
+        desc: (d.description || "") + " · 5S task " + taskId + " · zone " + d.zoneId });
+    }
     return { success: true, taskId: taskId, message: "Task created." };
   }, "createTask", { success: false, taskId: "", message: "Server error." });
 }
@@ -162,6 +167,10 @@ function updateTaskStatus(taskId, newStatus, remarks) {
         if (remarks) updates[TASK_COL.REMARKS] = remarks;
         v2BatchUpdateRow_(sheet, r + 1, updates, data[r]);
         try { var c = CacheService.getScriptCache(), z = String(data[r][TASK_COL.ZONE_ID]).trim(); c.remove("pm5s_tasks_ALL_ALL"); c.remove("pm5s_tasks_" + z + "_ALL"); } catch(e) {}
+        if (typeof DWM !== "undefined") {
+          DWM.syncTaskSafe({ title: String(data[r][TASK_COL.TITLE] || "Task"), ref: taskId,
+            status: (newStatus === STATUS.DONE ? "completed" : newStatus === STATUS.IN_PROGRESS ? "in-progress" : "open") });
+        }
         return { success: true, message: "Task " + taskId + " → " + newStatus };
       }
     }
@@ -268,6 +277,11 @@ function createRedTag(tagData) {
     sheet.appendRow(row);
     // ✅ CACHE INVALIDATION: Clear dependent caches
     if (typeof invalidateRedTagCache_ === "function") invalidateRedTagCache_(d.zoneId);
+    if (typeof DWM !== "undefined") {
+      DWM.syncTaskSafe({ title: "Red Tag: " + d.itemDescription, ref: tagId, status: "open",
+        assignee: d.owner || "", due: v2FormatDate_(deadline),
+        desc: (d.proposedAction || "") + " · 5S red tag " + tagId + " · zone " + d.zoneId, photo: true });
+    }
     return { success: true, tagId: tagId, message: "Red Tag created." };
   }, "createRedTag", { success: false, tagId: "", message: "Server error." });
 }
@@ -357,6 +371,10 @@ function advanceRedTagPhase(tagId, toPhase, notes) {
       }
       v2BatchUpdateRow_(sheet, r + 1, updates, data[r]);
       try { var c = CacheService.getScriptCache(), z = String(data[r][RT_COL.ZONE_ID]).trim(); c.remove("pm5s_redtags_ALL_ALL"); c.remove("pm5s_redtags_" + z + "_ALL"); } catch(e) {}
+      if (typeof DWM !== "undefined") {
+        DWM.syncTaskSafe({ title: "Red Tag: " + String(data[r][RT_COL.ITEM_DESC] || tagId), ref: tagId,
+          status: (toPhase === STATUS.CLOSED || toPhase === STATUS.DISPOSED ? "completed" : toPhase === STATUS.EVALUATED ? "in-progress" : "open") });
+      }
       return { success: true, message: "Red Tag " + tagId + " → " + toPhase };
     }
     return { success: false, message: "Red Tag not found: " + tagId };

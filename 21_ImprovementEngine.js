@@ -613,6 +613,11 @@ function submitQuickAudit(auditData) {
             while (ncRow.length < 20) ncRow.push("");
             ncSheet.appendRow(ncRow);
             actionsGenerated++;
+            if (typeof DWM !== "undefined") {
+              DWM.syncTaskSafe({ title: "CAPA: low score " + cid + " (" + score + ")", ref: ncId,
+                status: "open", assignee: user || "", desc: "Auto-raised from audit · zone " + zoneId + " · " + cid,
+                due: Utilities.formatDate(new Date(now.getTime() + 7 * 86400000), TZ, "yyyy-MM-dd"), photo: true });
+            }
           }
         } catch (e) { /* Non-blocking */ }
       }

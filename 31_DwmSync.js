@@ -139,11 +139,31 @@ var DWM = (function () {
     try {
       var r = upsertTask(fields);
       if (!r.ok) Logger.log('DWM sync not ok: ' + (r.error || JSON.stringify(r)));
+      _logSync(fields, r, null);
       return r;
     } catch (e) {
       Logger.log('DWM sync skipped (' + (fields && fields.ref) + '): ' + e.message);
+      _logSync(fields, null, e.message);
       return null;
     }
+  }
+
+  /** Record each sync outcome to a DwmSyncLog sheet (diagnostic — makes silent failures visible). */
+  function _logSync(fields, result, errMsg) {
+    try {
+      var ss = (typeof v2GetSpreadsheet_ === 'function') ? v2GetSpreadsheet_() : SpreadsheetApp.getActiveSpreadsheet();
+      if (!ss) return;
+      var sheet = ss.getSheetByName('DwmSyncLog');
+      if (!sheet) {
+        sheet = ss.insertSheet('DwmSyncLog');
+        sheet.getRange(1, 1, 1, 6).setValues([['timestamp', 'ref', 'title', 'ok', 'taskId/updated', 'error']]);
+        sheet.setFrozenRows(1);
+      }
+      sheet.appendRow([new Date(), (fields && fields.ref) || '', (fields && fields.title) || '',
+        result ? !!result.ok : false,
+        result ? ((result.taskId || '') + (result.updated ? ' (updated)' : '')) : '',
+        errMsg || (result && !result.ok ? result.error : '') || '']);
+    } catch (e) { /* never block */ }
   }
 
   return { upsertTask: upsertTask, syncTaskSafe: syncTaskSafe, EXEC_URL: EXEC_URL };

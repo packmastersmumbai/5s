@@ -195,6 +195,8 @@ body {
 .qa-s-dot.sc2 { background: var(--sc2-bg); color: var(--sc2-fg); }
 .qa-s-dot.sc3 { background: var(--sc3-bg); color: var(--sc3-fg); }
 .qa-s-dot.sc4 { background: var(--sc4-bg); color: var(--sc4-fg); }
+.qa-s-reset { margin-left: 8px; background: transparent; border: 1px solid var(--ink-6, #ccc); color: var(--ink-4, #888); border-radius: 6px; padding: 4px 6px; cursor: pointer; display: inline-flex; align-items: center; }
+.qa-s-reset:hover { color: var(--p1, #c00); border-color: currentColor; }
 
 /* ── Card body ── */
 .qa-body { padding: 10px 12px 0 16px; transition: opacity 0.18s ease; }
@@ -516,6 +518,7 @@ function escHtml(s) {
 }
 
 var scores = {}, totalCriteria = 0, timerStart = null, timerInterval = null;
+var QA_DEPLOY_URL = '<?= (typeof deployUrl !== "undefined" && deployUrl) ? deployUrl : "" ?>';
 var criterionPhotos = {};   /* criterionId -> watermarked dataURL (optional per-parameter photo) */
 var _activeCrit = null;     /* {idx, cid} while a per-criterion camera capture is in flight */
 
@@ -591,6 +594,7 @@ function renderAudit(cfg) {
     html += '<span class="qa-s-pill">' + escHtml(c.pillar) + '</span>';
     html += '<span class="qa-s-label">' + escHtml(c.label) + '</span>';
     html += '<span class="qa-s-dot" id="score-dot-' + idx + '"></span>';
+    html += '<button class="qa-s-reset" id="ac-reset-' + idx + '" onclick="resetCriterion_(' + idx + ',\'' + escHtml(c.criterionId) + '\')" title="Reset score / re-score"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button>';
     html += '</div>';
 
     /* Expanded body */
@@ -635,7 +639,6 @@ function renderAudit(cfg) {
     html += '<button class="qa-ac" id="ac-ncr-' + idx + '" onclick="openAuditCreate(' + idx + ',\'NC\')" title="Raise NCR"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></button>';
     html += '<button class="qa-ac" id="ac-task-' + idx + '" onclick="openAuditCreate(' + idx + ',\'TASK\')" title="Create Task"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></button>';
     html += '<button class="qa-ac" id="ac-rt-' + idx + '" onclick="openAuditCreate(' + idx + ',\'REDTAG\')" title="Raise Red Tag"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></button>';
-    html += '<button class="qa-ac" id="ac-reset-' + idx + '" onclick="resetCriterion_(' + idx + ',\'' + escHtml(c.criterionId) + '\')" title="Reset score/remark/photo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button>';
     html += '</div></div>';
 
     /* Remark */
@@ -961,7 +964,7 @@ function submitAudit() {
         if (result.actionsGenerated > 0) {
           html += '<div class="qa-success-note">' + result.actionsGenerated + ' action(s) auto-generated for low scores</div><br>';
         }
-        html += '<a class="qa-success-back" href="javascript:history.back()">Back to Dashboard</a>';
+        html += '<a class="qa-success-back" href="#" onclick="goBackToDashboard_();return false;">Back to Dashboard</a>';
         html += '</div></div>';
         document.getElementById('content').innerHTML = html;
         document.querySelector('.qa-foot').style.display = 'none';
@@ -1009,6 +1012,14 @@ function selectZone(zid) {
         '<div style="text-align:center;padding:40px;color:var(--p1)">' + escHtml(e.message) + '</div>';
     })
     .getQuickAuditConfig(zid);
+}
+
+function goBackToDashboard_() {
+  var url = QA_DEPLOY_URL || '';
+  try {
+    if (url) { window.top.location.href = url; return; }
+  } catch (e) {}
+  try { window.top.history.back(); } catch (e2) { history.back(); }
 }
 
 function openCamera_() {

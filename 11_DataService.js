@@ -1443,6 +1443,15 @@ function getAuditDetail(submissionId) {
     var ss = v2GetSpreadsheet_();
     var sheet = ss.getSheetByName("AuditLineItems");
     if (!sheet || sheet.getLastRow() < 2) return { found: false };
+    // criterionId → label map from the checklist schema
+    var labelMap = {};
+    try {
+      var schema = (typeof getChecklistSchema === "function") ? getChecklistSchema() : null;
+      if (schema && schema.criteria) {
+        schema.criteria.forEach(function (c) { labelMap[String(c.id)] = c.labelEn || c.label || c.labelHi || ""; });
+      }
+    } catch (e) {}
+
     var data = sheet.getDataRange().getValues();
     var header = null, items = [];
     for (var i = 1; i < data.length; i++) {
@@ -1450,7 +1459,8 @@ function getAuditDetail(submissionId) {
       if (String(r[0]) !== String(submissionId)) continue;
       if (!header) header = { submissionId: String(r[0]), zoneId: String(r[1]),
         zoneName: String(r[2]), timestamp: r[3] ? new Date(r[3]).toISOString() : "", auditor: String(r[4]) };
-      items.push({ criterionId: String(r[5]), pillar: String(r[6]),
+      var cid = String(r[5]);
+      items.push({ criterionId: cid, label: labelMap[cid] || "", pillar: String(r[6]),
         score: r[7] === "" ? null : parseInt(r[7], 10), remark: String(r[8] || ""),
         photoUrl: String(r[9] || ""), photoFileId: String(r[10] || "") });
     }

@@ -976,13 +976,18 @@ function openAuditDetail(submissionId) {
         var sc = (it.score === null || it.score === undefined) ? '—' : it.score;
         var scls = it.score <= 1 ? 'r' : it.score <= 2 ? 'a' : 'g';
         var photo = it.photoUrl
-          ? '<a href="https://drive.google.com/file/d/' + escHtml(it.photoFileId) + '/view" target="_blank">' +
-            '<img src="' + escHtml(it.photoUrl) + '" style="width:64px;height:64px;object-fit:cover;border-radius:6px;border:1px solid var(--border)"></a>'
+          ? '<img src="' + escHtml(it.photoUrl) + '" title="Hover to enlarge · click to open"' +
+            ' onclick="window.open(\'https://drive.google.com/file/d/' + escHtml(it.photoFileId) + '/view\',\'_blank\')"' +
+            ' onmouseover="this.style.transform=\'scale(4)\';this.style.zIndex=\'50\';this.style.position=\'relative\'"' +
+            ' onmouseout="this.style.transform=\'\';this.style.zIndex=\'\';this.style.position=\'\'"' +
+            ' style="width:64px;height:64px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:zoom-in;transition:transform .15s ease;transform-origin:right center">'
           : '';
+        var titleLine = escHtml(it.criterionId) +
+          (it.label ? ' · ' + escHtml(it.label) : '') +
+          ' <span style="color:var(--text-muted);font-weight:400">(' + escHtml(it.pillar) + ')</span>';
         return '<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border)">' +
           '<span class="ah-pct ' + scls + '" style="min-width:34px;font-weight:700">' + sc + '</span>' +
-          '<div style="flex:1"><div style="font-weight:600;font-size:13px">' + escHtml(it.criterionId) +
-          ' <span style="color:var(--text-muted);font-weight:400">(' + escHtml(it.pillar) + ')</span></div>' +
+          '<div style="flex:1"><div style="font-weight:600;font-size:13px">' + titleLine + '</div>' +
           (it.remark ? '<div style="font-size:12px;color:var(--text-muted);margin-top:2px">' + escHtml(it.remark) + '</div>' : '') +
           '</div>' + photo + '</div>';
       }).join('');

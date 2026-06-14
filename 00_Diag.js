@@ -1,3 +1,46 @@
+/**
+ * Provision a Drive photo folder per zone and write its id into Zones col 9 (driveFolderId).
+ * Idempotent: reuses the root folder (id in ScriptProperty PHOTO_ROOT_FOLDER_ID) and skips
+ * zones that already have a folder id. Run once after deploy to fix image upload.
+ */
+function provisionZonePhotoFolders() {
+  var ss = v2GetSpreadsheet_();
+  var sheet = ss.getSheetByName("Zones");
+  if (!sheet) return { error: "No Zones sheet" };
+
+  var props = PropertiesService.getScriptProperties();
+  var rootId = props.getProperty("PHOTO_ROOT_FOLDER_ID");
+  var root;
+  if (rootId) {
+    try { root = DriveApp.getFolderById(rootId); } catch (e) { root = null; }
+  }
+  if (!root) {
+    var existing = DriveApp.getFoldersByName("5S Audit Photos");
+    root = existing.hasNext() ? existing.next() : DriveApp.createFolder("5S Audit Photos");
+    props.setProperty("PHOTO_ROOT_FOLDER_ID", root.getId());
+  }
+
+  var data = sheet.getDataRange().getValues();
+  var created = 0, skipped = 0, results = [];
+  for (var r = 1; r < data.length; r++) {
+    var zoneId = String(data[r][0] || "").trim();
+    if (!zoneId) continue;
+    var existingId = String(data[r][8] || "").trim();
+    if (existingId) {
+      try { DriveApp.getFolderById(existingId); skipped++; continue; } catch (e) { /* stale → recreate */ }
+    }
+    var zoneName = String(data[r][1] || zoneId).trim();
+    var folderName = zoneId + " " + zoneName;
+    var found = root.getFoldersByName(folderName);
+    var folder = found.hasNext() ? found.next() : root.createFolder(folderName);
+    sheet.getRange(r + 1, 9).setValue(folder.getId());
+    created++;
+    results.push(zoneId + " → " + folder.getId());
+  }
+  if (typeof refreshConfig === "function") { try { refreshConfig(); } catch (e) {} }
+  return { ok: true, rootFolderId: root.getId(), created: created, skipped: skipped, sample: results.slice(0, 3) };
+}
+
 function getNcRow2() {
   var id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
   if (!id) return 'no id';

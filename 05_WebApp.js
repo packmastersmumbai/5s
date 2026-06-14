@@ -604,9 +604,13 @@ function uploadPhotoToDrive(base64Data, fileName, zoneId) {
     var decodedData = Utilities.base64Decode(base64Data);
     var blob = Utilities.newBlob(decodedData, "image/jpeg", fileName);
 
-    // Save to zone folder
-    var folder = DriveApp.getFolderById(folderId);
-    var file = folder.createFile(blob);
+    // Save to zone folder, nested by year/month (canonical structure)
+    var zoneFolder = DriveApp.getFolderById(folderId);
+    var now = new Date();
+    var tz = Session.getScriptTimeZone() || "Asia/Kolkata";
+    var yFolder = getOrCreateChildFolder_(zoneFolder, Utilities.formatDate(now, tz, "yyyy"));
+    var mFolder = getOrCreateChildFolder_(yFolder, Utilities.formatDate(now, tz, "MM"));
+    var file = mFolder.createFile(blob);
 
     // Set sharing to anyone with link can view
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
@@ -625,6 +629,12 @@ function uploadPhotoToDrive(base64Data, fileName, zoneId) {
     Logger.log("Photo upload error: " + error.message);
     return { error: "Upload failed: " + error.message };
   }
+}
+
+/** Return an existing child folder by name, or create it. */
+function getOrCreateChildFolder_(parent, name) {
+  var it = parent.getFoldersByName(name);
+  return it.hasNext() ? it.next() : parent.createFolder(name);
 }
 
 /**

@@ -1030,12 +1030,10 @@ function zmCard(z,sc,idx){
   }).join('');
 
   var lp=avP(z.l),sp=avP(z.s);
-  var btnStyle=nc>0?BTN_NC:BTN_AUDIT;
-  var btnTxt=nc>0?'View NCs':'Audit';
   var auditUrl=DU+'?v2=1&action=quickaudit&zone='+z.id+'&token='+encodeURIComponent(TOKEN);
   var ncUrl=DU+'?v2=1&action=actionlist&zone='+z.id+'&token='+encodeURIComponent(TOKEN);
 
-  return '<div class="zm-card" style="animation-delay:'+cardDelay+'ms" onclick="location.href=\''+auditUrl+'\'">'
+  return '<div class="zm-card" style="animation-delay:'+cardDelay+'ms" onclick="(window.top||window).location.href=\''+auditUrl+'\'">'
     +'<div class="zm-ch"><span class="zm-id">'+z.id+'</span><span class="zm-type">'+z.t+'</span><div class="zm-flags">'+fh+'</div></div>'
     +'<div class="zm-body">'+tileHtml
     +'<div class="zm-info">'
@@ -1048,7 +1046,7 @@ function zmCard(z,sc,idx){
     +'<div class="zm-foot">'
     +(nc>0?'<span class="zm-nc zm-nc-bad">'+nc+' NC</span>':'<span class="zm-nc zm-nc-ok">Clear</span>')
     +'<span class="zm-ago">'+ago+'</span>'
-    +'<button style="'+btnStyle+'" onclick="event.stopPropagation();location.href=\''+(nc>0?ncUrl:auditUrl)+'\'">'+btnTxt+'</button>'
+    +(nc>0?'<button style="'+BTN_NC+'" onclick="event.stopPropagation();(window.top||window).location.href=\''+ncUrl+'\'">View NCs</button>':'')
     +'</div></div>';
 }
 

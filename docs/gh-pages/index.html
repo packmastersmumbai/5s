@@ -244,9 +244,6 @@ function card(z,idx){
       +'</div><div class="bar-lbl">S'+(i+1)+'</div></div>';
   }).join('');
 
-  var btnStyle=nc>0?BTN_NC:BTN_AUDIT;
-  var btnTxt=nc>0?'View NCs':'Audit';
-
   return '<a class="card" href="'+url+'" style="animation-delay:'+cardDelay+'ms">'
     +'<div class="ch"><span class="c-id">'+esc(z.id)+'</span><span class="c-type">'+esc(TYPES[z.t]||z.t)+'</span><div class="c-flags">'+fh+'</div></div>'
     +'<div class="cb">'+tileHtml
@@ -259,9 +256,8 @@ function card(z,idx){
     +'</div></div></div>'
     +'<div class="bars">'+bars+'</div>'
     +'<div class="cf">'
-    +(nc>0?'<span class="nc-chip nc-bad">'+nc+' NC</span>':'<span class="nc-chip nc-ok">Clear</span>')
+    +(nc>0?'<span class="nc-chip nc-bad">'+nc+' NC</span>':'<span class="nc-chip nc-ok">&#10003; 0 NC</span>')
     +'<span class="cf-ago">'+esc(ago)+'</span>'
-    +'<button style="'+btnStyle+'" onclick="event.preventDefault()">'+btnTxt+'</button>'
     +'</div></a>';
 }
 

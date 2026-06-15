@@ -1,0 +1,8 @@
+const { launch, loginAdmin, gotoAction, makeRunner } = require('./e2e-lib-5s');
+async function frameWith(page,sel,ms){const d=Date.now()+(ms||25000);while(Date.now()<d){for(const f of page.frames()){if(!f.url().includes('googleusercontent')&&!f.url().includes('script.google'))continue;try{if(await f.evaluate(s=>!!document.querySelector(s),sel))return f;}catch(_){}}await page.waitForTimeout(500);}return null;}
+(async()=>{const r=makeRunner('QuickAudit photo card');let b,ctx,page,frame;
+try{b=await launch();({ctx,page,frame}=await loginAdmin(b));await gotoAction(page,frame,'quickaudit&zone=Z-01');frame=await frameWith(page,'.qa-card',30000);}catch(e){console.error('FATAL',e.message);process.exit(2);}
+await r.check('Audit form renders (criteria cards)',async()=>{if(!frame)return'no frame with .qa-card';const n=await frame.evaluate(()=>document.querySelectorAll('.qa-card').length).catch(()=>0);return n>0||'no criteria cards';});
+await r.check('Bottom Photo Evidence card removed',async()=>{const g=await frame.evaluate(()=>!!document.querySelector('.qa-photo-card')).catch(()=>true);return g?'qa-photo-card still present':true;});
+await r.check('Per-criterion camera + thumb element present',async()=>{const ok=await frame.evaluate(()=>!!document.querySelector('[id^="ac-cam-"]')&&!!document.querySelector('[id^="cam-thumb-"]')).catch(()=>false);return ok||'camera/thumb missing';});
+const res=r.report();await ctx.close();await b.close();process.exit(res.pass===res.total?0:1);})();

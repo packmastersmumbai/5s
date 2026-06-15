@@ -493,6 +493,7 @@ body {
   padding:12px 16px; border-radius:11px; font-size:14px; font-weight:600; text-decoration:none; }
 .qa-share-btn.pdf { background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe; }
 .qa-share-btn.wa  { background:#25D366; color:#fff; }
+.qa-cam-thumb { width:30px; height:30px; object-fit:cover; border-radius:6px; border:1.5px solid #25D366; vertical-align:middle; cursor:pointer; margin-left:2px; }
 </style>
 </head>
 <body>
@@ -641,6 +642,7 @@ function renderAudit(cfg) {
     html += '<div class="qa-vsep"></div>';
     html += '<div class="qa-acts">';
     html += '<button class="qa-ac" id="ac-cam-' + idx + '" onclick="openCriterionCamera_(' + idx + ',\'' + escHtml(c.criterionId) + '\')" title="Photo (optional)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>';
+    html += '<img class="qa-cam-thumb" id="cam-thumb-' + idx + '" onclick="openCriterionCamera_(' + idx + ',\'' + escHtml(c.criterionId) + '\')" title="Photo attached — tap to retake" style="display:none">';
     if (c.wdgllPhotos && c.wdgllPhotos.length > 0) {
       html += '<button class="qa-ac" onclick="toggleWDGLL(' + idx + ')" title="Standard"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></button>';
     }
@@ -678,17 +680,10 @@ function renderAudit(cfg) {
     html += '</div>'; /* end qa-card */
   });
 
-  /* Photo card */
-  html += '<div class="qa-photo-card">';
-  html += '<div class="qa-photo-lbl">Photo Evidence <span class="mobile-only">· Required</span></div>';
+  /* Hidden inputs used by per-criterion photo capture (no global photo card —
+     evidence is attached per parameter, with an inline thumbnail confirmation) */
   html += '<input type="file" id="photoInputRaw" accept="image/*" capture="environment" style="display:none">';
-  html += '<button type="button" onclick="openCamera_()" class="qa-photo-btn" id="photoBtn">';
-  html += '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>';
-  html += 'Tap to capture photo</button>';
-  html += '<div class="qa-photo-preview" id="photoThumb"><img id="photoPreviewImg"><div class="qa-photo-ok">Photo captured with watermark</div></div>';
   html += '<input type="hidden" id="photoDataUrl">';
-  html += '<div class="qa-photo-hint">Watermark (zone · auditor · date · time) applied automatically</div>';
-  html += '</div>';
 
   html += '</div>'; /* end qa-wrap */
 
@@ -1076,6 +1071,7 @@ function resetCriterion_(idx, cid) {
     if (b) b.classList.remove('selected');
   }
   var cam = document.getElementById('ac-cam-' + idx); if (cam) cam.classList.remove('on-cam');
+  var camThumb = document.getElementById('cam-thumb-' + idx); if (camThumb) { camThumb.removeAttribute('src'); camThumb.style.display = 'none'; }
   var dot = document.getElementById('score-dot-' + idx); if (dot) { dot.textContent = ''; dot.className = 'qa-s-dot'; }
   var card = document.getElementById('card-' + idx);
   var body = document.getElementById('body-' + idx);
@@ -1134,6 +1130,8 @@ function applyWatermark_(dataUrl) {
       criterionPhotos[_activeCrit.cid] = watermarked;
       var camBtn = document.getElementById('ac-cam-' + _activeCrit.idx);
       if (camBtn) camBtn.classList.add('on-cam');
+      var thumb = document.getElementById('cam-thumb-' + _activeCrit.idx);
+      if (thumb) { thumb.src = watermarked; thumb.style.display = 'inline-block'; }
       _activeCrit = null;
       return;
     }
@@ -1166,12 +1164,7 @@ function isMobileDevice_() {
 }
 
 function validatePhotoOnMobile_() {
-  if (!isMobileDevice_()) return true;
-  var hidden = document.getElementById('photoDataUrl');
-  if (!hidden || !hidden.value) {
-    if (typeof pmToast === 'function') pmToast('Photo required on mobile', 'warning');
-    return false;
-  }
+  // Photos are now optional and attached per parameter — no global photo requirement.
   return true;
 }
 

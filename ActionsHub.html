@@ -1381,7 +1381,29 @@ function renderNcDetail(d) {
   html += row('Repeat?',           d.isRepeat ? 'Yes' : 'No');
   html += row('Recurrence Count',  d.recurrenceCount);
   html += '</dl>';
+  html += '<div id="acShare" style="display:flex;gap:8px;margin-top:12px"><span style="font-size:12px;color:var(--text-muted)">Preparing report…</span></div>';
   body.innerHTML = html;
+  actionShareLinks_('NC', d.id, 'acShare');
+}
+
+/* Generate PDF + WhatsApp links for an NC/Task/RedTag and render share buttons. */
+function actionShareLinks_(type, id, containerId) {
+  google.script.run
+    .withSuccessHandler(function(r) {
+      var el = document.getElementById(containerId);
+      if (!el) return;
+      if (r && r.success) {
+        var h = '';
+        if (r.pdfUrl) h += '<a href="' + r.pdfUrl + '" target="_blank" rel="noopener" style="flex:1;text-align:center;padding:9px;border-radius:8px;background:#eef2ff;color:#3730a3;font-weight:600;text-decoration:none;font-size:13px">&#128196; View PDF</a>';
+        if (r.waUrl)  h += '<a href="' + r.waUrl + '" target="_blank" rel="noopener" style="flex:1;text-align:center;padding:9px;border-radius:8px;background:#25D366;color:#fff;font-weight:600;text-decoration:none;font-size:13px">&#128241; WhatsApp</a>';
+        el.innerHTML = h;
+      } else { el.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">Report unavailable</span>'; }
+    })
+    .withFailureHandler(function() {
+      var el = document.getElementById(containerId);
+      if (el) el.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">Report unavailable</span>';
+    })
+    .generateActionPdf(type, id);
 }
 
 /* ── Inline detail (TASK / RED_TAG) ── */
@@ -1420,7 +1442,9 @@ function openInlineDetail(type, id) {
     h += row2('Title',       item.title);
     h += row2('Description', item.description);
     h += '</dl>';
+    h += '<div id="acShareInline" style="display:flex;gap:8px;margin-top:12px"><span style="font-size:12px;color:var(--text-muted)">Preparing report…</span></div>';
     body.innerHTML = h;
+    actionShareLinks_(type, id, 'acShareInline');
   }
   document.getElementById('inlineDetailModal').classList.add('open');
   document.getElementById('idBackdrop').classList.add('open');

@@ -69,6 +69,31 @@ async function main() {
     return 'card count did not decrease after delete';
   });
 
+  await runner.check('Detail modal shows PDF + WhatsApp share buttons', async () => {
+    // ensure a row exists, then open its detail
+    for (let i = 0; i < 30 && !(await frame.evaluate(() => document.querySelector('#ahContent .ah-td.title'))); i++) await page.waitForTimeout(500);
+    await frame.evaluate(() => { var t = document.querySelector('#ahContent .ah-td.title'); if (t) t.click(); });
+    // wait for a detail modal to open
+    for (let i = 0; i < 20; i++) {
+      const open = await frame.evaluate(() =>
+        document.getElementById('recordDetailModal').classList.contains('open') ||
+        document.getElementById('inlineDetailModal').classList.contains('open')).catch(() => false);
+      if (open) break; await page.waitForTimeout(500);
+    }
+    // wait for share links to populate (PDF export takes ~10s)
+    for (let i = 0; i < 60; i++) {
+      const info = await frame.evaluate(() => {
+        var el = document.getElementById('acShare') || document.getElementById('acShareInline');
+        if (!el) return { n: 0 };
+        var as = el.querySelectorAll('a');
+        return { n: as.length, wa: Array.prototype.some.call(as, a => /wa\.me/.test(a.href)) };
+      }).catch(() => ({ n: 0 }));
+      if (info.n >= 1 && info.wa) return true;
+      await page.waitForTimeout(1000);
+    }
+    return 'share buttons did not populate in detail modal';
+  });
+
   const r = runner.report();
   await ctx.close(); await browser.close();
   process.exit(r.pass === r.total ? 0 : 1);

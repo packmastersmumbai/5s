@@ -60,6 +60,21 @@ async function main() {
     return imgs > 0 ? true : 'no photo thumbnail in detail (expected >=1 from Z-02 test audit)';
   });
 
+  await runner.check('Share buttons (PDF + WhatsApp) appear in audit detail', async () => {
+    for (let i = 0; i < 40; i++) {
+      const info = await frame.evaluate(() => {
+        var el = document.getElementById('auShare');
+        if (!el) return { n: 0 };
+        var as = el.querySelectorAll('a');
+        var wa = Array.prototype.some.call(as, a => /wa\.me/.test(a.href));
+        return { n: as.length, wa: wa };
+      }).catch(() => ({ n: 0 }));
+      if (info.n >= 1 && info.wa) return true;
+      await page.waitForTimeout(1000);
+    }
+    return 'share buttons did not populate (PDF/WhatsApp)';
+  });
+
   const r = runner.report();
   await ctx.close(); await browser.close();
   process.exit(r.pass === r.total ? 0 : 1);

@@ -487,6 +487,12 @@ body {
   font-size: 12px; font-weight: 600; margin-bottom: 20px;
 }
 .qa-success-back { color: var(--p4); font-weight: 600; font-size: 13px; text-decoration: none; }
+@keyframes zmspin { to { transform: rotate(360deg); } }
+.qa-share { display:flex; flex-direction:column; gap:10px; align-items:center; margin-bottom:18px; font-size:12px; color:#667; }
+.qa-share-btn { display:inline-flex; align-items:center; justify-content:center; gap:7px; width:min(86vw,300px);
+  padding:12px 16px; border-radius:11px; font-size:14px; font-weight:600; text-decoration:none; }
+.qa-share-btn.pdf { background:#eef2ff; color:#3730a3; border:1px solid #c7d2fe; }
+.qa-share-btn.wa  { background:#25D366; color:#fff; }
 </style>
 </head>
 <body>
@@ -968,11 +974,13 @@ function submitAudit() {
         if (result.actionsGenerated > 0) {
           html += '<div class="qa-success-note">' + result.actionsGenerated + ' action(s) auto-generated for low scores</div><br>';
         }
+        html += '<div id="qaShare" class="qa-share"><span class="zm-spin" style="display:inline-block;width:13px;height:13px;border:2px solid #e5e7eb;border-top-color:#6b21a8;border-radius:50%;animation:zmspin .7s linear infinite;vertical-align:middle;margin-right:6px"></span>Preparing report…</div>';
         html += '<a class="qa-success-back" href="#" onclick="goBackToDashboard_();return false;">Back to Dashboard</a>';
         html += '</div></div>';
         document.getElementById('content').innerHTML = html;
         document.querySelector('.qa-foot').style.display = 'none';
         document.querySelector('.qa-prog').style.display = 'none';
+        if (result.submissionId) prepareAuditShare_(result.submissionId);
       } else {
         btn.disabled = false; btn.textContent = 'Complete Audit';
         alert(result ? result.message : 'Submission failed');
@@ -1016,6 +1024,27 @@ function selectZone(zid) {
         '<div style="text-align:center;padding:40px;color:var(--p1)">' + escHtml(e.message) + '</div>';
     })
     .getQuickAuditConfig(zid);
+}
+
+function prepareAuditShare_(submissionId) {
+  google.script.run
+    .withSuccessHandler(function(r) {
+      var el = document.getElementById('qaShare');
+      if (!el) return;
+      if (r && r.success) {
+        var h = '';
+        if (r.pdfUrl) h += '<a class="qa-share-btn pdf" href="' + r.pdfUrl + '" target="_blank" rel="noopener">&#128196; View PDF</a>';
+        if (r.waUrl)  h += '<a class="qa-share-btn wa" href="' + r.waUrl + '" target="_blank" rel="noopener">&#128241; Share on WhatsApp</a>';
+        el.innerHTML = h || 'Report ready';
+      } else {
+        el.innerHTML = '<span style="color:var(--ink-4);font-size:12px">Report unavailable</span>';
+      }
+    })
+    .withFailureHandler(function() {
+      var el = document.getElementById('qaShare');
+      if (el) el.innerHTML = '<span style="color:var(--ink-4);font-size:12px">Report unavailable</span>';
+    })
+    .generateAuditPdf(submissionId);
 }
 
 function goBackToDashboard_() {

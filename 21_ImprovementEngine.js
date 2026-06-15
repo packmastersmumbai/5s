@@ -629,6 +629,7 @@ function submitQuickAudit(auditData) {
     if (typeof invalidateZoneMapCache_ === "function") invalidateZoneMapCache_();
     return {
       success: true,
+      submissionId: submissionId,
       message: "Audit submitted! Score: " + (maxTotal > 0 ? Math.round(100 * total / maxTotal) : 0) + "%",
       actionsGenerated: actionsGenerated,
       totalScore: total,

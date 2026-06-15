@@ -1025,10 +1025,31 @@ function openAuditDetail(submissionId) {
           (it.remark ? '<div style="font-size:12px;color:var(--text-muted);margin-top:2px">' + escHtml(it.remark) + '</div>' : '') +
           '</div>' + photo + '</div>';
       }).join('');
+      h = '<div id="auShare" style="display:flex;gap:8px;margin-bottom:12px"><span style="font-size:12px;color:var(--text-muted)">Preparing report…</span></div>' + h;
       document.getElementById('recordDetailBody').innerHTML = h;
+      auditShareLinks_(submissionId);
     })
     .withFailureHandler(function(e) { document.getElementById('recordDetailBody').innerHTML = '<div class="ah-empty">Error: ' + escHtml(e.message) + '</div>'; })
     .getAuditDetail(submissionId);
+}
+
+function auditShareLinks_(submissionId) {
+  google.script.run
+    .withSuccessHandler(function(r) {
+      var el = document.getElementById('auShare');
+      if (!el) return;
+      if (r && r.success) {
+        var h = '';
+        if (r.pdfUrl) h += '<a href="' + r.pdfUrl + '" target="_blank" rel="noopener" style="flex:1;text-align:center;padding:9px;border-radius:8px;background:#eef2ff;color:#3730a3;font-weight:600;text-decoration:none;font-size:13px">&#128196; View PDF</a>';
+        if (r.waUrl)  h += '<a href="' + r.waUrl + '" target="_blank" rel="noopener" style="flex:1;text-align:center;padding:9px;border-radius:8px;background:#25D366;color:#fff;font-weight:600;text-decoration:none;font-size:13px">&#128241; WhatsApp</a>';
+        el.innerHTML = h;
+      } else { el.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">Report unavailable</span>'; }
+    })
+    .withFailureHandler(function() {
+      var el = document.getElementById('auShare');
+      if (el) el.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">Report unavailable</span>';
+    })
+    .generateAuditPdf(submissionId);
 }
 
 function setStatusTab(btn) {

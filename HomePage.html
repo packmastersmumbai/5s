@@ -458,6 +458,11 @@ body {
 .zm-nc-bad { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
 .zm-ago { font-size: 9px; font-weight: 500; color: #6b7280; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .zm-loading { text-align: center; padding: 32px 0; font-size: 12px; color: #9ca3af; font-family: var(--font-mono); }
+.zm-spin { display:inline-block; width:14px; height:14px; border:2px solid #e5e7eb; border-top-color:#6b21a8; border-radius:50%; animation:zmspin .7s linear infinite; vertical-align:middle; margin-right:7px; }
+@keyframes zmspin { to { transform: rotate(360deg); } }
+#zmSync { position:fixed; top:10px; left:50%; transform:translateX(-50%); z-index:60; background:#1f2937; color:#fff; font-size:11px; font-family:var(--font-mono); padding:5px 12px; border-radius:20px; box-shadow:0 2px 10px rgba(0,0,0,.25); display:none; align-items:center; }
+#zmSync.on { display:inline-flex; }
+#zmSync .zm-spin { border-color:#4b5563; border-top-color:#fff; }
 </style>
 </head>
 <body>
@@ -552,7 +557,8 @@ body {
       <button class="zm-tab"    onclick="zmSw('1F',this)"><span class="zm-tab-id">1F</span><span class="zm-tab-sub">First Floor</span></button>
       <button class="zm-tab"    onclick="zmSw('2F',this)"><span class="zm-tab-id">2F</span><span class="zm-tab-sub">Second Floor</span></button>
     </div>
-    <div class="zm-grid" id="zmGrid"><div class="zm-loading">Loading zones…</div></div>
+    <div class="zm-grid" id="zmGrid"><div class="zm-loading"><span class="zm-spin"></span>Loading zones…</div></div>
+    <div id="zmSync"><span class="zm-spin"></span>Updating scores…</div>
   </section>
 
   <!-- ══════════════ TASK QUEUE ══════════════ -->
@@ -1092,11 +1098,14 @@ window.zmSw=function(floor,btn){
 zmRender();
 
 if(typeof google!=='undefined'&&google.script&&google.script.run){
+  var _sync=document.getElementById('zmSync');
+  if(_sync)_sync.classList.add('on');
   google.script.run
     .withSuccessHandler(function(data){
       if(data&&typeof data==='object'){ZM_SCORES=data;zmRender();}
+      if(_sync)_sync.classList.remove('on');
     })
-    .withFailureHandler(function(){})
+    .withFailureHandler(function(){ if(_sync)_sync.classList.remove('on'); })
     .getZoneMapData();
 }
 

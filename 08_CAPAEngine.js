@@ -122,6 +122,7 @@ function createCAPA(zoneId, description, type, pillar, sqcdpDim, responsiblePers
   ]);
 
   Logger.log("  📌 CAPA created: " + ncId + " | Zone: " + zoneId + " | Pillar: " + pillar);
+  if (typeof invalidateZoneMapCache_ === "function") invalidateZoneMapCache_();
 
   if (typeof DWM !== "undefined") {
     DWM.syncTaskSafe({
@@ -301,6 +302,7 @@ function updateCAPAStatus(ncId, newStatus, verifiedBy, remarks, additionalFields
     logAdminAction_("updateCAPAStatus", ncId + " → " + newStatus + " by " + actorEmail);
   }
 
+  if (typeof invalidateZoneMapCache_ === "function") invalidateZoneMapCache_();
   if (typeof DWM !== "undefined") {
     DWM.syncTaskSafe({ title: "CAPA: " + String(rowData[NC_COL.DESCRIPTION] || ncId), ref: ncId,
       status: (newStatus === "CLOSED" ? "completed" : newStatus === "IN_PROGRESS" ? "in-progress" : "open") });
@@ -345,6 +347,7 @@ function deleteCAPA(ncId) {
       if (String(data[r][NC_COL.NC_ID]).trim() !== ncId) continue;
       var u = {}; u[NC_COL.STATUS] = "DELETED"; u[NC_COL.VERIFICATION_REMARKS] = "Deleted by " + v2GetCurrentUser_();
       v2BatchUpdateRow_(sheet, r + 1, u, data[r]);
+      if (typeof invalidateZoneMapCache_ === "function") invalidateZoneMapCache_();
       return { success: true, message: "NC " + ncId + " deleted." };
     }
     return { success: false, message: "NC not found: " + ncId };

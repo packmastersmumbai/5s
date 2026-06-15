@@ -769,6 +769,10 @@ function getAuditHistory(zoneId, month) {
  */
 function getZoneMapData() {
   return v2SafeExecute_(function() {
+    var cache = CacheService.getScriptCache();
+    var hit = cache.get('pm5s_zonemap');
+    if (hit) return JSON.parse(hit);
+
     var ss = v2GetSpreadsheet_();
     var CRITERIA_PER_PILLAR = 3; // 15 criteria / 5 pillars
 
@@ -823,8 +827,14 @@ function getZoneMapData() {
       if (!result[zid]) result[zid] = { score: null, nc: openNCs[zid], last: "—", s1: 0, s2: 0, s3: 0, s4: 0, s5: 0 };
     });
 
+    try { cache.put('pm5s_zonemap', JSON.stringify(result), 300); } catch (e) {}
     return result;
   }, "getZoneMapData", {}, "medium");
+}
+
+/** Clear the cached zone-map snapshot (call after audits / NC changes that affect scores or NC counts). */
+function invalidateZoneMapCache_() {
+  try { CacheService.getScriptCache().remove('pm5s_zonemap'); } catch (e) {}
 }
 
 

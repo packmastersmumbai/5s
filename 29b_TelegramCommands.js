@@ -19,7 +19,7 @@ var TELEGRAM_COMMANDS = {
   '/pending':    function () { return _tg5sPending_(); },
   '/register':   function (arg, chatId) { return tg5sRegister_(arg, chatId); },
   '/unregister': function (arg, chatId) { return tg5sUnregister_(arg, chatId); },
-  '/start':      function () { return _tg5sHelp_(); },
+  '/start':      function () { return _tg5sWelcome_(); },
   '/help':       function () { return _tg5sHelp_(); }
 };
 
@@ -143,6 +143,15 @@ function _tg5sPending_() {
       (z.openCAPAs ? ' · ' + z.openCAPAs + ' open NC' : '');
   });
   return '<b>Not submitted today (' + pending.length + ')</b>\n' + lines.join('\n');
+}
+
+function _tg5sWelcome_() {
+  return '👋 <b>Welcome to the PackMasters 5S Bot</b>\n' +
+    'Your assistant for daily 5S audits, NCs and zone status.\n\n' +
+    '📊 <b>Check status:</b> /status · /zones · /pending · /capas\n' +
+    '🔔 <b>Get personal reminders:</b> send <b>/register &lt;ZONE&gt;</b> (e.g. /register Z-07)\n' +
+    'and I\'ll DM you when your zone\'s audit is pending or an NC is overdue.\n\n' +
+    'Type /help for the full command list.';
 }
 
 function _tg5sHelp_() {

@@ -75,7 +75,7 @@ var DWM = (function () {
 
   // Build the canonical string DWM expects: sorted key=value (excl. sig/fmt), RAW values.
   function _canonical(params) {
-    var keys = Object.keys(params).filter(function (k) { return k !== 'sig' && k !== 'fmt'; }).sort();
+    var keys = Object.keys(params).filter(function (k) { return k !== 'sig' && k !== 'fmt' && k !== 'act'; }).sort();
     return keys.map(function (k) { return k + '=' + params[k]; }).join('&');
   }
 

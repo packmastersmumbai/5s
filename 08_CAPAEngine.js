@@ -135,6 +135,10 @@ function createCAPA(zoneId, description, type, pillar, sqcdpDim, responsiblePers
       photo: true
     });
   }
+  if (typeof tg5sBroadcast_ === "function") {
+    tg5sBroadcast_("🔴 <b>NC raised</b> " + ncId + " · " + zoneId + " " + (zoneConfig.name || "") +
+      "\n" + (description || "") + (responsiblePerson ? " → " + responsiblePerson : ""));
+  }
   return ncId;
 }
 
@@ -306,6 +310,9 @@ function updateCAPAStatus(ncId, newStatus, verifiedBy, remarks, additionalFields
   if (typeof DWM !== "undefined") {
     DWM.syncTaskSafe({ title: "CAPA: " + String(rowData[NC_COL.DESCRIPTION] || ncId), ref: ncId,
       status: (newStatus === "CLOSED" ? "completed" : newStatus === "IN_PROGRESS" ? "in-progress" : "open") });
+  }
+  if (newStatus === "CLOSED" && typeof tg5sBroadcast_ === "function") {
+    tg5sBroadcast_("🟢 <b>NC closed</b> " + ncId + " · " + zoneId + " by " + actorEmail);
   }
   return { success: true, message: ncId + " updated to " + newStatus };
 }

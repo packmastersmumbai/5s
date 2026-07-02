@@ -152,6 +152,10 @@ function createTask(taskData) {
         due: d.dueDate || "", priority: d.priority || "medium",
         desc: (d.description || "") + " · 5S task " + taskId + " · zone " + d.zoneId });
     }
+    if (typeof tg5sBroadcast_ === "function") {
+      tg5sBroadcast_("🗒️ <b>Task created</b> · " + d.zoneId + " " + v2GetZoneName_(d.zoneId) +
+        "\n" + d.title + (d.assignedTo ? " → " + d.assignedTo : ""));
+    }
     return { success: true, taskId: taskId, message: "Task created." };
   }, "createTask", { success: false, taskId: "", message: "Server error." });
 }
@@ -173,6 +177,10 @@ function updateTaskStatus(taskId, newStatus, remarks) {
         if (typeof DWM !== "undefined") {
           DWM.syncTaskSafe({ title: String(data[r][TASK_COL.TITLE] || "Task"), ref: taskId,
             status: (newStatus === STATUS.DONE ? "completed" : newStatus === STATUS.IN_PROGRESS ? "in-progress" : "open") });
+        }
+        if (newStatus === STATUS.DONE && typeof tg5sBroadcast_ === "function") {
+          tg5sBroadcast_("✔️ <b>Task done</b> · " + String(data[r][TASK_COL.ZONE_ID]).trim() +
+            " — " + String(data[r][TASK_COL.TITLE] || taskId) + " by " + v2GetCurrentUser_());
         }
         return { success: true, message: "Task " + taskId + " → " + newStatus };
       }
@@ -287,6 +295,10 @@ function createRedTag(tagData) {
         due: v2FormatDate_(deadline),
         desc: (d.proposedAction || "") + " · 5S red tag " + tagId + " · zone " + d.zoneId, photo: true });
     }
+    if (typeof tg5sBroadcast_ === "function") {
+      tg5sBroadcast_("🏷️ <b>Red Tag raised</b> · " + d.zoneId + " " + v2GetZoneName_(d.zoneId) +
+        "\n" + d.itemDescription + (d.owner ? " → " + d.owner : ""));
+    }
     return { success: true, tagId: tagId, message: "Red Tag created." };
   }, "createRedTag", { success: false, tagId: "", message: "Server error." });
 }
@@ -379,6 +391,10 @@ function advanceRedTagPhase(tagId, toPhase, notes) {
       if (typeof DWM !== "undefined") {
         DWM.syncTaskSafe({ title: "Red Tag: " + String(data[r][RT_COL.ITEM_DESC] || tagId), ref: tagId,
           status: (toPhase === STATUS.CLOSED || toPhase === STATUS.DISPOSED ? "completed" : toPhase === STATUS.EVALUATED ? "in-progress" : "open") });
+      }
+      if ((toPhase === STATUS.CLOSED || toPhase === STATUS.DISPOSED) && typeof tg5sBroadcast_ === "function") {
+        tg5sBroadcast_("✔️ <b>Red Tag " + toPhase.toLowerCase() + "</b> · " + String(data[r][RT_COL.ZONE_ID]).trim() +
+          " — " + String(data[r][RT_COL.ITEM_DESC] || tagId) + " by " + v2GetCurrentUser_());
       }
       return { success: true, message: "Red Tag " + tagId + " → " + toPhase };
     }

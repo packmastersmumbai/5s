@@ -542,13 +542,19 @@ function submitQuickAudit(auditData) {
 
     // Write to DailySubmissions (delegate to V1 if available)
     if (typeof submitDailyAudit === "function") {
-      return submitDailyAudit({
+      var res = submitDailyAudit({
         zoneId: zoneId,
         auditor: user,
         date: now,
         scores: scores,
         remarks: validation.data.remarks || ""
       });
+      if (res && res.success !== false && typeof tg5sBroadcast_ === "function") {
+        var pct = (res && res.percentage != null) ? res.percentage : null;
+        tg5sBroadcast_("✅ <b>Daily audit</b> · " + zoneId + " " + v2GetZoneName_(zoneId) +
+          (pct != null ? " — " + pct + "%" : "") + " by " + user);
+      }
+      return res;
     }
 
     // Fallback: write directly

@@ -68,6 +68,14 @@ function createAdminMenu() {
     .addItem("📊 Send Daily Summary Now", "sendDailySummaryReport")
     .addItem("📋 Generate MRM Report", "generateMRMReportPack")
     .addSeparator()
+    .addItem("🤖 Telegram — Set Credentials (run once)", "setTelegramCredentials_5s")
+    .addItem("🤖 Telegram — Test Message", "sendTelegramTest_5s")
+    .addItem("🤖 Telegram — Enable Bot Commands", "enableTelegramBot_5s")
+    .addItem("🤖 Telegram — Disable Bot Commands", "disableTelegramBot_5s")
+    .addItem("🤖 Telegram — Setup Schedules (digest 18:30 + reminders 10:00)", "setupTelegramSchedules")
+    .addItem("🤖 Telegram — Send Digest Now", "sendTelegramDailyDigest")
+    .addItem("🤖 Telegram — Remind Leaders Now", "remindZoneLeaders")
+    .addSeparator()
     .addItem("💾 Backup Now", "openManualBackupDialog")
     .addToUi();
 }

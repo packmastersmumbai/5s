@@ -98,13 +98,14 @@ function remindZoneLeaders() {
   var grid = _tg5sZoneGrid_();
   var sent = 0, skipped = 0;
   grid.forEach(function (z) {
-    var needsNudge = !z.submitted || z.overdueCAPAs > 0;
+    var needsNudge = !z.submitted || z.overdueCAPAs > 0 || z.overdueTasks > 0;
     if (!needsNudge) return;
     var chatId = map[z.id];
     if (!chatId) { skipped++; return; }
     var parts = [];
     if (!z.submitted) parts.push('daily audit is <b>pending</b>');
     if (z.overdueCAPAs > 0) parts.push('<b>' + z.overdueCAPAs + '</b> overdue NC' + (z.overdueCAPAs > 1 ? 's' : ''));
+    if (z.overdueTasks > 0) parts.push('<b>' + z.overdueTasks + '</b> overdue task' + (z.overdueTasks > 1 ? 's' : ''));
     var msg = '⏰ <b>' + z.id + ' ' + TelegramLib.esc(z.name) + '</b>\n' +
       'Your ' + parts.join(' and ') + '.\nTap to action → ' + _tg5sZoneLink_(z.id);
     if (TelegramLib.reply(chatId, msg)) sent++;
@@ -113,22 +114,8 @@ function remindZoneLeaders() {
   return { sent: sent, skipped: skipped };
 }
 
-// ── Schedule install / remove (admin menu) ──────────────────────────────────
-// Digest at 18:30 IST; leader reminders at 10:00 IST. Idempotent.
-function setupTelegramSchedules() {
-  var handlers = ['sendTelegramDailyDigest', 'remindZoneLeaders'];
-  ScriptApp.getProjectTriggers().forEach(function (t) {
-    if (handlers.indexOf(t.getHandlerFunction()) > -1) ScriptApp.deleteTrigger(t);
-  });
-  ScriptApp.newTrigger('remindZoneLeaders').timeBased().atHour(10).nearMinute(0).everyDays(1).create();
-  ScriptApp.newTrigger('sendTelegramDailyDigest').timeBased().atHour(18).nearMinute(30).everyDays(1).create();
-  try { SpreadsheetApp.getUi().alert('Telegram schedules set: reminders 10:00, digest 18:30 IST.'); } catch (e) {}
-  return { success: true };
-}
-function removeTelegramSchedules() {
-  var handlers = ['sendTelegramDailyDigest', 'remindZoneLeaders'];
-  ScriptApp.getProjectTriggers().forEach(function (t) {
-    if (handlers.indexOf(t.getHandlerFunction()) > -1) ScriptApp.deleteTrigger(t);
-  });
-  return { success: true };
-}
+// NOTE: no standalone triggers — the single-trigger architecture (health check
+// asserts exactly one `masterOrchestrator` trigger) forbids extra ones.
+// Instead: remindZoneLeaders() is called from masterOrchestrator (07:30 IST daily)
+// and sendTelegramDailyDigest() rides the existing sendDailySummaryReport (evening
+// email trigger). Both are also runnable on demand from the admin menu.

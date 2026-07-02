@@ -68,6 +68,8 @@ function _tg5sZoneGrid_() {
   var dailyData = dailySheet && dailySheet.getLastRow() > 1 ? dailySheet.getDataRange().getValues() : [];
   var capaSheet = ss.getSheetByName('NC_CAPA');
   var capaData = capaSheet && capaSheet.getLastRow() > 1 ? capaSheet.getDataRange().getValues() : [];
+  var taskSheet = ss.getSheetByName('TaskBoard');
+  var taskData = taskSheet && taskSheet.getLastRow() > 1 ? taskSheet.getDataRange().getValues() : [];
 
   return zoneIds.map(function (zoneId) {
     var zone = zoneConfig[zoneId];
@@ -87,10 +89,20 @@ function _tg5sZoneGrid_() {
         if (target instanceof Date && now > target) overdueCAPAs++;
       }
     }
+    var openTasks = 0, overdueTasks = 0;
+    for (var t = 1; t < taskData.length; t++) {
+      if (String(taskData[t][TASK_COL.ZONE_ID]).trim() !== zoneId) continue;
+      var tStatus = String(taskData[t][TASK_COL.STATUS]).trim();
+      if (tStatus === STATUS.DONE || tStatus === STATUS.DELETED) continue;
+      openTasks++;
+      var due = taskData[t][TASK_COL.DUE_DATE];
+      if (due instanceof Date && now > due) overdueTasks++;
+    }
     return {
       id: zoneId, name: zone.name, leader: zone.leader,
       submitted: submitted, pctScore: submitted ? Math.round(pctScore) : null,
-      openCAPAs: openCAPAs, overdueCAPAs: overdueCAPAs
+      openCAPAs: openCAPAs, overdueCAPAs: overdueCAPAs,
+      openTasks: openTasks, overdueTasks: overdueTasks
     };
   });
 }

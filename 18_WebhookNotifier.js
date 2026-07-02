@@ -303,6 +303,10 @@ function sendDailySummaryReport() {
     "📈 Avg Score: " + avgScore + "%\n" +
     "⚠️ Overdue CAPAs: " + zoneStatuses.reduce(function(s, z) { return s + z.overdueCAPAs; }, 0);
   sendWebhookNotification(webhookMsg);
+
+  // Also broadcast the rich digest to the Telegram channel (rides this trigger — no extra trigger).
+  try { if (typeof sendTelegramDailyDigest === "function") sendTelegramDailyDigest(); }
+  catch (e) { Logger.log("  ⚠️ Telegram digest failed: " + e.message); }
 }
 
 // ============================================================================

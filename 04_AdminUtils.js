@@ -72,7 +72,6 @@ function createAdminMenu() {
     .addItem("🤖 Telegram — Test Message", "sendTelegramTest_5s")
     .addItem("🤖 Telegram — Enable Bot Commands", "enableTelegramBot_5s")
     .addItem("🤖 Telegram — Disable Bot Commands", "disableTelegramBot_5s")
-    .addItem("🤖 Telegram — Setup Schedules (digest 18:30 + reminders 10:00)", "setupTelegramSchedules")
     .addItem("🤖 Telegram — Send Digest Now", "sendTelegramDailyDigest")
     .addItem("🤖 Telegram — Remind Leaders Now", "remindZoneLeaders")
     .addSeparator()

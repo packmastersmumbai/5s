@@ -69,6 +69,15 @@ function masterOrchestrator() {
       digestEvents.errors.push("checkNCOverdue: " + e.message);
     }
 
+    // 3. Telegram DM reminders to enrolled zone leaders (pending audit / overdue NC / overdue task)
+    Logger.log("\n▸ Sending Telegram leader reminders...");
+    try {
+      if (typeof remindZoneLeaders === "function") remindZoneLeaders();
+    } catch (e) {
+      Logger.log("  ⚠️ remindZoneLeaders error: " + e.message);
+      digestEvents.errors.push("remindZoneLeaders: " + e.message);
+    }
+
     // ── WEEKLY TASKS (Monday) ──
     if (dayOfWeek === 1) {
       Logger.log("\n▸ Running weekly rollup (Monday)...");

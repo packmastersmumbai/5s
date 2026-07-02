@@ -35,11 +35,15 @@ Zone names in replies are **tappable** — they open that zone's page in the web
 ## What the bot sends automatically
 
 **To the channel (everyone):**
-- **Daily digest** — 18:30 IST: submitted/avg/overdue + list of zones not submitted + overdue NCs.
+- **Daily digest** — rides the daily summary email trigger (evening): submitted/avg/overdue + list of zones not submitted + overdue NCs.
 - **Per-action posts** — as they happen: 🔴 NC raised · 🟢 NC closed · 🗒️ task created · ✔️ task done · 🏷️ red tag raised · ✔️ red tag closed · ✅ daily audit submitted.
 
 **Individually (DM to enrolled zone leaders):**
-- **Reminders** — 10:00 IST: only to zones that are pending today or have overdue NCs.
+- **Reminders** — each morning via `masterOrchestrator` (~07:30 IST): only to zones that are pending today, or have overdue NCs / overdue tasks.
+
+> No extra scheduled triggers are added: reminders run inside the existing daily
+> `masterOrchestrator`, and the digest runs inside `sendDailySummaryReport`. This
+> keeps the single-trigger design the health check enforces.
 
 ---
 
@@ -52,8 +56,7 @@ All from the spreadsheet menu **📋 PackMasters Admin → 🤖 Telegram …**:
 | Set Credentials (run once) | `setTelegramCredentials_5s` — paste bot token in the editor first |
 | Test Message | `sendTelegramTest_5s` |
 | Enable / Disable Bot Commands | starts/stops the 1-min polling trigger |
-| Setup Schedules | `setupTelegramSchedules` — installs digest 18:30 + reminders 10:00 |
-| Send Digest Now | `sendTelegramDailyDigest` |
+| Send Digest Now | `sendTelegramDailyDigest` (also auto-sent with the daily summary email) |
 | Remind Leaders Now | `remindZoneLeaders` |
 
 ### Where things are stored (Project Settings → Script Properties)

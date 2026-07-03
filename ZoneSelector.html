@@ -94,18 +94,27 @@
     line-height: 1.3;
   }
 
+  .zs-floor-hdr {
+    font-size: var(--size-xs); font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--pm-accent);
+    margin: 20px 2px 8px;
+  }
+  .zs-floor-hdr:first-child { margin-top: 0; }
+
   .zs-footer {
     padding: 16px;
     text-align: center;
     border-top: 1px solid var(--bg-card-2);
   }
-  .zs-login-link {
-    font-size: var(--size-xs);
-    color: var(--text-muted);
-    text-decoration: none;
+  .zs-continue {
+    display: inline-block; width: 100%; max-width: 360px;
+    padding: 13px 20px; box-sizing: border-box;
+    background: var(--pm-accent); color: #fff;
+    font-weight: 700; font-size: var(--size-sm);
+    border-radius: 10px; text-decoration: none;
+    transition: filter .15s;
   }
-  .zs-login-link:hover { color: var(--text-secondary); }
-  .zs-login-link span { text-decoration: underline; }
+  .zs-continue:active { filter: brightness(0.92); }
 </style>
 </head>
 <body>
@@ -119,23 +128,24 @@
 </div>
 
 <div class="zs-body">
-  <div class="zs-prompt">Tap your zone</div>
-  <div class="zone-grid" id="zoneGrid">
-    <!-- Skeleton -->
-    <div class="zone-card" style="pointer-events:none">
-      <div class="pm-skeleton" style="height:12px;width:40px;margin-bottom:6px"></div>
-      <div class="pm-skeleton" style="height:14px;width:80px"></div>
-    </div>
-    <div class="zone-card" style="pointer-events:none">
-      <div class="pm-skeleton" style="height:12px;width:40px;margin-bottom:6px"></div>
-      <div class="pm-skeleton" style="height:14px;width:80px"></div>
+  <div class="zs-prompt">Tap your zone to start a quick audit</div>
+  <div id="zoneGrid">
+    <div class="zone-grid">
+      <div class="zone-card" style="pointer-events:none">
+        <div class="pm-skeleton" style="height:12px;width:40px;margin-bottom:6px"></div>
+        <div class="pm-skeleton" style="height:14px;width:80px"></div>
+      </div>
+      <div class="zone-card" style="pointer-events:none">
+        <div class="pm-skeleton" style="height:12px;width:40px;margin-bottom:6px"></div>
+        <div class="pm-skeleton" style="height:14px;width:80px"></div>
+      </div>
     </div>
   </div>
 </div>
 
 <div class="zs-footer">
-  <a class="zs-login-link" href="<?= deployUrl ?>?action=login" target="_top">
-    Manager / Admin <span>sign in</span>
+  <a class="zs-continue" href="<?= deployUrl ?>?action=login" target="_top">
+    Continue to Project &rarr;
   </a>
 </div>
 
@@ -143,18 +153,43 @@
 (function() {
   var zones = <?!= zonesJson ?>;
   var deployUrl = '<?!= deployUrl ?>';
-  var grid = document.getElementById('zoneGrid');
-  grid.innerHTML = '';
-  zones.forEach(function(z) {
-    var a = document.createElement('a');
-    a.className = 'zone-card';
-    a.href = deployUrl + '?v2=1&action=quickaudit&zone=' + encodeURIComponent(z.id);
-    a.target = '_top';
-    a.innerHTML =
-      '<div class="zone-id">' + escHtml(z.id) + '</div>' +
-      '<div class="zone-name">' + escHtml(z.name) + '</div>';
-    grid.appendChild(a);
+  var container = document.getElementById('zoneGrid');
+  container.innerHTML = '';
+
+  /* Floor derived from zone number: 1-9 GF, 10-19 1F, 20+ 2F */
+  var FLOORS = [
+    { k: 'GF', label: 'Ground Floor', lo: 1,  hi: 9  },
+    { k: '1F', label: 'First Floor',  lo: 10, hi: 19 },
+    { k: '2F', label: 'Second Floor', lo: 20, hi: 99 }
+  ];
+  function floorLabel(id) {
+    var n = parseInt(String(id).replace(/\D/g, ''), 10) || 0;
+    for (var i = 0; i < FLOORS.length; i++) if (n >= FLOORS[i].lo && n <= FLOORS[i].hi) return FLOORS[i];
+    return { label: 'Other' };
+  }
+
+  FLOORS.forEach(function(f) {
+    var items = zones.filter(function(z) { return floorLabel(z.id).label === f.label; });
+    if (!items.length) return;
+    var hdr = document.createElement('div');
+    hdr.className = 'zs-floor-hdr';
+    hdr.textContent = f.label;
+    container.appendChild(hdr);
+    var grid = document.createElement('div');
+    grid.className = 'zone-grid';
+    items.forEach(function(z) {
+      var a = document.createElement('a');
+      a.className = 'zone-card';
+      a.href = deployUrl + '?v2=1&action=quickaudit&zone=' + encodeURIComponent(z.id);
+      a.target = '_top';
+      a.innerHTML =
+        '<div class="zone-id">' + escHtml(z.id) + '</div>' +
+        '<div class="zone-name">' + escHtml(z.name) + '</div>';
+      grid.appendChild(a);
+    });
+    container.appendChild(grid);
   });
+
   function escHtml(s) {
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }

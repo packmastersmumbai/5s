@@ -24,10 +24,16 @@
   .iv-filter-btn.active{background:#1a2235;color:#fff;border-color:#1a2235}
 
   /* ── Body ── */
-  .iv-body{padding:12px;display:flex;flex-direction:column;gap:12px}
+  /* Responsive grid: cards pair up 2-across on desktop, stack on mobile. */
+  .iv-body{padding:12px;display:grid;grid-template-columns:1fr;gap:12px;align-content:start;max-width:1400px;margin:0 auto}
+  @media(min-width:820px){.iv-body{grid-template-columns:1fr 1fr}}
+  /* Let wrappers pass their card children straight into the grid. */
+  #iv-chart-section,.ncr-row,#iv-ranking-section{display:contents}
+  /* Wide/tall cards span the full row. */
+  #iv-kpi-section,.s-card--wide{grid-column:1/-1}
 
   /* ── Section card ── */
-  .s-card{background:#fff;border-radius:10px;border:1px solid #e0e4ee;padding:14px 16px}
+  .s-card{background:#fff;border-radius:10px;border:1px solid #e0e4ee;padding:14px 16px;min-width:0}
   .s-title{font-size:11px;font-weight:700;color:#5a6070;letter-spacing:.5px;text-transform:uppercase;margin-bottom:12px}
 
   /* ── KPI strip ── */
@@ -301,7 +307,7 @@ function renderTrendChart(months){
 function renderHeatmap(months,allZones){
   var zones=_zoneFilter==='ALL'?allZones:[_zoneFilter];
   if(!zones.length)return'';
-  var html='<div class="s-card"><div class="s-title">Zone × Pillar Heatmap (Latest)</div><div class="hm-scroll"><div class="hm-inner">'+
+  var html='<div class="s-card s-card--wide"><div class="s-title">Zone × Pillar Heatmap (Latest)</div><div class="hm-scroll"><div class="hm-inner">'+
     '<div class="hm-header">'+PILLARS.map(function(p){return'<div class="hm-col-label">'+p+'</div>';}).join('')+'</div>';
   zones.forEach(function(z){
     html+='<div class="hm-row"><div class="hm-label">'+escHtml(z)+'</div>';
@@ -320,7 +326,7 @@ function renderHeatmap(months,allZones){
 function renderZoneRanking(zoneScores){
   if(!zoneScores||!zoneScores.length)return'';
   var sorted=zoneScores.slice().sort(function(a,b){return b.overall-a.overall;});
-  var html='<div class="s-card"><div class="s-title">Zone Rankings</div><div style="overflow-x:auto"><table class="zone-table"><thead><tr><th>Rank</th><th>Zone</th><th>Score</th><th>S1</th><th>S2</th><th>S3</th><th>S4</th><th>S5</th><th>ΔMoM</th></tr></thead><tbody>';
+  var html='<div class="s-card s-card--wide"><div class="s-title">Zone Rankings</div><div style="overflow-x:auto"><table class="zone-table"><thead><tr><th>Rank</th><th>Zone</th><th>Score</th><th>S1</th><th>S2</th><th>S3</th><th>S4</th><th>S5</th><th>ΔMoM</th></tr></thead><tbody>';
   sorted.forEach(function(z,i){
     var rc=i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'';
     html+='<tr><td><span class="rank-badge '+rc+'">'+(i+1)+'</span></td>'+
@@ -509,7 +515,7 @@ function tryRenderAll(){
     body.innerHTML=
       '<div id="iv-kpi-section">'+(_kpis?renderKPIs(_kpis):'<div class="iv-loading"><div class="spin"></div></div>')+'</div>'+
       '<div id="iv-chart-section">'+(_trend?renderPillarBars()+renderTrendChart(months)+renderHeatmap(months,allZones):'<div class="iv-loading"><div class="spin"></div><p style="margin-top:10px;font-size:12px">Loading trend data…</p></div>')+'</div>'+
-      (_kpis?renderZoneRanking(_kpis.zoneScores):'')+
+      '<div id="iv-ranking-section">'+(_kpis?renderZoneRanking(_kpis.zoneScores):'')+'</div>'+
       '<div class="s-card"><div class="s-title">SQCDP Operational Status</div><div id="iv-sqcdp-section"><div class="iv-loading"><div class="spin"></div></div></div></div>'+
       renderParetoSection()+
       '<div class="ncr-row">'+
@@ -522,6 +528,7 @@ function tryRenderAll(){
     // Patch individual sections
     if(_kpis){
       document.getElementById('iv-kpi-section').innerHTML=renderKPIs(_kpis);
+      var rk=document.getElementById('iv-ranking-section');if(rk)rk.innerHTML=renderZoneRanking(_kpis.zoneScores);
       var pnc=document.getElementById('iv-pillar-nc');if(pnc)pnc.innerHTML=renderPillarNCs(_kpis.pillarNCs);
       var snc=document.getElementById('iv-sqcdp-nc');if(snc)snc.innerHTML=renderSqcdpNCs(_kpis.sqcdpHeatmap);
     }

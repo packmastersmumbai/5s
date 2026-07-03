@@ -2,15 +2,27 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Kaizen Suggestion</title>
 <?!= include("CommonStyles") ?>
 <style>
-.kz-header{background:linear-gradient(135deg,var(--pm-primary) 0%,var(--pm-primary-light) 100%);color:white;padding:20px;text-align:center;}
-.kz-header h1{font-size:22px;font-family:var(--font-display);}
-.kz-header p{font-size:13px;opacity:.8;margin-top:4px;}
+.kz-header{background:linear-gradient(135deg,var(--pm-primary) 0%,var(--pm-primary-light) 100%);color:white;padding:16px 20px;text-align:center;}
+.kz-header h1{font-size:20px;font-family:var(--font-display);}
+.kz-header p{font-size:12px;opacity:.85;margin-top:2px;}
 .form-section{background:var(--bg-card);margin:12px;border-radius:var(--r-lg);padding:16px;box-shadow:var(--shadow);border:1px solid var(--border-light);}
-.form-section h3{font-family:var(--font-display);font-size:15px;font-weight:700;color:var(--pm-primary);margin-bottom:14px;}
+.form-section h3{font-family:var(--font-display);font-size:14px;font-weight:700;color:var(--pm-primary);margin-bottom:12px;}
 .form-group{margin-bottom:14px;}
-.form-group label{display:block;font-size:12px;font-weight:600;margin-bottom:5px;color:var(--text-secondary);}
+.form-group label,.kz-field label{display:block;font-size:12px;font-weight:600;margin-bottom:6px;color:var(--text-secondary);}
 .form-group select,.form-group input,.form-group textarea{width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--r);font-size:14px;font-family:inherit;background:var(--bg-card);color:var(--text-primary);}
 .form-group select:focus,.form-group input:focus,.form-group textarea:focus{outline:none;border-color:var(--border-focus);}
+
+/* Compact chip pickers (Gemba-aligned) */
+.kz-field{margin-bottom:14px;}
+.kz-chips{display:flex;flex-wrap:wrap;gap:6px;}
+.kz-chip{padding:7px 12px;border-radius:999px;font-size:12.5px;font-weight:600;border:1.5px solid var(--border);background:var(--bg-card-2);color:var(--text-secondary);cursor:pointer;min-height:34px;transition:var(--trans);}
+.kz-chip.selected{background:var(--pm-primary);border-color:var(--pm-primary);color:#fff;}
+.kz-zone-group{margin-bottom:10px;}
+.kz-zone-group:last-child{margin-bottom:0;}
+.kz-zone-floor{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;}
+.kz-zone-locked{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:var(--r);background:var(--score-green-bg);border:1.5px solid var(--score-green);color:var(--score-green);font-size:13px;font-weight:700;}
+.kz-zone-locked span{font-size:15px;}
+
 /* Plan F: mobile-only */
 .mobile-only { display: none; }
 @media (max-width: 768px) {
@@ -19,15 +31,20 @@
 </style>
 </head><body>
 <div class="kz-header"><h1>Kaizen Suggestion Box</h1><p>Every improvement idea counts!</p></div>
+
 <div class="form-section">
-<h3>Submit an Improvement Idea</h3>
-<div class="form-group"><label>Your Name</label><input type="text" id="kzName" placeholder="Your name"></div>
-<div class="form-group"><label>Zone</label><select id="kzZone"><option value="">Select zone...</option><option value="PLANT">Plant-wide</option></select></div>
-<div class="form-group"><label>Category</label><select id="kzCategory"><option>5S</option><option>Safety</option><option>Quality</option><option>Productivity</option><option>Cost Saving</option><option>Environment</option><option>Other</option></select></div>
+<h3>What &amp; Where</h3>
+<div class="kz-field"><label>Zone *</label><div id="kzZoneChips"><div style="color:var(--text-muted);font-size:12px">Loading zones…</div></div></div>
+<div class="kz-field"><label>Category *</label><div id="kzCatChips" class="kz-chips"></div></div>
+</div>
+
+<div class="form-section">
+<h3>Your Idea</h3>
 <div class="form-group"><label>Suggestion Title</label><input type="text" id="kzTitle" placeholder="Brief title for your idea"></div>
 <div class="form-group"><label>Description</label><textarea id="kzDesc" rows="4" placeholder="Describe your improvement idea in detail..."></textarea></div>
 <div class="form-group"><label>Expected Benefit</label><textarea id="kzBenefit" rows="2" placeholder="What will improve if this is implemented?"></textarea></div>
 <div class="form-group"><label>Estimated Savings (₹/month)</label><input type="number" id="kzSavings" placeholder="0"></div>
+<div class="form-group"><label>Your Name</label><input type="text" id="kzName" placeholder="Your name"></div>
 <div class="form-group form-section" style="margin:0 0 14px;border:1px solid var(--border-light);padding:12px;background:var(--bg-card-2);">
   <label>Photo Evidence <span class="mobile-only">(required)</span></label>
   <input type="file" id="photoInput" name="photoInput" accept="image/*" capture="environment" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:var(--r);margin-top:4px;">
@@ -42,12 +59,43 @@ function escHtml(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replac
 
 // Zone ID injected server-side (pre-selects zone from URL param)
 var _ZONE_ID='<?= (typeof params !== "undefined" && params && params.zone) ? String(params.zone).replace(/['"<>&]/g,"") : "" ?>';
-try{
-  var zc=<?!= config.zoneConfig ?>;
-  var s=document.getElementById("kzZone");
-  Object.keys(zc).sort().forEach(function(id){var o=document.createElement("option");o.value=id;o.textContent=id+" \u2014 "+zc[id].name;s.appendChild(o);});
-  if(_ZONE_ID&&s.querySelector('option[value="'+_ZONE_ID+'"]')){s.value=_ZONE_ID;s.disabled=true;}
-}catch(e){}
+var ZC={};
+try{ ZC=<?!= config.zoneConfig ?>||{}; }catch(e){ ZC={}; }
+var selectedZone='';
+var selectedCategory='5S';
+var CATEGORIES=['5S','Safety','Quality','Productivity','Cost Saving','Environment','Other'];
+
+function floorOf_(id){var n=parseInt(String(id).replace(/[^0-9]/g,''),10)||0;if(n<=9)return 'Ground Floor';if(n<=19)return '1st Floor';return '2nd Floor';}
+
+/* ── Category chips (default 5S) ── */
+function renderCatChips(){
+  var c=document.getElementById('kzCatChips');if(!c)return;
+  c.innerHTML=CATEGORIES.map(function(t){return '<button type="button" class="kz-chip" data-cat="'+escHtml(t)+'" onclick="selectCat(\''+escHtml(t)+'\')">'+escHtml(t)+'</button>';}).join('');
+  selectCat(selectedCategory);
+}
+function selectCat(t){selectedCategory=t;document.querySelectorAll('#kzCatChips .kz-chip').forEach(function(b){b.classList.toggle('selected',b.dataset.cat===t);});}
+
+/* ── Zone chips (floor-grouped) or locked pill when prefilled ── */
+function renderZoneChips(){
+  var wrap=document.getElementById('kzZoneChips');if(!wrap)return;
+  var ids=Object.keys(ZC).sort();
+  if(_ZONE_ID&&ZC[_ZONE_ID]){
+    selectedZone=_ZONE_ID;
+    wrap.innerHTML='<div class="kz-zone-locked">'+escHtml(_ZONE_ID+' — '+(ZC[_ZONE_ID].name||_ZONE_ID))+' <span>&#10003;</span></div>';
+    return;
+  }
+  var groups={};
+  ids.forEach(function(id){(groups[floorOf_(id)]=groups[floorOf_(id)]||[]).push(id);});
+  var html='<div class="kz-zone-group"><div class="kz-chips"><button type="button" class="kz-chip kz-chip--zone" data-zone="PLANT" onclick="selectZone(\'PLANT\')">Plant-wide</button></div></div>';
+  ['Ground Floor','1st Floor','2nd Floor'].forEach(function(fl){
+    if(!groups[fl])return;
+    html+='<div class="kz-zone-group"><div class="kz-zone-floor">'+fl+'</div><div class="kz-chips">';
+    groups[fl].forEach(function(id){html+='<button type="button" class="kz-chip kz-chip--zone" data-zone="'+escHtml(id)+'" onclick="selectZone(\''+escHtml(id)+'\')" title="'+escHtml(id)+'">'+escHtml(ZC[id].name||id)+'</button>';});
+    html+='</div></div>';
+  });
+  wrap.innerHTML=html;
+}
+function selectZone(id){selectedZone=id;document.querySelectorAll('#kzZoneChips .kz-chip--zone').forEach(function(b){b.classList.toggle('selected',b.dataset.zone===id);});}
 
 /* ── Plan F: Form defaults, mobile detection, photo validation ── */
 function initFormDefaults_(){
@@ -77,18 +125,21 @@ function validatePhotoOnMobile_(){
   return true;
 }
 
+renderZoneChips();
+renderCatChips();
 document.addEventListener('DOMContentLoaded', initFormDefaults_);
 
 function submitKaizen(){
   if(!validatePhotoOnMobile_())return;
+  if(!selectedZone){if(typeof pmToast==='function')pmToast('Select a zone','warning');return;}
   var btn=document.getElementById("kzSubmit");
   btn.disabled=true;
   document.getElementById("kzStatus").textContent="Submitting...";
   var data={
     submitterName:document.getElementById("kzName").value,
-    zoneId:document.getElementById("kzZone").value,
-    zone:document.getElementById("kzZone").value,
-    category:document.getElementById("kzCategory").value,
+    zoneId:selectedZone,
+    zone:selectedZone,
+    category:selectedCategory,
     title:document.getElementById("kzTitle").value,
     description:document.getElementById("kzDesc").value,
     expectedBenefit:document.getElementById("kzBenefit").value,

@@ -104,6 +104,27 @@
   margin-bottom: 4px;
 }
 
+/* Compact chip pickers */
+.gw-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.gw-chip {
+  padding: 7px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
+  border: 1.5px solid var(--border); background: var(--bg-card-2); color: var(--text-secondary);
+  cursor: pointer; min-height: 34px; transition: var(--trans);
+}
+.gw-chip.selected { background: var(--pm-primary); border-color: var(--pm-primary); color: #fff; }
+.gw-zone-group { margin-bottom: 10px; }
+.gw-zone-group:last-child { margin-bottom: 0; }
+.gw-zone-floor {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--text-muted); margin-bottom: 6px;
+}
+.gw-zone-locked {
+  display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: var(--r);
+  background: var(--score-green-bg); border: 1.5px solid var(--score-green); color: var(--score-green);
+  font-size: 13px; font-weight: 700;
+}
+.gw-zone-locked span { font-size: 15px; }
+
 /* Plan F: mobile-only */
 .mobile-only { display: none; }
 @media (max-width: 768px) {
@@ -148,6 +169,8 @@ var ZONE_ID = '<?= params && params.zone ? String(params.zone).replace(/[^a-zA-Z
 var responses = {};
 var questions = [];
 var actionItemCount = 0;
+var selectedWalkType = '';
+var selectedZone = '';
 
 function escHtml(s) {
   if (!s) return '';
@@ -169,20 +192,17 @@ function loadWalkForm() {
 
 /* ── Render the main form shell ── */
 function renderForm(walkTypes) {
-  var typeOptions = walkTypes.length > 0
-    ? walkTypes.map(function(t) { return '<option value="' + escHtml(t) + '">' + escHtml(t) + '</option>'; }).join('')
-    : '<option value="5S_AUDIT">5S Audit</option><option value="SAFETY">Safety</option><option value="QUALITY">Quality</option>';
-
   var html = '';
 
-  // Walk Info section
+  // Walk Info section — Zone first, one-tap chips
   html += '<div class="form-section">';
-  html += '<h3>Walk Information</h3>';
-  html += '<div class="gw-field"><label class="gw-label" for="walkType">Walk Type *</label>';
-  html += '<select class="pm-input" id="walkType" onchange="loadQuestions()">' + typeOptions + '</select></div>';
+  html += '<h3>Walk Setup</h3>';
 
-  html += '<div class="gw-field"><label class="gw-label" for="walkZone">Zone *</label>';
-  html += '<select class="pm-input" id="walkZone"><option value="">Select zone…</option></select></div>';
+  html += '<div class="gw-field"><label class="gw-label">Zone *</label>';
+  html += '<div id="walkZoneChips"><div style="color:var(--text-muted);font-size:12px">Loading zones…</div></div></div>';
+
+  html += '<div class="gw-field"><label class="gw-label">Walk Type *</label>';
+  html += '<div id="walkTypeChips" class="gw-chips"></div></div>';
 
   html += '<div class="gw-field"><label class="gw-label" for="walkerName">Walker Name</label>';
   html += '<input class="pm-input" type="text" id="walkerName" placeholder="Your name"></div>';
@@ -222,35 +242,80 @@ function renderForm(walkTypes) {
 
   document.getElementById('gwContent').innerHTML = html;
   initFormDefaults_();
+  renderWalkTypeChips(walkTypes);
   loadZonesForForm();
-  if (walkTypes.length > 0) loadQuestions();
 }
 
-/* ── Load zones into select ── */
+/* ── Walk-type chips (default first, auto-loads questions) ── */
+function labelType_(t) {
+  return String(t).replace(/_/g, ' ').replace(/\b\w/g, function(m) { return m.toUpperCase(); });
+}
+function renderWalkTypeChips(types) {
+  if (!types || !types.length) types = ['5S_AUDIT', 'SAFETY', 'QUALITY'];
+  var c = document.getElementById('walkTypeChips');
+  if (!c) return;
+  c.innerHTML = types.map(function(t) {
+    return '<button type="button" class="gw-chip" data-type="' + escHtml(t) + '" onclick="selectWalkType(\'' + escHtml(t) + '\')">' + escHtml(labelType_(t)) + '</button>';
+  }).join('');
+  selectWalkType(types[0]);
+}
+function selectWalkType(t) {
+  selectedWalkType = t;
+  document.querySelectorAll('#walkTypeChips .gw-chip').forEach(function(b) {
+    b.classList.toggle('selected', b.dataset.type === t);
+  });
+  loadQuestions();
+}
+
+/* ── Zone chips (floor-grouped) or locked pill when prefilled ── */
+function floorOf_(id) {
+  var n = parseInt(String(id).replace(/[^0-9]/g, ''), 10) || 0;
+  if (n <= 9) return 'Ground Floor';
+  if (n <= 19) return '1st Floor';
+  return '2nd Floor';
+}
 function loadZonesForForm() {
   google.script.run
-    .withSuccessHandler(function(cfg) {
-      var sel = document.getElementById('walkZone');
-      if (!sel) return;
-      Object.keys(cfg || {}).sort().forEach(function(id) {
-        var o = document.createElement('option');
-        o.value = id;
-        o.textContent = id + ' — ' + (cfg[id].name || id);
-        sel.appendChild(o);
-      });
-      if (ZONE_ID && sel.querySelector('option[value="' + ZONE_ID + '"]')) {
-        sel.value = ZONE_ID;
-        sel.disabled = true;
-      }
-      updateSubmitState();
-    })
+    .withSuccessHandler(function(cfg) { renderZoneChips(cfg || {}); })
     .getZoneConfig();
+}
+function renderZoneChips(cfg) {
+  var wrap = document.getElementById('walkZoneChips');
+  if (!wrap) return;
+  var ids = Object.keys(cfg).sort();
+
+  if (ZONE_ID && cfg[ZONE_ID]) {
+    selectedZone = ZONE_ID;
+    wrap.innerHTML = '<div class="gw-zone-locked">' + escHtml(ZONE_ID + ' — ' + (cfg[ZONE_ID].name || ZONE_ID)) + ' <span>&#10003;</span></div>';
+    updateProgress();
+    return;
+  }
+
+  var groups = {};
+  ids.forEach(function(id) { (groups[floorOf_(id)] = groups[floorOf_(id)] || []).push(id); });
+  var html = '';
+  ['Ground Floor', '1st Floor', '2nd Floor'].forEach(function(fl) {
+    if (!groups[fl]) return;
+    html += '<div class="gw-zone-group"><div class="gw-zone-floor">' + fl + '</div><div class="gw-chips">';
+    groups[fl].forEach(function(id) {
+      html += '<button type="button" class="gw-chip gw-chip--zone" data-zone="' + escHtml(id) + '" onclick="selectZone(\'' + escHtml(id) + '\')" title="' + escHtml(id) + '">' + escHtml(cfg[id].name || id) + '</button>';
+    });
+    html += '</div></div>';
+  });
+  wrap.innerHTML = html;
+  updateProgress();
+}
+function selectZone(id) {
+  selectedZone = id;
+  document.querySelectorAll('#walkZoneChips .gw-chip--zone').forEach(function(b) {
+    b.classList.toggle('selected', b.dataset.zone === id);
+  });
+  updateProgress();
 }
 
 /* ── Load questions for selected walk type ── */
 function loadQuestions() {
-  var walkType = document.getElementById('walkType');
-  if (!walkType || !walkType.value) return;
+  if (!selectedWalkType) return;
   var qList = document.getElementById('questionsList');
   if (qList) qList.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">Loading questions…</div>';
   responses = {};
@@ -263,7 +328,7 @@ function loadQuestions() {
       questions = [];
       renderQuestions([]);
     })
-    .getGembaWalkQuestions(walkType.value);
+    .getGembaWalkQuestions(selectedWalkType);
 }
 
 /* ── Render question cards ── */
@@ -317,15 +382,8 @@ function updateProgress() {
   questions.forEach(function(q) {
     if (q.required && !responses[q.questionId || ('q' + questions.indexOf(q))]) allRequired = false;
   });
-  var zoneVal = document.getElementById('walkZone') ? document.getElementById('walkZone').value : '';
-  var typeVal = document.getElementById('walkType') ? document.getElementById('walkType').value : '';
   var btn = document.getElementById('submitBtn');
-  if (btn) btn.disabled = !allRequired || !typeVal || !zoneVal;
-}
-
-/* ── Update submit state when zone/type changes ── */
-function updateSubmitState() {
-  updateProgress();
+  if (btn) btn.disabled = !allRequired || !selectedWalkType || !selectedZone;
 }
 
 /* ── Add action item row ── */
@@ -359,8 +417,8 @@ function submitWalk() {
   });
 
   var walkData = {
-    walkType: document.getElementById('walkType').value,
-    zoneId: document.getElementById('walkZone').value,
+    walkType: selectedWalkType,
+    zoneId: selectedZone,
     walkerName: document.getElementById('walkerName').value,
     walkerEmail: '',
     responses: responses,

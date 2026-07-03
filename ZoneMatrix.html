@@ -20,9 +20,13 @@
   }
   .zm-h-id { font-family: var(--font-mono); font-weight: 800; font-size: 12px; color: var(--pm-accent); }
   .zm-h-name { font-weight: 700; font-size: 14px; color: var(--text-primary); line-height: 1.2; }
+  .zm-audit {
+    margin-left: auto; font-size: 12px; font-weight: 700; color: #fff;
+    background: var(--pm-accent); border-radius: 8px; padding: 7px 13px; text-decoration: none; flex-shrink: 0;
+  }
   .zm-rt {
-    margin-left: auto; font-size: 11px; font-weight: 700; color: #991b1b;
-    background: #fee2e2; border: 1px solid #fca5a5; border-radius: 20px; padding: 4px 10px; cursor: pointer;
+    font-size: 11px; font-weight: 700; color: #991b1b;
+    background: #fee2e2; border: 1px solid #fca5a5; border-radius: 20px; padding: 4px 10px; cursor: pointer; flex-shrink: 0;
   }
   .zm-wrap { padding: 12px; }
   .zm-scroll { overflow: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-card); max-height: calc(100vh - 120px); }
@@ -72,6 +76,7 @@
     <div class="zm-h-id" id="hId">—</div>
     <div class="zm-h-name" id="hName">Loading records…</div>
   </div>
+  <a class="zm-audit" href="<?= deployUrl ?>?v2=1&action=quickaudit&zone=<?= zoneId ?>" target="_top">+ Audit</a>
   <span class="zm-rt" id="rtChip" style="display:none" onclick="showRedTags()"></span>
 </div>
 

@@ -1044,7 +1044,7 @@ function zmCard(z,sc,idx){
   var ncUrl=DU+'?v2=1&action=actionlist&zone='+z.id+'&token='+encodeURIComponent(TOKEN);
   var matrixUrl=DU+'?v2=1&action=zonematrix&zone='+z.id+'&token='+encodeURIComponent(TOKEN);
 
-  return '<div class="zm-card" style="animation-delay:'+cardDelay+'ms" onclick="pm5sNav(\''+auditUrl+'\')">'
+  return '<div class="zm-card" style="animation-delay:'+cardDelay+'ms" onclick="pm5sNav(\''+matrixUrl+'\')">'
     +'<div class="zm-ch"><span class="zm-id">'+z.id+'</span><span class="zm-type">'+z.t+'</span><div class="zm-flags">'+fh+'</div></div>'
     +'<div class="zm-body">'+tileHtml
     +'<div class="zm-info">'
@@ -1057,7 +1057,6 @@ function zmCard(z,sc,idx){
     +'<div class="zm-foot">'
     +(nc>0?'<span class="zm-nc zm-nc-bad">'+nc+' NC</span>':'<span class="zm-nc zm-nc-ok">&#10003; 0 NC</span>')
     +'<span class="zm-ago">'+ago+'</span>'
-    +'<button style="'+BTN_NC+'" onclick="event.stopPropagation();pm5sNav(\''+matrixUrl+'\')">&#128203; Records</button>'
     +(nc>0?'<button style="'+BTN_NC+'" onclick="event.stopPropagation();pm5sNav(\''+ncUrl+'\')">View NCs</button>':'')
     +'</div></div>';
 }

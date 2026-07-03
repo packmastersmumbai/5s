@@ -51,12 +51,12 @@
 
   .zone-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 7px;
   }
 
   @media (max-width: 360px) {
-    .zone-grid { grid-template-columns: 1fr; }
+    .zone-grid { grid-template-columns: 1fr 1fr; }
   }
 
   .zone-card {
@@ -64,14 +64,14 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 20px 12px;
+    padding: 10px 8px;
     background: var(--bg-card);
-    border: 2px solid var(--bg-card-2);
-    border-radius: 12px;
+    border: 1.5px solid var(--bg-card-2);
+    border-radius: 10px;
     cursor: pointer;
     text-decoration: none;
     transition: border-color .15s, background .15s;
-    min-height: 90px;
+    min-height: 58px;
     text-align: center;
     -webkit-tap-highlight-color: transparent;
   }
@@ -94,12 +94,16 @@
     line-height: 1.3;
   }
 
+  .zs-body { padding: 12px 12px; }
+  .zs-prompt { margin-bottom: 10px; }
   .zs-floor-hdr {
     font-size: var(--size-xs); font-weight: 700; letter-spacing: 0.08em;
     text-transform: uppercase; color: var(--pm-accent);
-    margin: 20px 2px 8px;
+    margin: 13px 2px 6px;
   }
   .zs-floor-hdr:first-child { margin-top: 0; }
+  .zone-id { margin-bottom: 2px; }
+  .zone-name { font-size: var(--size-xs); line-height: 1.25; }
 
   .zs-footer {
     padding: 16px;

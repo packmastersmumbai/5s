@@ -334,15 +334,15 @@ google.script.run
 var DU = '<?= deployUrl ?>';
 
 function viewAudit(zone) {
-  if (DU) window.parent.location.href = DU + '?v2=1&action=quickaudit&zone=' + encodeURIComponent(zone);
+  if (DU) window.pm5sNav(DU + '?v2=1&action=quickaudit&zone=' + encodeURIComponent(zone));
 }
 
 function viewNC(ncId) {
-  if (DU) window.parent.location.href = DU + '?v2=1&action=capa&id=' + encodeURIComponent(ncId);
+  if (DU) window.pm5sNav(DU + '?v2=1&action=capa&id=' + encodeURIComponent(ncId));
 }
 
 function viewRedTag(tagId) {
-  if (DU) window.parent.location.href = DU + '?v2=1&action=redtag&id=' + encodeURIComponent(tagId);
+  if (DU) window.pm5sNav(DU + '?v2=1&action=redtag&id=' + encodeURIComponent(tagId));
 }
 </script>
 

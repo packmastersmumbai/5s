@@ -8,8 +8,35 @@
   Fonts: Outfit (display/KPIs) + Figtree (body) + JetBrains Mono (data)
   ============================================================================
 -->
-<!-- Apps Script iframe fix: target="_parent" makes all links navigate out of sandbox -->
+<!-- Apps Script iframe fix: target="_parent" makes all links navigate out of the GAS sandbox -->
 <base target="_parent">
+
+<!-- Nav shim: when embedded in the GitHub Pages wrapper, the GAS sandbox blocks
+     navigating the wrapper frame directly, so links/redirects are relayed to the
+     wrapper via postMessage (it owns the iframe and swaps src). Direct/QR access
+     is unaffected (top-navigation works there). -->
+<script>
+(function () {
+  var EMBEDDED = false;
+  try { EMBEDDED = (window.parent !== window.top); } catch (e) { EMBEDDED = true; }
+  window.PM5S_EMBEDDED = EMBEDDED;
+  window.pm5sNav = function (url) {
+    if (!url) return;
+    if (EMBEDDED) { try { window.top.postMessage({ pm5sNav: url }, '*'); return; } catch (e) {} }
+    window.top.location.href = url;
+  };
+  if (EMBEDDED) {
+    document.addEventListener('click', function (e) {
+      var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+      if (!a) return;
+      var h = a.getAttribute('href') || '';
+      if (!h || h.charAt(0) === '#' || /^javascript:/i.test(h)) return;
+      e.preventDefault();
+      window.pm5sNav(a.href);
+    }, true);
+  }
+})();
+</script>
 
 <!-- 5S Clean Design System — Google Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">

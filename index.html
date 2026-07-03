@@ -60,6 +60,17 @@
   }
   iframe.addEventListener('load', hideSplash);
   setTimeout(hideSplash, 6000);
+
+  // The sandboxed GAS app can't navigate this wrapper frame, so it relays nav
+  // requests via postMessage; we own the iframe and swap its src. Only accept
+  // URLs pointing at our own GAS deployment.
+  window.addEventListener('message', function (e) {
+    var d = e.data;
+    if (d && typeof d.pm5sNav === 'string' && d.pm5sNav.indexOf(GAS) === 0) {
+      splash.classList.remove('hide'); splash.style.display = 'flex';
+      iframe.src = d.pm5sNav;
+    }
+  });
 </script>
 </body>
 </html>

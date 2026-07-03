@@ -712,7 +712,7 @@ function navigateToZone(zoneId) {
     var token = getTokenFromUrl();
     var url = DEPLOY_URL + '?v2=1&action=home&zone=' + encodeURIComponent(zoneId) +
               (token ? '&token=' + encodeURIComponent(token) : '');
-    window.parent.location.href = url;
+    window.pm5sNav(url);
   }
 }
 

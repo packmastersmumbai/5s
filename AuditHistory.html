@@ -235,7 +235,7 @@ function buildRow(r,type){
 function correctSubmission(submissionId, type){
   var form=type==='weekly'?'quickaudit':'dailyform';
   var url=DU+'?v2=1&action='+form+'&zone='+encodeURIComponent(ZONE_ID)+'&correct='+encodeURIComponent(submissionId);
-  window.parent.location.href=url;
+  window.pm5sNav(url);
 }
 
 /* ── Invalidate ── */

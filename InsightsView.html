@@ -217,10 +217,9 @@ function setZoneFilter(z){
   document.querySelectorAll('.iv-filter-btn').forEach(function(b){b.classList.toggle('active',b.textContent===z);});
   if(_trend)renderChartSections();
   if(_sqcdp)renderSqcdpSection();
-  // Reset pareto (zone changed; lazy-reload on next tab open)
+  // Reset pareto cache for the new zone and reload the active tab in place.
   _paretoLoaded={};
-  var pb=document.getElementById('iv-pareto-body');
-  if(pb)pb.innerHTML='<div class="pareto-empty">Select a pillar tab to load</div>';
+  if(document.getElementById('iv-pareto-body'))openParetoTab(_paretoActivePillar);
 }
 
 /* ── KPI strip ── */
@@ -518,6 +517,7 @@ function tryRenderAll(){
         '<div id="iv-sqcdp-nc">'+(_kpis?renderSqcdpNCs(_kpis.sqcdpHeatmap):'')+'</div>'+
       '</div>';
     if(_sqcdp)renderSqcdpSection();
+    openParetoTab(_paretoActivePillar);   // auto-load the active tab's data
   } else {
     // Patch individual sections
     if(_kpis){

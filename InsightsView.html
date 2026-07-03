@@ -28,7 +28,7 @@
   .iv-body{padding:12px;display:grid;grid-template-columns:1fr;gap:12px;align-content:start;max-width:1400px;margin:0 auto}
   @media(min-width:820px){.iv-body{grid-template-columns:1fr 1fr}}
   /* Let wrappers pass their card children straight into the grid. */
-  #iv-chart-section,.ncr-row,#iv-ranking-section{display:contents}
+  #iv-chart-section,.ncr-row,#iv-ranking-section,#iv-heatmap-section{display:contents}
   /* Wide/tall cards span the full row. */
   #iv-kpi-section,.s-card--wide{grid-column:1/-1}
 
@@ -119,10 +119,7 @@
   .dim-bar-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
   .dim-bar-count{font-family:'JetBrains Mono',monospace;font-size:9px;color:#1a2235}
 
-  /* ── NCR side-by-side on desktop ── */
-  .ncr-row{display:flex;flex-direction:column;gap:12px}
-  @media(min-width:600px){.ncr-row{flex-direction:row}}
-  @media(min-width:600px){.ncr-row > .s-card{flex:1;min-width:0}}
+  /* NCR cards flow as direct grid items via .iv-body grid (display:contents above) */
 
   /* ── Open NCRs by pillar ── */
   .pillar-nc-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
@@ -307,7 +304,7 @@ function renderTrendChart(months){
 function renderHeatmap(months,allZones){
   var zones=_zoneFilter==='ALL'?allZones:[_zoneFilter];
   if(!zones.length)return'';
-  var html='<div class="s-card s-card--wide"><div class="s-title">Zone × Pillar Heatmap (Latest)</div><div class="hm-scroll"><div class="hm-inner">'+
+  var html='<div class="s-card"><div class="s-title">Zone × Pillar Heatmap (Latest)</div><div class="hm-scroll"><div class="hm-inner">'+
     '<div class="hm-header">'+PILLARS.map(function(p){return'<div class="hm-col-label">'+p+'</div>';}).join('')+'</div>';
   zones.forEach(function(z){
     html+='<div class="hm-row"><div class="hm-label">'+escHtml(z)+'</div>';
@@ -326,7 +323,7 @@ function renderHeatmap(months,allZones){
 function renderZoneRanking(zoneScores){
   if(!zoneScores||!zoneScores.length)return'';
   var sorted=zoneScores.slice().sort(function(a,b){return b.overall-a.overall;});
-  var html='<div class="s-card s-card--wide"><div class="s-title">Zone Rankings</div><div style="overflow-x:auto"><table class="zone-table"><thead><tr><th>Rank</th><th>Zone</th><th>Score</th><th>S1</th><th>S2</th><th>S3</th><th>S4</th><th>S5</th><th>ΔMoM</th></tr></thead><tbody>';
+  var html='<div class="s-card"><div class="s-title">Zone Rankings</div><div style="overflow-x:auto"><table class="zone-table"><thead><tr><th>Rank</th><th>Zone</th><th>Score</th><th>S1</th><th>S2</th><th>S3</th><th>S4</th><th>S5</th><th>ΔMoM</th></tr></thead><tbody>';
   sorted.forEach(function(z,i){
     var rc=i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'';
     html+='<tr><td><span class="rank-badge '+rc+'">'+(i+1)+'</span></td>'+
@@ -499,7 +496,9 @@ function renderParetoBars(data){
 function renderChartSections(){
   var months=getMonths(),allZones=getZones();
   var el=document.getElementById('iv-chart-section');
-  if(el)el.innerHTML=renderPillarBars()+renderTrendChart(months)+renderHeatmap(months,allZones);
+  if(el)el.innerHTML=renderPillarBars()+renderTrendChart(months);
+  var hm=document.getElementById('iv-heatmap-section');
+  if(hm)hm.innerHTML=renderHeatmap(months,allZones);
 }
 
 /* ── Full render orchestration ── */
@@ -514,14 +513,15 @@ function tryRenderAll(){
   if(!document.getElementById('iv-kpi-section')){
     body.innerHTML=
       '<div id="iv-kpi-section">'+(_kpis?renderKPIs(_kpis):'<div class="iv-loading"><div class="spin"></div></div>')+'</div>'+
-      '<div id="iv-chart-section">'+(_trend?renderPillarBars()+renderTrendChart(months)+renderHeatmap(months,allZones):'<div class="iv-loading"><div class="spin"></div><p style="margin-top:10px;font-size:12px">Loading trend data…</p></div>')+'</div>'+
-      '<div id="iv-ranking-section">'+(_kpis?renderZoneRanking(_kpis.zoneScores):'')+'</div>'+
+      '<div id="iv-chart-section">'+(_trend?renderPillarBars()+renderTrendChart(months):'<div class="iv-loading"><div class="spin"></div><p style="margin-top:10px;font-size:12px">Loading trend data…</p></div>')+'</div>'+
       '<div class="s-card"><div class="s-title">SQCDP Operational Status</div><div id="iv-sqcdp-section"><div class="iv-loading"><div class="spin"></div></div></div></div>'+
       renderParetoSection()+
       '<div class="ncr-row">'+
         '<div id="iv-pillar-nc">'+(_kpis?renderPillarNCs(_kpis.pillarNCs):'')+'</div>'+
         '<div id="iv-sqcdp-nc">'+(_kpis?renderSqcdpNCs(_kpis.sqcdpHeatmap):'')+'</div>'+
-      '</div>';
+      '</div>'+
+      '<div id="iv-ranking-section">'+(_kpis?renderZoneRanking(_kpis.zoneScores):'')+'</div>'+
+      '<div id="iv-heatmap-section">'+(_trend?renderHeatmap(months,allZones):'')+'</div>';
     if(_sqcdp)renderSqcdpSection();
     openParetoTab(_paretoActivePillar);   // auto-load the active tab's data
   } else {

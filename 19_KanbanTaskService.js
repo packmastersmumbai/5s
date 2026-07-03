@@ -457,6 +457,10 @@ function createKaizenSuggestion(kzData) {
     row[KZ_COL.EST_SAVINGS] = d.estimatedSavings; row[KZ_COL.STATUS] = STATUS.SUBMITTED;
     for (var i = KZ_COL.REVIEWER; i <= KZ_COL.BENEFIT_VERIFIED_BY; i++) { if (row[i] === undefined) row[i] = ""; }
     sheet.appendRow(row);
+    if (typeof tg5sBroadcast_ === "function") {
+      tg5sBroadcast_("💡 <b>Kaizen idea</b> · " + d.zoneId + " " + v2GetZoneName_(d.zoneId) +
+        "\n" + d.title + " — by " + d.submitterName + (d.estimatedSavings ? " (est. ₹" + d.estimatedSavings + ")" : ""));
+    }
     return { success: true, kaizenId: kaizenId, message: "Kaizen suggestion submitted." };
   }, "createKaizenSuggestion", { success: false, kaizenId: "", message: "Server error." });
 }
@@ -540,6 +544,28 @@ function submitGembaWalk(walkData) {
     walkSheet.appendRow(walkRow);
     // Batch-create tasks (Fix F-17)
     var actionItems = walkData.actionItems || [], taskIds = [];
+
+    // Auto-create a synced task for every "No" answer — routes through createTask
+    // so each one gets DWM sync + Telegram post + cache invalidation (actionable).
+    try {
+      if (typeof createTask === "function") {
+        var qmap = {};
+        (getGembaWalkQuestions(d.walkType) || []).forEach(function (q) { qmap[q.questionId] = q.text; });
+        var walkerEmail = v2ResolveUser_(d.walkerEmail);
+        Object.keys(responses).forEach(function (qId) {
+          if (String(responses[qId]).toLowerCase() !== "no") return;
+          var tr = createTask({
+            zoneId: d.zoneId,
+            title: "Gemba (" + d.walkType + "): " + (qmap[qId] || qId),
+            description: "Non-conformance found on the " + d.walkType + " Gemba walk (" + walkId + ").",
+            priority: "medium", assignedTo: d.walkerName,
+            source: "GEMBA_WALK", sourceRefId: walkId, createdBy: walkerEmail
+          });
+          if (tr && tr.taskId) taskIds.push(tr.taskId);
+        });
+      }
+    } catch (e) { Logger.log("Gemba No->task skipped: " + e.message); }
+
     if (actionItems.length > 0) {
       var taskSheet = ss.getSheetByName("TaskBoard");
       if (taskSheet) {

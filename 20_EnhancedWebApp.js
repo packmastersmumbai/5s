@@ -91,6 +91,7 @@ function handleV2Route_(params) {
     case "sqcdpboard":   return serveV2Page_("InsightsView", params);  // retired SQCDPBoard
     case "actionlist":   return serveV2Page_("ActionsHub", params);
     case "quickaudit":   return serveV2Page_("QuickAudit", params);
+    case "zonematrix":   return serveV2Page_("ZoneMatrix", params);
     case "handover":     return serveV2Page_("ShiftHandover", params);
     case "tierdash":     return serveV2Page_("TierDashboard_Full", params);
     case "mrmpack":      return serveV2Page_("MRMReportPack_Full", params);

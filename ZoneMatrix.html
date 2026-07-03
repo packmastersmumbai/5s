@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>PackMasters 5S — Zone Records</title>
+<?!= include('CommonStyles') ?>
+<style>
+  body { min-height: 100vh; background: var(--bg-page); }
+  .zm-hdr {
+    position: sticky; top: 0; z-index: 30;
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 14px; background: var(--bg-header);
+    border-bottom: 2px solid var(--pm-accent);
+  }
+  .zm-back {
+    width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center; color: var(--text-secondary);
+    text-decoration: none; flex-shrink: 0; font-size: 18px;
+  }
+  .zm-h-id { font-family: var(--font-mono); font-weight: 800; font-size: 12px; color: var(--pm-accent); }
+  .zm-h-name { font-weight: 700; font-size: 14px; color: var(--text-primary); line-height: 1.2; }
+  .zm-rt {
+    margin-left: auto; font-size: 11px; font-weight: 700; color: #991b1b;
+    background: #fee2e2; border: 1px solid #fca5a5; border-radius: 20px; padding: 4px 10px; cursor: pointer;
+  }
+  .zm-wrap { padding: 12px; }
+  .zm-scroll { overflow: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-card); max-height: calc(100vh - 120px); }
+  table.zm { border-collapse: separate; border-spacing: 0; font-size: 12px; width: max-content; }
+  table.zm th, table.zm td { border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); }
+
+  /* sticky header row + first column */
+  table.zm thead th { position: sticky; top: 0; z-index: 20; background: #1a5276; color: #fff; padding: 7px 8px; font-weight: 600; white-space: nowrap; text-align: center; }
+  table.zm thead th.corner { left: 0; z-index: 25; text-align: left; min-width: 190px; max-width: 240px; }
+  table.zm tbody th.crit { position: sticky; left: 0; z-index: 10; background: var(--bg-card); text-align: left; padding: 7px 9px; font-weight: 600; color: var(--text-primary); min-width: 190px; max-width: 240px; }
+  .crit-pill { font-family: var(--font-mono); font-size: 9px; font-weight: 700; color: var(--text-muted); display: block; }
+
+  td.cell { text-align: center; padding: 0; min-width: 42px; height: 36px; }
+  .cell-in { display: flex; align-items: center; justify-content: center; width: 100%; height: 36px; font-weight: 800; }
+  .cell.has { cursor: pointer; }
+  .s0,.s1 { background: #fdecea; color: #b71c1c; }
+  .s2 { background: #fff4e0; color: #a15c00; }
+  .s3,.s4 { background: #e8f7ee; color: #1b6b3a; }
+  .cell.nc .cell-in { box-shadow: inset 0 0 0 2.5px #e53935; border-radius: 4px; }
+  .cell.nc .cell-in::after { content: '!'; position: absolute; margin: -22px 0 0 22px; font-size: 9px; color: #fff; background: #e53935; border-radius: 50%; width: 13px; height: 13px; line-height: 13px; }
+  td.cell { position: relative; }
+  .cell-empty { color: var(--text-muted); opacity: .5; }
+
+  /* modal */
+  .ovl { display: none; position: fixed; inset: 0; background: rgba(15,18,30,.5); z-index: 100; align-items: flex-end; justify-content: center; }
+  .ovl.on { display: flex; }
+  .sheet { background: var(--bg-card); width: 100%; max-width: 480px; border-radius: 16px 16px 0 0; padding: 16px 18px 24px; max-height: 80vh; overflow: auto; }
+  @media(min-width:520px){ .ovl{align-items:center} .sheet{border-radius:16px} }
+  .sheet h3 { font-size: 15px; font-weight: 800; color: var(--pm-primary); margin-bottom: 2px; }
+  .sheet .sub { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); margin-bottom: 12px; }
+  .kv { display: flex; gap: 8px; font-size: 13px; padding: 5px 0; border-bottom: 1px solid var(--border); }
+  .kv b { min-width: 74px; color: var(--text-secondary); font-weight: 600; }
+  .nc-card { background: #fff6f5; border: 1px solid #fca5a5; border-radius: 10px; padding: 10px 12px; margin-top: 10px; }
+  .nc-card .st { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #b71c1c; }
+  .m-photo { width: 100%; border-radius: 10px; margin-top: 10px; max-height: 200px; object-fit: cover; }
+  .m-actions { margin-top: 14px; display: flex; gap: 8px; }
+  .m-btn { flex: 1; text-align: center; padding: 11px; border-radius: 10px; font-weight: 700; font-size: 13px; text-decoration: none; }
+  .m-btn.p { background: var(--pm-accent); color: #fff; } .m-btn.s { background: var(--bg-card-2); color: var(--text-primary); border: 1px solid var(--border); }
+  .zm-empty { text-align: center; color: var(--text-muted); padding: 40px 16px; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div class="zm-hdr">
+  <a class="zm-back" href="<?= deployUrl ?>?v2=1&action=home" target="_top">&larr;</a>
+  <div>
+    <div class="zm-h-id" id="hId">—</div>
+    <div class="zm-h-name" id="hName">Loading records…</div>
+  </div>
+  <span class="zm-rt" id="rtChip" style="display:none" onclick="showRedTags()"></span>
+</div>
+
+<div class="zm-wrap">
+  <div class="zm-scroll" id="scroll"><div class="zm-empty" id="loading">Loading…</div></div>
+</div>
+
+<div class="ovl" id="ovl" onclick="if(event.target===this)closeSheet()">
+  <div class="sheet" id="sheet"></div>
+</div>
+
+<script>
+  var ZONE = '<?= zoneId ?>';
+  var DEPLOY = '<?= deployUrl ?>';
+  var DATA = null;
+  var SC = { S1:'#e11d48', S2:'#2563eb', S3:'#0891b2', S4:'#16a34a', S5:'#7c3aed' };
+
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function shortDate(d){ var p=String(d).split('-'); return p.length===3 ? p[2]+'/'+p[1] : d; }
+
+  function render() {
+    var c = DATA.criteria, dates = DATA.dates, cells = DATA.cells;
+    document.getElementById('hId').textContent = DATA.zoneId;
+    document.getElementById('hName').textContent = DATA.zoneName || '';
+    if (DATA.redTags && DATA.redTags.length) {
+      var chip = document.getElementById('rtChip');
+      chip.style.display = ''; chip.textContent = '🏷️ ' + DATA.redTags.length + ' Red Tag' + (DATA.redTags.length>1?'s':'');
+    }
+    if (!c.length) { document.getElementById('scroll').innerHTML = '<div class="zm-empty">No criteria configured for this zone.</div>'; return; }
+    if (!dates.length) { document.getElementById('scroll').innerHTML = '<div class="zm-empty">No audit records yet for this zone.<br>Scores will appear here after the first quick audit.</div>'; return; }
+
+    var h = '<table class="zm"><thead><tr><th class="corner">Parameter</th>';
+    dates.forEach(function(d){ h += '<th>' + shortDate(d) + '</th>'; });
+    h += '</tr></thead><tbody>';
+    c.forEach(function(cr){
+      var dot = SC[cr.pillar] || '#999';
+      h += '<tr><th class="crit"><span class="crit-pill" style="color:'+dot+'">'+esc(cr.pillar)+'</span>'+esc(cr.label)+'</th>';
+      dates.forEach(function(d){
+        var cell = (cells[cr.id]||{})[d];
+        if (!cell) { h += '<td class="cell"><span class="cell-in cell-empty">·</span></td>'; return; }
+        var hasNc = cell.ncs && cell.ncs.length;
+        var sc = (cell.score==null) ? '' : 's'+cell.score;
+        var txt = (cell.score==null) ? (hasNc?'—':'·') : cell.score;
+        h += '<td class="cell has '+(hasNc?'nc ':'')+sc+'" data-c="'+esc(cr.id)+'" data-d="'+d+'"><span class="cell-in">'+txt+'</span></td>';
+      });
+      h += '</tr>';
+    });
+    h += '</tbody></table>';
+    var sc = document.getElementById('scroll'); sc.innerHTML = h;
+    sc.querySelectorAll('td.cell.has').forEach(function(td){
+      td.addEventListener('click', function(){ openCell(td.getAttribute('data-c'), td.getAttribute('data-d')); });
+    });
+  }
+
+  function findCrit(id){ for(var i=0;i<DATA.criteria.length;i++) if(DATA.criteria[i].id===id) return DATA.criteria[i]; return {id:id,label:id,pillar:''}; }
+
+  function openCell(cid, date) {
+    var cr = findCrit(cid); var cell = (DATA.cells[cid]||{})[date] || {};
+    var h = '<h3>'+esc(cr.label)+'</h3><div class="sub">'+esc(cr.pillar)+' · '+esc(cid)+' · '+esc(date)+'</div>';
+    h += '<div class="kv"><b>Score</b><span>'+(cell.score==null?'Not scored':(cell.score+' / 4'))+'</span></div>';
+    if (cell.by) h += '<div class="kv"><b>Auditor</b><span>'+esc(cell.by)+'</span></div>';
+    if (cell.remark) h += '<div class="kv"><b>Remark</b><span>'+esc(cell.remark)+'</span></div>';
+    (cell.ncs||[]).forEach(function(nc){
+      h += '<div class="nc-card"><div class="st">🔴 NC · '+esc(nc.status)+'</div>'
+         + '<div style="font-weight:700;margin:3px 0">'+esc(nc.ncId)+'</div>'
+         + (nc.desc?'<div style="font-size:12px">'+esc(nc.desc)+'</div>':'')
+         + (nc.responsible?'<div style="font-size:11px;color:#6b7280;margin-top:3px">Owner: '+esc(nc.responsible)+(nc.target?' · due '+esc(nc.target):'')+'</div>':'')
+         + '</div>';
+    });
+    if (cell.photo) h += '<img class="m-photo" src="'+esc(cell.photo)+'" onerror="this.style.display=\'none\'">';
+    h += '<div class="m-actions">';
+    if (cell.ncs && cell.ncs.length) h += '<a class="m-btn p" href="'+DEPLOY+'?v2=1&action=actionlist&zone='+encodeURIComponent(ZONE)+'" target="_top">Open in Actions</a>';
+    h += '<button class="m-btn s" onclick="closeSheet()">Close</button></div>';
+    openSheet(h);
+  }
+
+  function showRedTags() {
+    var h = '<h3>Open Red Tags</h3><div class="sub">'+esc(DATA.zoneName)+'</div>';
+    (DATA.redTags||[]).forEach(function(rt){
+      h += '<div class="kv"><b>'+esc(rt.status)+'</b><span>'+esc(rt.item||rt.tagId)+'</span></div>';
+    });
+    h += '<div class="m-actions"><a class="m-btn p" href="'+DEPLOY+'?v2=1&action=actionlist&zone='+encodeURIComponent(ZONE)+'" target="_top">Open in Actions</a><button class="m-btn s" onclick="closeSheet()">Close</button></div>';
+    openSheet(h);
+  }
+
+  function openSheet(html){ document.getElementById('sheet').innerHTML = html; document.getElementById('ovl').classList.add('on'); }
+  function closeSheet(){ document.getElementById('ovl').classList.remove('on'); }
+
+  google.script.run
+    .withSuccessHandler(function(res){
+      if (!res || res.success === false) { document.getElementById('scroll').innerHTML = '<div class="zm-empty">Could not load records.</div>'; return; }
+      DATA = res; render();
+    })
+    .withFailureHandler(function(e){ document.getElementById('scroll').innerHTML = '<div class="zm-empty">Error: '+esc(e && e.message)+'</div>'; })
+    .getZoneMatrix(ZONE, 14);
+</script>
+</body>
+</html>

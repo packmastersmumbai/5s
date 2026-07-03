@@ -404,7 +404,11 @@ body {
 .empty-check { font-size: 32px; }
 
 /* ── ZONE MAP ──────────────────────────────── */
-.zm-section { padding: 18px 18px 0; }
+/* Home = zone-grouped Quick Audit launcher. Hide the redundant single-zone
+   score banner, plant stat chips and task queue so the floor-grouped zone
+   launcher (each card opens QuickAudit) is the primary post-login view. */
+#scoreBanner, #statChips, .task-queue-section { display: none; }
+.zm-section { padding: 10px 18px 0; }
 .zm-sec-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 
 /* Tabs — pill segmented control */
@@ -550,7 +554,7 @@ body {
   <!-- ══════════════ ZONE MAP ══════════════ -->
   <section class="zm-section">
     <div class="zm-sec-hdr">
-      <span class="sec-label">ZONE MAP</span>
+      <span class="sec-label">QUICK AUDIT — TAP A ZONE TO START</span>
     </div>
     <div class="zm-tabs">
       <button class="zm-tab on" onclick="zmSw('GF',this)"><span class="zm-tab-id">GF</span><span class="zm-tab-sub">Ground Floor</span></button>

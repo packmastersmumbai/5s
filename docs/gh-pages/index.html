@@ -2,28 +2,64 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#d97706">
 <title>PackMasters 5S</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23d97706'/><text x='50' y='68' font-size='52' font-family='Arial' font-weight='bold' fill='white' text-anchor='middle'>5S</text></svg>">
 <style>
-  html, body { margin: 0; height: 100%; background: #faf7f2; overflow: hidden; }
-  #app { border: 0; width: 100vw; height: 100vh; height: 100dvh; display: block; }
-  #boot { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
-          font-family: system-ui, sans-serif; color: #9a8f7d; font-size: 13px; letter-spacing: .5px; }
+  :root { color-scheme: light; }
+  html, body { margin: 0; padding: 0; height: 100vh; height: 100dvh; overflow: hidden; background: #faf7f2; font-family: system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
+  /* Crop the GAS sandbox banner (~42px desktop / 60px mobile) at the top of the iframe
+     document: negative-position the iframe and clip with overflow:hidden. */
+  #wrap { position: fixed; inset: 0; overflow: hidden; background: #faf7f2; }
+  #app {
+    position: absolute; left: 0; right: 0;
+    top: -42px; width: 100%; height: calc(100% + 42px);
+    border: 0; display: block;
+  }
+  @media (max-width: 640px) { #app { top: -60px; height: calc(100% + 60px); } }
+  /* Splash — visual only; pointer-events:none so it never blocks a tap on the iframe. */
+  #splash {
+    position: fixed; inset: 0; z-index: 10; pointer-events: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    background: #faf7f2; transition: opacity .4s ease-out;
+  }
+  #splash.hide { opacity: 0; }
+  #splash .logo { width: 64px; height: 64px; border-radius: 16px; background: #d97706; color: #fff;
+    display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 800; }
+  #splash h1 { font-size: 20px; font-weight: 700; color: #1a1e2e; margin: 0; }
+  #splash p { font-size: 13px; color: #6b7280; margin: 0; }
+  .spinner { width: 24px; height: 24px; border: 2.5px solid #f0e6d5; border-top-color: #d97706;
+    border-radius: 50%; animation: spin .7s linear infinite; margin-top: 4px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
-<div id="boot">Loading PackMasters 5S…</div>
-<!-- The GAS web app runs inside this iframe so the address bar stays on github.io.
-     In-app navigation uses window.parent/_parent (see CommonStyles base target),
-     which targets THIS iframe when embedded and the browser tab when opened directly. -->
-<iframe id="app" allow="camera; microphone; fullscreen; geolocation" allowfullscreen></iframe>
+<div id="splash">
+  <div class="logo">5S</div>
+  <h1>PackMasters 5S</h1>
+  <p>Lean Manufacturing System</p>
+  <div class="spinner" aria-label="Loading"></div>
+</div>
+<div id="wrap">
+  <iframe id="app"
+    allow="clipboard-read; clipboard-write; geolocation; microphone; camera"
+    referrerpolicy="no-referrer-when-downgrade"
+    loading="eager" title="PackMasters 5S"></iframe>
+</div>
 <script>
   var GAS = 'https://script.google.com/macros/s/AKfycbyYsCQfJvhorJglpwmpfYNt65659sM5HWKztNK1n5tzeB5wyaovrLpMRDYg95d6yKgQHg/exec';
-  // Forward any query string (deep links: ?v2=1&action=quickaudit&zone=Z-07) into the app.
-  var app = document.getElementById('app');
-  app.src = GAS + (window.location.search || '');
-  app.addEventListener('load', function () { var b = document.getElementById('boot'); if (b) b.style.display = 'none'; });
+  var iframe = document.getElementById('app');
+  var splash = document.getElementById('splash');
+  // Forward deep-link params: github.io/5s/?v2=1&action=quickaudit&zone=Z-07
+  iframe.src = GAS + (window.location.search || '');
+  function hideSplash() {
+    if (splash.classList.contains('hide')) return;
+    splash.classList.add('hide');
+    setTimeout(function () { splash.style.display = 'none'; }, 350);
+  }
+  iframe.addEventListener('load', hideSplash);
+  setTimeout(hideSplash, 6000);
 </script>
 </body>
 </html>

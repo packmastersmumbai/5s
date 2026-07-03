@@ -17,8 +17,10 @@
      is unaffected (top-navigation works there). -->
 <script>
 (function () {
-  var EMBEDDED = false;
-  try { EMBEDDED = (window.parent !== window.top); } catch (e) { EMBEDDED = true; }
+  // Embedded ONLY when the GitHub Pages wrapper injected embed=1. Frame-nesting
+  // detection is unreliable: GAS nests the app so window.parent!==window.top even
+  // on the direct URL, which wrongly activated the interceptor and ate taps.
+  var EMBEDDED = /[?&]embed=1/.test(location.search);
   window.PM5S_EMBEDDED = EMBEDDED;
   window.pm5sNav = function (url) {
     if (!url) return;

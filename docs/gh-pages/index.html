@@ -51,8 +51,15 @@
   var GAS = 'https://script.google.com/macros/s/AKfycbyYsCQfJvhorJglpwmpfYNt65659sM5HWKztNK1n5tzeB5wyaovrLpMRDYg95d6yKgQHg/exec';
   var iframe = document.getElementById('app');
   var splash = document.getElementById('splash');
+  // embed=1 tells the app it is inside this wrapper (frame-nesting detection is
+  // unreliable — GAS nests deeply even on the direct URL). Always inject it.
+  function withEmbed(qs) {
+    qs = qs || '';
+    if (/[?&]embed=1/.test(qs)) return qs;
+    return qs ? qs + '&embed=1' : '?embed=1';
+  }
   // Forward deep-link params: github.io/5s/?v2=1&action=quickaudit&zone=Z-07
-  iframe.src = GAS + (window.location.search || '');
+  iframe.src = GAS + withEmbed(window.location.search);
   function hideSplash() {
     if (splash.classList.contains('hide')) return;
     splash.classList.add('hide');
@@ -72,7 +79,7 @@
     // canonical GAS exec with the requested query — robust to host/deployment-id drift.
     if (!/^https:\/\/(script\.google\.com|[^/]*\.googleusercontent\.com)\//.test(d.pm5sNav)) return;
     var qi = d.pm5sNav.indexOf('?');
-    iframe.src = GAS + (qi > -1 ? d.pm5sNav.slice(qi) : '');
+    iframe.src = GAS + withEmbed(qi > -1 ? d.pm5sNav.slice(qi) : '');
     splash.classList.remove('hide'); splash.style.display = 'flex';
   });
 </script>

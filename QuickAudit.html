@@ -203,7 +203,7 @@ body {
 .qa-s-reset:hover { color: var(--p1, #c00); border-color: currentColor; }
 
 /* ── Card body ── */
-.qa-body { flex: 1 1 auto; min-width: 0; padding: 10px 12px 0 14px; transition: opacity 0.18s ease; }
+.qa-body { flex: 1 1 auto; min-width: 0; padding: 8px 12px 0 12px; transition: opacity 0.18s ease; }
 .qa-body.fading { opacity: 0; }
 
 /* Name row */
@@ -348,26 +348,29 @@ body {
 /* ── SQCDP rail (compact vertical strip on the left) ── */
 .qa-sqcdp {
   order: -1; flex-shrink: 0;
-  display: flex; flex-direction: column; justify-content: center; gap: 3px;
-  padding: 8px 7px 8px 9px;
+  display: flex; flex-direction: column; justify-content: center; gap: 2px;
+  padding: 6px 6px 6px 8px;
   border-right: 1px solid var(--line);
   background: oklch(98.5% 0.006 78);
 }
 /* collapsed (scored) cards: rail hidden — pillar pill already shown, keeps row thin */
 .qa-card.scored .qa-sqcdp { display: none; }
+/* letter first, then logo — compact inline row per dimension */
 .qa-sq {
-  display: flex; flex-direction: column; align-items: center; gap: 1px;
-  flex: none; border-radius: 7px; padding: 3px 3px;
+  display: flex; flex-direction: row; align-items: center; gap: 3px;
+  flex: none; border-radius: 6px; padding: 1px 3px;
   transition: background 0.15s;
-}
-.qa-sq-ic {
-  width: 24px; height: 24px; border-radius: 7px;
-  display: flex; align-items: center; justify-content: center;
 }
 .qa-sq-l {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 8px; font-weight: 600; letter-spacing: .4px;
+  font-size: 9px; font-weight: 700; letter-spacing: .3px;
+  width: 7px; text-align: center;
 }
+.qa-sq-ic {
+  width: 17px; height: 17px; border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+}
+.qa-sq-ic svg { width: 12px; height: 12px; }
 /* Off state — nearly invisible */
 .qa-sq.off .qa-sq-ic { background: oklch(92% 0.006 78); color: oklch(78% 0.008 70); }
 .qa-sq.off .qa-sq-l  { color: oklch(74% 0.008 72); }
@@ -729,8 +732,8 @@ var SQCDP_CLS    = { S:'sq-s', Q:'sq-q', C:'sq-c', D:'sq-d', P:'sq-p' };
 function sqIcon(letter, cls, active) {
   var activeCls = active ? SQCDP_CLS[letter] : 'off';
   return '<div class="qa-sq ' + activeCls + '">' +
-         '<div class="qa-sq-ic">' + (SQCDP_SVG[letter] || '') + '</div>' +
          '<div class="qa-sq-l">' + letter + '</div>' +
+         '<div class="qa-sq-ic">' + (SQCDP_SVG[letter] || '') + '</div>' +
          '</div>';
 }
 

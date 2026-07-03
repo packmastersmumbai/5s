@@ -115,6 +115,7 @@ body {
   border-radius: 12px;
   overflow: hidden;
   position: relative;
+  display: flex; align-items: stretch;
   animation: cardIn 0.35s ease-out both;
   transition: box-shadow 0.2s, border-color 0.2s, opacity 0.3s;
 }
@@ -173,7 +174,7 @@ body {
   padding: 9px 12px 9px 16px;
   animation: scoreRowIn 0.22s ease-out both;
 }
-.qa-scored-row.show { display: flex; }
+.qa-scored-row.show { display: flex; flex: 1 1 auto; min-width: 0; }
 .qa-s-pill {
   font-family: 'JetBrains Mono', monospace;
   font-size: 9px; font-weight: 600; letter-spacing: .7px;
@@ -202,7 +203,7 @@ body {
 .qa-s-reset:hover { color: var(--p1, #c00); border-color: currentColor; }
 
 /* ── Card body ── */
-.qa-body { padding: 10px 12px 0 16px; transition: opacity 0.18s ease; }
+.qa-body { flex: 1 1 auto; min-width: 0; padding: 10px 12px 0 14px; transition: opacity 0.18s ease; }
 .qa-body.fading { opacity: 0; }
 
 /* Name row */
@@ -344,16 +345,19 @@ body {
 .qa-wdgll-box img { width: 100%; max-height: 160px; object-fit: cover; display: block; }
 .qa-wdgll-label { font-size: 10px; color: var(--ink-3); padding: 4px 8px; background: var(--bg); }
 
-/* ── SQCDP chips ── */
+/* ── SQCDP rail (compact vertical strip on the left) ── */
 .qa-sqcdp {
-  display: flex; gap: 5px;
-  padding: 8px 12px 10px 16px;
-  border-top: 1px solid var(--line);
+  order: -1; flex-shrink: 0;
+  display: flex; flex-direction: column; justify-content: center; gap: 3px;
+  padding: 8px 7px 8px 9px;
+  border-right: 1px solid var(--line);
   background: oklch(98.5% 0.006 78);
 }
+/* collapsed (scored) cards: rail hidden — pillar pill already shown, keeps row thin */
+.qa-card.scored .qa-sqcdp { display: none; }
 .qa-sq {
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
-  flex: 1; border-radius: 8px; padding: 5px 2px 4px;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  flex: none; border-radius: 7px; padding: 3px 3px;
   transition: background 0.15s;
 }
 .qa-sq-ic {

@@ -166,6 +166,8 @@
   </div>
 </div>
 
+<div id="gwCompliance" style="padding:10px 16px 0;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:640px"></div>
+
 <div class="board-grid" id="boardGrid">
   <div class="zone-card skeleton-card"><div class="skel" style="height:20px;width:60%;margin-bottom:8px"></div><div class="skel" style="height:11px;width:40%;margin-bottom:12px"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="skel" style="height:58px"></div><div class="skel" style="height:58px"></div></div><div class="skel" style="height:28px;margin-top:9px"></div></div>
   <div class="zone-card skeleton-card"><div class="skel" style="height:20px;width:60%;margin-bottom:8px"></div><div class="skel" style="height:11px;width:40%;margin-bottom:12px"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="skel" style="height:58px"></div><div class="skel" style="height:58px"></div></div><div class="skel" style="height:28px;margin-top:9px"></div></div>
@@ -262,6 +264,19 @@ function toggleFullscreen() {
   }
 }
 
+function loadGwCompliance() {
+  google.script.run.withSuccessHandler(function(walks){
+    walks = walks || [];
+    var el = document.getElementById('gwCompliance'); if(!el) return;
+    if(!walks.length){ el.innerHTML=''; return; }
+    var avg = Math.round(walks.reduce(function(s,w){return s+(Number(w.compliancePct)||0);},0)/walks.length);
+    var now = new Date(), weekAgo = now.getTime()-7*864e5;
+    var thisWeek = walks.filter(function(w){ var t=Date.parse(w.timestamp); return !isNaN(t)&&t>=weekAgo; }).length;
+    function t(v,l){ return '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:9px 8px;text-align:center"><div style="font-size:17px;font-weight:800;color:#1a5276">'+v+'</div><div style="font-size:9px;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;margin-top:2px">'+l+'</div></div>'; }
+    el.innerHTML = t(avg+'%','Avg walk compliance') + t(walks.length,'Total walks') + t(thisWeek,'Walks this week');
+  }).withFailureHandler(function(){}).getGembaWalkData({});
+}
+loadGwCompliance();
 loadGembaData();
 setInterval(function() {
   if (document.visibilityState !== 'hidden') loadGembaData();

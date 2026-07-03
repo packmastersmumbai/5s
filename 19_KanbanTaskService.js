@@ -507,7 +507,8 @@ function getKaizenData(filters) {
         submitterName: String(data[r][KZ_COL.SUBMITTER] || ""), category: String(data[r][KZ_COL.CATEGORY] || ""),
         title: String(data[r][KZ_COL.TITLE] || ""), description: String(data[r][KZ_COL.DESCRIPTION] || ""),
         expectedBenefit: String(data[r][KZ_COL.EXPECTED_BENEFIT] || ""),
-        estimatedSavings: data[r][KZ_COL.EST_SAVINGS] || 0, status: String(data[r][KZ_COL.STATUS] || "") });
+        estimatedSavings: data[r][KZ_COL.EST_SAVINGS] || 0, actualSavings: data[r][KZ_COL.ACTUAL_SAVINGS] || 0,
+        status: String(data[r][KZ_COL.STATUS] || "") });
     }
     return results;
   }, "getKaizenData", [], "low");

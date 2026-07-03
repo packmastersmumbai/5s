@@ -325,7 +325,22 @@ function renderBoard(items) {
     board.appendChild(div);
   });
 
+  // ── KPI header (implemented %, verified ₹ savings, top contributor) ──
+  var total = items.length;
+  var done = items.filter(function(i){ var s=String(i.status).toUpperCase(); return s==='COMPLETED'||s==='BENEFIT_VERIFIED'; }).length;
+  var saved = items.reduce(function(s,i){ return s + (Number(i.actualSavings)||0); }, 0);
+  var byUser = {};
+  items.forEach(function(i){ if(i.submitterName){ byUser[i.submitterName]=(byUser[i.submitterName]||0)+1; } });
+  var top = Object.keys(byUser).sort(function(a,b){ return byUser[b]-byUser[a]; })[0];
+  function tile(v,l){ return '<div style="background:var(--bg-card,#fff);border:1px solid var(--border,#e5e7eb);border-radius:10px;padding:10px 8px;text-align:center"><div style="font-size:17px;font-weight:800;color:var(--pm-primary,#1a5276);line-height:1.1">'+v+'</div><div style="font-size:9px;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-top:3px">'+l+'</div></div>'; }
+  var kpi = document.createElement('div');
+  kpi.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px';
+  kpi.innerHTML = tile(total,'Ideas') + tile((total?Math.round(done/total*100):0)+'%','Implemented')
+    + tile('₹'+saved.toLocaleString('en-IN'),'Verified savings')
+    + tile(top?escHtml(top)+' ('+byUser[top]+')':'—','Top contributor');
+
   document.getElementById('kzBoard').innerHTML = '';
+  document.getElementById('kzBoard').appendChild(kpi);
   document.getElementById('kzBoard').appendChild(board);
 }
 

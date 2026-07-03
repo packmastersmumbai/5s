@@ -283,7 +283,9 @@ function renderQuestions(qs) {
     html += '<button class="gw-yn-btn yes" id="q' + idx + '_yes" onclick="setResponse(\'' + escHtml(q.questionId || ('q' + idx)) + '\',' + idx + ',\'YES\')">Yes</button>';
     html += '<button class="gw-yn-btn no"  id="q' + idx + '_no"  onclick="setResponse(\'' + escHtml(q.questionId || ('q' + idx)) + '\',' + idx + ',\'NO\')">No</button>';
     html += '<button class="gw-yn-btn na"  id="q' + idx + '_na"  onclick="setResponse(\'' + escHtml(q.questionId || ('q' + idx)) + '\',' + idx + ',\'NA\')">N/A</button>';
-    html += '</div></div>';
+    html += '</div>';
+    html += '<div id="q' + idx + '_flag" style="display:none;font-size:11px;color:#b71c1c;font-weight:600;margin-top:6px">&#9888; A follow-up task will be auto-created for this finding.</div>';
+    html += '</div>';
   });
   qList.innerHTML = html;
   updateProgress();
@@ -296,6 +298,8 @@ function setResponse(questionId, idx, val) {
     var btn = document.getElementById('q' + idx + '_' + v);
     if (btn) btn.classList.toggle('selected', v.toUpperCase() === val);
   });
+  var flag = document.getElementById('q' + idx + '_flag');
+  if (flag) flag.style.display = (val === 'NO') ? 'block' : 'none';
   updateProgress();
 }
 

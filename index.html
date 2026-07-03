@@ -66,10 +66,14 @@
   // URLs pointing at our own GAS deployment.
   window.addEventListener('message', function (e) {
     var d = e.data;
-    if (d && typeof d.pm5sNav === 'string' && d.pm5sNav.indexOf(GAS) === 0) {
-      splash.classList.remove('hide'); splash.style.display = 'flex';
-      iframe.src = d.pm5sNav;
-    }
+    if (!d || typeof d.pm5sNav !== 'string') return;
+    // The app may post its own deployment/googleusercontent URL (getService().getUrl()
+    // can differ from ours). Accept any google-hosted nav, but always reload OUR
+    // canonical GAS exec with the requested query — robust to host/deployment-id drift.
+    if (!/^https:\/\/(script\.google\.com|[^/]*\.googleusercontent\.com)\//.test(d.pm5sNav)) return;
+    var qi = d.pm5sNav.indexOf('?');
+    iframe.src = GAS + (qi > -1 ? d.pm5sNav.slice(qi) : '');
+    splash.classList.remove('hide'); splash.style.display = 'flex';
   });
 </script>
 </body>

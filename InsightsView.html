@@ -18,7 +18,7 @@
   .iv-meta{font-size:11px;opacity:.6;white-space:nowrap}
 
   /* ── Zone filter toolbar ── */
-  .iv-toolbar{padding:8px 12px;background:#fff;border-bottom:1px solid #e0e4ee;display:flex;gap:6px;flex-wrap:nowrap;align-items:center;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .iv-toolbar{padding:8px 12px;background:#fff;border-bottom:1px solid #e0e4ee;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
   .iv-filter-label{font-size:11px;font-weight:700;color:#5a6070;letter-spacing:.5px;flex-shrink:0}
   .iv-filter-btn{padding:3px 10px;border-radius:20px;border:1px solid #d0d4de;background:#fff;font-size:11px;font-family:'Plus Jakarta Sans',sans-serif;cursor:pointer;transition:all .12s;font-weight:500;white-space:nowrap;flex-shrink:0}
   .iv-filter-btn.active{background:#1a2235;color:#fff;border-color:#1a2235}
@@ -163,7 +163,7 @@
 
 <div class="iv-toolbar">
   <span class="iv-filter-label">ZONE:</span>
-  <div id="zone-filters" style="display:flex;gap:6px;flex-wrap:nowrap">
+  <div id="zone-filters" style="display:flex;gap:6px;flex-wrap:wrap;flex:1">
     <button class="iv-filter-btn active" onclick="setZoneFilter('ALL')">ALL</button>
   </div>
 </div>
@@ -261,25 +261,36 @@ function renderTrendChart(months){
     var PAD={top:12,right:12,bottom:32,left:32};
     var cw=W-PAD.left-PAD.right,ch=H-PAD.top-PAD.bottom;
     ctx.clearRect(0,0,W,H);
+    // Pre-compute each pillar series once, then auto-scale the Y axis to the
+    // data range (padded, snapped to 5s) so 75-83% scores aren't squashed into
+    // a flat band at the top of a fixed 0-100 axis.
+    var series=[],allVals=[];
+    PILLARS.forEach(function(p){var d=avgScore(p,months);if(!d)return;series.push({p:p,d:d});d.forEach(function(v){if(v!==null)allVals.push(v);});});
+    var dMin=allVals.length?Math.min.apply(null,allVals):0;
+    var dMax=allVals.length?Math.max.apply(null,allVals):100;
+    var yMin=Math.max(0,Math.floor((dMin-3)/5)*5);
+    var yMax=Math.min(100,Math.ceil((dMax+3)/5)*5);
+    if(yMax-yMin<10){yMin=Math.max(0,yMax-10);}
+    function yOf(v){return PAD.top+ch-((v-yMin)/((yMax-yMin)||1))*ch;}
     ctx.strokeStyle='#f0f2f5';ctx.lineWidth=1;
-    [0,25,50,75,100].forEach(function(v){
-      var y=PAD.top+ch-(v/100)*ch;
-      ctx.beginPath();ctx.moveTo(PAD.left,y);ctx.lineTo(PAD.left+cw,y);ctx.stroke();
+    for(var t=0;t<=4;t++){
+      var gv=yMin+(yMax-yMin)*t/4,gy=yOf(gv);
+      ctx.beginPath();ctx.moveTo(PAD.left,gy);ctx.lineTo(PAD.left+cw,gy);ctx.stroke();
       ctx.fillStyle='#a0aab8';ctx.font='9px JetBrains Mono,monospace';ctx.textAlign='right';
-      ctx.fillText(v,PAD.left-3,y+3);
-    });
+      ctx.fillText(Math.round(gv),PAD.left-3,gy+3);
+    }
     ctx.fillStyle='#6b7280';ctx.font='9px Plus Jakarta Sans,sans-serif';ctx.textAlign='center';
     months.forEach(function(m,i){
       var x=PAD.left+(i/(months.length-1||1))*cw;
       ctx.fillText(m.slice(0,7),x,H-PAD.bottom+12);
     });
-    PILLARS.forEach(function(p){
-      var data=avgScore(p,months);if(!data)return;
+    series.forEach(function(s){
+      var p=s.p,data=s.d;
       ctx.beginPath();ctx.strokeStyle=PILLAR_COLORS[p];ctx.lineWidth=2;ctx.lineJoin='round';
       var started=false;
-      data.forEach(function(v,i){if(v===null)return;var x=PAD.left+(i/(months.length-1||1))*cw,y=PAD.top+ch-(v/100)*ch;if(!started){ctx.moveTo(x,y);started=true;}else{ctx.lineTo(x,y);}});
+      data.forEach(function(v,i){if(v===null)return;var x=PAD.left+(i/(months.length-1||1))*cw,y=yOf(v);if(!started){ctx.moveTo(x,y);started=true;}else{ctx.lineTo(x,y);}});
       ctx.stroke();
-      data.forEach(function(v,i){if(v===null)return;var x=PAD.left+(i/(months.length-1||1))*cw,y=PAD.top+ch-(v/100)*ch;ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fillStyle=PILLAR_COLORS[p];ctx.fill();});
+      data.forEach(function(v,i){if(v===null)return;var x=PAD.left+(i/(months.length-1||1))*cw,y=yOf(v);ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fillStyle=PILLAR_COLORS[p];ctx.fill();});
     });
     var lx=PAD.left;
     PILLARS.forEach(function(p){ctx.fillStyle=PILLAR_COLORS[p];ctx.fillRect(lx,H-7,10,4);ctx.fillStyle='#6b7280';ctx.font='9px Plus Jakarta Sans,sans-serif';ctx.textAlign='left';ctx.fillText(p,lx+12,H-3);lx+=36;});

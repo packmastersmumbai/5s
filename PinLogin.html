@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <base target="_top">
+  <base target="_parent">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>PackMasters 5S — Login</title>
@@ -101,7 +101,7 @@
         .withSuccessHandler(function (res) {
           if (res && res.success) {
             try { localStorage.setItem('pm5s_token', res.token); } catch (e) {}
-            window.top.location.href = DEPLOY_URL + '?v2=1&action=home&token=' + encodeURIComponent(res.token);
+            window.parent.location.href = DEPLOY_URL + '?v2=1&action=home&token=' + encodeURIComponent(res.token);
             return;
           }
           pin = ''; renderDots(); shake();

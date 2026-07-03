@@ -284,7 +284,7 @@ function handleLogin(event) {
       if (result.success) {
         // Login successful - store token in localStorage and pass in URL for GAS iframe navigation
         localStorage.setItem('pm5s_token', result.token);
-        window.top.location.href = '<?= deployUrl ?>' + '?v2=1&action=home&token=' + encodeURIComponent(result.token);
+        window.parent.location.href = '<?= deployUrl ?>' + '?v2=1&action=home&token=' + encodeURIComponent(result.token);
       } else {
         showError(result.message || 'Login failed');
         loginBtn.disabled = false;

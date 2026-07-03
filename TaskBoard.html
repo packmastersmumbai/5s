@@ -246,7 +246,7 @@
   if (urlToken) localStorage.setItem('pm5s_token', urlToken);
   var token = localStorage.getItem('pm5s_token');
   if (!token) {
-    window.top.location.href = '<?= deployUrl ?>?v2=1&action=login';
+    window.parent.location.href = '<?= deployUrl ?>?v2=1&action=login';
     return;
   }
   window.PM5S_TOKEN = token;

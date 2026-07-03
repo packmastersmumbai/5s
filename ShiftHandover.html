@@ -194,7 +194,7 @@ body {
 <!-- ══════════ HEADER ══════════ -->
 <header class="hdr">
   <div class="hdr-left">
-    <a class="back-btn" href="<?= deployUrl ?>" target="_top" title="Home">←</a>
+    <a class="back-btn" href="<?= deployUrl ?>" target="_parent" title="Home">←</a>
     <div>
       <div class="hdr-title">Shift Handover</div>
       <div class="hdr-sub">End-of-shift summary</div>
@@ -334,15 +334,15 @@ google.script.run
 var DU = '<?= deployUrl ?>';
 
 function viewAudit(zone) {
-  if (DU) window.top.location.href = DU + '?v2=1&action=quickaudit&zone=' + encodeURIComponent(zone);
+  if (DU) window.parent.location.href = DU + '?v2=1&action=quickaudit&zone=' + encodeURIComponent(zone);
 }
 
 function viewNC(ncId) {
-  if (DU) window.top.location.href = DU + '?v2=1&action=capa&id=' + encodeURIComponent(ncId);
+  if (DU) window.parent.location.href = DU + '?v2=1&action=capa&id=' + encodeURIComponent(ncId);
 }
 
 function viewRedTag(tagId) {
-  if (DU) window.top.location.href = DU + '?v2=1&action=redtag&id=' + encodeURIComponent(tagId);
+  if (DU) window.parent.location.href = DU + '?v2=1&action=redtag&id=' + encodeURIComponent(tagId);
 }
 </script>
 

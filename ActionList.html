@@ -686,7 +686,7 @@ function submitQuickCreate() {
       var action = type === 'nc' ? 'capa' : type === 'task' ? 'taskboard' : 'redtag';
       var url = DU + '?v2=1&action=' + action + '&zone=' + encodeURIComponent(zone) +
                 '&prefilled=' + encodeURIComponent(desc);
-      window.top.location.href = url;
+      window.parent.location.href = url;
     } else {
       pmToast('Failed to log action', 'error');
     }

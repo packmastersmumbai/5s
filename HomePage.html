@@ -587,7 +587,7 @@ body {
   if (urlToken) localStorage.setItem('pm5s_token', urlToken);
   var token = localStorage.getItem('pm5s_token');
   if (!token) {
-    window.top.location.href = '<?= deployUrl ?>?v2=1&action=login';
+    window.parent.location.href = '<?= deployUrl ?>?v2=1&action=login';
     return;
   }
   window.PM5S_TOKEN = token;
@@ -844,7 +844,7 @@ body {
       card.addEventListener('click', function() {
         var params = new URLSearchParams(window.location.search);
         var zone = params.get('zone') || task.zone || '';
-        window.top.location.href = DU + '?v2=1&action=taskboard&zone=' + encodeURIComponent(zone) + '&token=' + encodeURIComponent(token);
+        window.parent.location.href = DU + '?v2=1&action=taskboard&zone=' + encodeURIComponent(zone) + '&token=' + encodeURIComponent(token);
       });
       queue.appendChild(card);
     });
@@ -1043,7 +1043,7 @@ function zmCard(z,sc,idx){
   var auditUrl=DU+'?v2=1&action=quickaudit&zone='+z.id+'&token='+encodeURIComponent(TOKEN);
   var ncUrl=DU+'?v2=1&action=actionlist&zone='+z.id+'&token='+encodeURIComponent(TOKEN);
 
-  return '<div class="zm-card" style="animation-delay:'+cardDelay+'ms" onclick="(window.top||window).location.href=\''+auditUrl+'\'">'
+  return '<div class="zm-card" style="animation-delay:'+cardDelay+'ms" onclick="(window.parent||window).location.href=\''+auditUrl+'\'">'
     +'<div class="zm-ch"><span class="zm-id">'+z.id+'</span><span class="zm-type">'+z.t+'</span><div class="zm-flags">'+fh+'</div></div>'
     +'<div class="zm-body">'+tileHtml
     +'<div class="zm-info">'
@@ -1056,7 +1056,7 @@ function zmCard(z,sc,idx){
     +'<div class="zm-foot">'
     +(nc>0?'<span class="zm-nc zm-nc-bad">'+nc+' NC</span>':'<span class="zm-nc zm-nc-ok">&#10003; 0 NC</span>')
     +'<span class="zm-ago">'+ago+'</span>'
-    +(nc>0?'<button style="'+BTN_NC+'" onclick="event.stopPropagation();(window.top||window).location.href=\''+ncUrl+'\'">View NCs</button>':'')
+    +(nc>0?'<button style="'+BTN_NC+'" onclick="event.stopPropagation();(window.parent||window).location.href=\''+ncUrl+'\'">View NCs</button>':'')
     +'</div></div>';
 }
 

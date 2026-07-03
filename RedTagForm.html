@@ -237,7 +237,7 @@ function resetForm() {
 
 function goToBoard() {
   google.script.run.withSuccessHandler(function(url) {
-    window.top.location.href = url + '?v2=1&action=kanban';
+    window.parent.location.href = url + '?v2=1&action=kanban';
   }).getScriptUrl();
 }
 </script>

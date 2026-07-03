@@ -5,7 +5,7 @@
   <!-- Nav shim (PinLogin doesn't include CommonStyles): relay nav to the GitHub
        Pages wrapper via postMessage when embedded; top-nav when direct. -->
   <script>
-  (function(){var E=/[?&]embed=1/.test(location.search);
+  (function(){var E=(function(){try{var ao=location.ancestorOrigins;if(ao)for(var i=0;i<ao.length;i++){var h=String(ao[i]||'').replace(/^https?:\/\//,'');if(h&&!/(^|\.)(google\.com|googleusercontent\.com)$/i.test(h))return true;}}catch(e){}return /[?&]embed=1/.test(location.search);})();
     window.pm5sNav=function(u){if(!u)return;if(E){try{window.top.postMessage({pm5sNav:u},'*');return;}catch(e){}}window.top.location.href=u;};
     if(E){document.addEventListener('click',function(e){var a=e.target&&e.target.closest?e.target.closest('a[href]'):null;if(!a)return;var h=a.getAttribute('href')||'';if(!h||h.charAt(0)==='#'||/^javascript:/i.test(h))return;e.preventDefault();window.pm5sNav(a.href);},true);}
   })();

@@ -17,10 +17,22 @@
      is unaffected (top-navigation works there). -->
 <script>
 (function () {
-  // Embedded ONLY when the GitHub Pages wrapper injected embed=1. Frame-nesting
-  // detection is unreliable: GAS nests the app so window.parent!==window.top even
-  // on the direct URL, which wrongly activated the interceptor and ate taps.
-  var EMBEDDED = /[?&]embed=1/.test(location.search);
+  // Embedded when a non-Google origin is in our ancestor chain (the GitHub Pages
+  // wrapper). location.search is NOT reliable here: GAS runs this HTML inside a
+  // googleusercontent sandbox frame whose URL has no query string, so the
+  // wrapper's ?embed=1 marker never reaches this code. ancestorOrigins DOES
+  // survive into the sandbox and lists github.io when wrapped. embed=1 kept as
+  // a fallback for browsers without ancestorOrigins.
+  var EMBEDDED = (function () {
+    try {
+      var ao = location.ancestorOrigins;
+      if (ao) for (var i = 0; i < ao.length; i++) {
+        var host = String(ao[i] || '').replace(/^https?:\/\//, '');
+        if (host && !/(^|\.)(google\.com|googleusercontent\.com)$/i.test(host)) return true;
+      }
+    } catch (e) {}
+    return /[?&]embed=1/.test(location.search);
+  })();
   window.PM5S_EMBEDDED = EMBEDDED;
   window.pm5sNav = function (url) {
     if (!url) return;

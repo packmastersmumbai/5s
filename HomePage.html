@@ -656,14 +656,14 @@ body {
       if (typeof google !== 'undefined' && google.script && google.script.run) {
         google.script.run.withSuccessHandler(function() {
           localStorage.removeItem('pm5s_token');
-          window.location.href = '<?= deployUrl ?>?v2=1&action=login';
+          window.pm5sNav('<?= deployUrl ?>?v2=1&action=login');
         }).withFailureHandler(function() {
           logoutBtn.disabled = false;
           logoutBtn.innerHTML = '🚪 Logout';
         }).logoutUser(window.PM5S_TOKEN);
       } else {
         localStorage.removeItem('pm5s_token');
-        window.location.href = '<?= deployUrl ?>?v2=1&action=login';
+        window.pm5sNav('<?= deployUrl ?>?v2=1&action=login');
       }
     });
   }

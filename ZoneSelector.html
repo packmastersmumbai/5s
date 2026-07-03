@@ -11,112 +11,58 @@
   .zs-header {
     background: var(--bg-header);
     border-bottom: 2px solid var(--pm-accent);
-    padding: 14px 20px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
+    padding: 12px 18px;
+    display: flex; align-items: center; gap: 12px;
   }
   .zs-logo {
-    width: 36px; height: 36px;
-    background: var(--pm-accent);
-    border-radius: 8px;
+    width: 34px; height: 34px; background: var(--pm-accent); border-radius: 8px;
     display: flex; align-items: center; justify-content: center;
-    font-weight: 900; font-size: 14px; color: #fff; letter-spacing: -0.5px;
-    flex-shrink: 0;
+    font-weight: 900; font-size: 13px; color: #fff; letter-spacing: -0.5px; flex-shrink: 0;
   }
-  .zs-header-title {
-    font-size: var(--size-md);
-    font-weight: 700;
-    color: var(--text-primary);
-  }
-  .zs-header-sub {
-    font-size: var(--size-xs);
-    color: var(--text-muted);
-  }
+  .zs-header-title { font-size: var(--size-md); font-weight: 700; color: var(--text-primary); }
+  .zs-header-sub { font-size: var(--size-xs); color: var(--text-muted); }
 
-  .zs-body {
-    flex: 1;
-    padding: 20px 16px;
-    max-width: 600px;
-    margin: 0 auto;
-    width: 100%;
-  }
+  .zs-body { flex: 1; padding: 14px 16px; max-width: 1180px; margin: 0 auto; width: 100%; }
+  .zs-prompt { font-size: var(--size-sm); color: var(--text-secondary); margin-bottom: 10px; font-weight: 500; }
 
-  .zs-prompt {
-    font-size: var(--size-sm);
-    color: var(--text-secondary);
-    margin-bottom: 16px;
-    font-weight: 500;
-  }
-
-  .zone-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 7px;
-  }
-
-  @media (max-width: 360px) {
-    .zone-grid { grid-template-columns: 1fr 1fr; }
-  }
-
-  .zone-card {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 10px 8px;
-    background: var(--bg-card);
-    border: 1.5px solid var(--bg-card-2);
-    border-radius: 10px;
-    cursor: pointer;
-    text-decoration: none;
-    transition: border-color .15s, background .15s;
-    min-height: 58px;
-    text-align: center;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .zone-card:active,
-  .zone-card:hover {
-    border-color: var(--pm-accent);
-    background: var(--bg-card-2);
-  }
-  .zone-id {
-    font-size: var(--size-xs);
-    font-weight: 700;
-    color: var(--pm-accent);
-    letter-spacing: 0.06em;
-    margin-bottom: 4px;
-  }
-  .zone-name {
-    font-size: var(--size-sm);
-    font-weight: 600;
-    color: var(--text-primary);
-    line-height: 1.3;
-  }
-
-  .zs-body { padding: 12px 12px; }
-  .zs-prompt { margin-bottom: 10px; }
+  /* Floor group header */
   .zs-floor-hdr {
     font-size: var(--size-xs); font-weight: 700; letter-spacing: 0.08em;
-    text-transform: uppercase; color: var(--pm-accent);
-    margin: 13px 2px 6px;
+    text-transform: uppercase; color: var(--pm-accent); margin: 14px 2px 6px;
   }
   .zs-floor-hdr:first-child { margin-top: 0; }
-  .zone-id { margin-bottom: 2px; }
-  .zone-name { font-size: var(--size-xs); line-height: 1.25; }
 
-  .zs-footer {
-    padding: 16px;
-    text-align: center;
-    border-top: 1px solid var(--bg-card-2);
+  /* Compact responsive row list — fills width: 1 col mobile → many on desktop */
+  .zone-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 6px;
   }
+  .zone-row {
+    display: flex; align-items: center; gap: 9px;
+    padding: 8px 11px; min-height: 40px;
+    background: var(--bg-card); border: 1px solid var(--bg-card-2);
+    border-radius: 8px; text-decoration: none; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: border-color .12s, background .12s;
+  }
+  .zone-row:active, .zone-row:hover { border-color: var(--pm-accent); background: var(--bg-card-2); }
+  .zone-row .zid {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 800;
+    color: var(--pm-accent); flex-shrink: 0; min-width: 34px;
+  }
+  .zone-row .znm {
+    font-size: 12.5px; font-weight: 600; color: var(--text-primary);
+    flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .zone-row .chev { color: var(--text-muted); flex-shrink: 0; opacity: .6; }
+
+  .zs-footer { padding: 14px 16px; text-align: center; border-top: 1px solid var(--bg-card-2); }
   .zs-continue {
     display: inline-block; width: 100%; max-width: 360px;
-    padding: 13px 20px; box-sizing: border-box;
-    background: var(--pm-accent); color: #fff;
-    font-weight: 700; font-size: var(--size-sm);
-    border-radius: 10px; text-decoration: none;
-    transition: filter .15s;
+    padding: 12px 20px; box-sizing: border-box;
+    background: var(--pm-accent); color: #fff; font-weight: 700; font-size: var(--size-sm);
+    border-radius: 10px; text-decoration: none; transition: filter .15s;
   }
   .zs-continue:active { filter: brightness(0.92); }
 </style>
@@ -127,22 +73,15 @@
   <div class="zs-logo">PM</div>
   <div>
     <div class="zs-header-title">PackMasters 5S</div>
-    <div class="zs-header-sub">Select your zone to begin</div>
+    <div class="zs-header-sub">Tap your zone to start a quick audit</div>
   </div>
 </div>
 
 <div class="zs-body">
-  <div class="zs-prompt">Tap your zone to start a quick audit</div>
   <div id="zoneGrid">
     <div class="zone-grid">
-      <div class="zone-card" style="pointer-events:none">
-        <div class="pm-skeleton" style="height:12px;width:40px;margin-bottom:6px"></div>
-        <div class="pm-skeleton" style="height:14px;width:80px"></div>
-      </div>
-      <div class="zone-card" style="pointer-events:none">
-        <div class="pm-skeleton" style="height:12px;width:40px;margin-bottom:6px"></div>
-        <div class="pm-skeleton" style="height:14px;width:80px"></div>
-      </div>
+      <a class="zone-row" style="pointer-events:none"><span class="pm-skeleton" style="height:11px;width:30px"></span><span class="pm-skeleton" style="height:12px;flex:1"></span></a>
+      <a class="zone-row" style="pointer-events:none"><span class="pm-skeleton" style="height:11px;width:30px"></span><span class="pm-skeleton" style="height:12px;flex:1"></span></a>
     </div>
   </div>
 </div>
@@ -162,33 +101,33 @@
 
   /* Floor derived from zone number: 1-9 GF, 10-19 1F, 20+ 2F */
   var FLOORS = [
-    { k: 'GF', label: 'Ground Floor', lo: 1,  hi: 9  },
-    { k: '1F', label: 'First Floor',  lo: 10, hi: 19 },
-    { k: '2F', label: 'Second Floor', lo: 20, hi: 99 }
+    { label: 'Ground Floor', lo: 1,  hi: 9  },
+    { label: 'First Floor',  lo: 10, hi: 19 },
+    { label: 'Second Floor', lo: 20, hi: 99 }
   ];
   function floorLabel(id) {
     var n = parseInt(String(id).replace(/\D/g, ''), 10) || 0;
     for (var i = 0; i < FLOORS.length; i++) if (n >= FLOORS[i].lo && n <= FLOORS[i].hi) return FLOORS[i];
     return { label: 'Other' };
   }
+  var CHEV = '<svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
 
   FLOORS.forEach(function(f) {
     var items = zones.filter(function(z) { return floorLabel(z.id).label === f.label; });
     if (!items.length) return;
     var hdr = document.createElement('div');
     hdr.className = 'zs-floor-hdr';
-    hdr.textContent = f.label;
+    hdr.textContent = f.label + ' · ' + items.length;
     container.appendChild(hdr);
     var grid = document.createElement('div');
     grid.className = 'zone-grid';
     items.forEach(function(z) {
       var a = document.createElement('a');
-      a.className = 'zone-card';
+      a.className = 'zone-row';
       a.href = deployUrl + '?v2=1&action=quickaudit&zone=' + encodeURIComponent(z.id);
       a.target = '_parent';
-      a.innerHTML =
-        '<div class="zone-id">' + escHtml(z.id) + '</div>' +
-        '<div class="zone-name">' + escHtml(z.name) + '</div>';
+      a.innerHTML = '<span class="zid">' + escHtml(z.id) + '</span>' +
+                    '<span class="znm">' + escHtml(z.name) + '</span>' + CHEV;
       grid.appendChild(a);
     });
     container.appendChild(grid);

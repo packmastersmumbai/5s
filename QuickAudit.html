@@ -1052,9 +1052,9 @@ function prepareAuditShare_(submissionId) {
 function goBackToDashboard_() {
   var url = QA_DEPLOY_URL || '';
   try {
-    if (url) { window.parent.location.href = url; return; }
+    if (url) { window.top.location.href = url; return; }
   } catch (e) {}
-  try { window.parent.history.back(); } catch (e2) { history.back(); }
+  try { window.top.history.back(); } catch (e2) { history.back(); }
 }
 
 function openCamera_() {

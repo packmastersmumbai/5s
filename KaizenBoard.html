@@ -208,7 +208,7 @@ body {
 <!-- ══════════ HEADER ══════════ -->
 <header class="hdr">
   <div class="hdr-left">
-    <a class="back-btn" href="<?= deployUrl ?>" target="_parent" title="Home">←</a>
+    <a class="back-btn" href="<?= deployUrl ?>" target="_top" title="Home">←</a>
     <div>
       <div class="hdr-title">Kaizen Board</div>
       <div class="hdr-sub">Continuous Improvement Ideas</div>
@@ -235,7 +235,7 @@ body {
   if (urlToken) localStorage.setItem('pm5s_token', urlToken);
   var token = localStorage.getItem('pm5s_token');
   if (!token) {
-    window.parent.location.href = '<?= deployUrl ?>?v2=1&action=login';
+    window.top.location.href = '<?= deployUrl ?>?v2=1&action=login';
     return;
   }
   window.PM5S_TOKEN = token;

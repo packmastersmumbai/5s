@@ -87,7 +87,7 @@
 </div>
 
 <div class="zs-footer">
-  <a class="zs-continue" href="<?= deployUrl ?>?action=login" target="_parent">
+  <a class="zs-continue" href="<?= deployUrl ?>?action=login" target="_top">
     Continue to Project &rarr;
   </a>
 </div>
@@ -125,7 +125,7 @@
       var a = document.createElement('a');
       a.className = 'zone-row';
       a.href = deployUrl + '?v2=1&action=quickaudit&zone=' + encodeURIComponent(z.id);
-      a.target = '_parent';
+      a.target = '_top';
       a.innerHTML = '<span class="zid">' + escHtml(z.id) + '</span>' +
                     '<span class="znm">' + escHtml(z.name) + '</span>' + CHEV;
       grid.appendChild(a);

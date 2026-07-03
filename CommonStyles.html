@@ -8,8 +8,8 @@
   Fonts: Outfit (display/KPIs) + Figtree (body) + JetBrains Mono (data)
   ============================================================================
 -->
-<!-- Apps Script iframe fix: target="_parent" makes all links navigate out of the GAS sandbox -->
-<base target="_parent">
+<!-- Apps Script iframe fix: target="_top" makes all links navigate out of the GAS sandbox -->
+<base target="_top">
 
 <!-- Nav shim: when embedded in the GitHub Pages wrapper, the GAS sandbox blocks
      navigating the wrapper frame directly, so links/redirects are relayed to the

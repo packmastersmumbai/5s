@@ -3,6 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Nav shim (LoginPage doesn't include CommonStyles): relay nav to the wrapper via postMessage when embedded. -->
+  <script>
+  (function(){var E=false;try{E=(window.parent!==window.top);}catch(e){E=true;}
+    window.pm5sNav=function(u){if(!u)return;if(E){try{window.top.postMessage({pm5sNav:u},'*');return;}catch(e){}}window.top.location.href=u;};
+    if(E){document.addEventListener('click',function(e){var a=e.target&&e.target.closest?e.target.closest('a[href]'):null;if(!a)return;var h=a.getAttribute('href')||'';if(!h||h.charAt(0)==='#'||/^javascript:/i.test(h))return;e.preventDefault();window.pm5sNav(a.href);},true);}
+  })();
+  </script>
   <title>PackMasters 5S — Login</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }

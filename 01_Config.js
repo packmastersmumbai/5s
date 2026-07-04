@@ -512,6 +512,25 @@ function updateZoneFolderIds(folderIdMap) {
   logAdminAction_("updateZoneFolderIds", "Updated folder IDs for " + Object.keys(folderIdMap).length + " zones.");
 }
 
+/**
+ * Refreshes each zone's criteria in the live ZONE_CONFIG from the defaults in
+ * 01b_ZoneData.js (getDefaultZoneCriteria_) WITHOUT touching folder IDs, names,
+ * leaders or any other runtime field. Run this after editing the zone criteria
+ * so the deployed audit forms pick up the new labels. Idempotent.
+ * @returns {Object} { zones: N, updated: N }
+ */
+function reseedZoneCriteria() {
+  var config = getZoneConfig();
+  var defaults = getDefaultZoneCriteria_();
+  var updated = 0;
+  Object.keys(defaults).forEach(function (zid) {
+    if (config[zid]) { config[zid].criteria = defaults[zid]; updated++; }
+  });
+  PropertiesService.getScriptProperties().setProperty("ZONE_CONFIG", JSON.stringify(config));
+  logAdminAction_("reseedZoneCriteria", "Refreshed criteria for " + updated + " zones from defaults.");
+  return { zones: Object.keys(config).length, updated: updated };
+}
+
 
 // ============================================================================
 // MAP EDITOR — SERVER-SIDE FUNCTIONS

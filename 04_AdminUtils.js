@@ -75,6 +75,7 @@ function createAdminMenu() {
     .addItem("🤖 Telegram — Send Digest Now", "sendTelegramDailyDigest")
     .addItem("🤖 Telegram — Remind Leaders Now", "remindZoneLeaders")
     .addSeparator()
+    .addItem("♻️ Refresh Zone Criteria (from defaults)", "reseedZoneCriteria")
     .addItem("💾 Backup Now", "openManualBackupDialog")
     .addToUi();
 }

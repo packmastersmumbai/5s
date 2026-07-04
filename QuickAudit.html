@@ -941,7 +941,8 @@ function submitAudit() {
     if (criterionPhotos[cid]) li.photo_b64 = criterionPhotos[cid].split(',')[1];
     return li;
   });
-  var payload = { zoneId: getZoneId(), zone: getZoneId(), scores: scores, remarks: criteriaRemarks, photo_b64: photoB64, lineItems: lineItems };
+  var payload = { zoneId: getZoneId(), zone: getZoneId(), scores: scores, remarks: criteriaRemarks, photo_b64: photoB64, lineItems: lineItems,
+    fillSeconds: Math.floor((Date.now() - timerStart) / 1000), clientSubmittedAt: new Date().toISOString() };
 
   function queueOffline_(reason) {
     if (typeof offlineQueue !== 'undefined') {

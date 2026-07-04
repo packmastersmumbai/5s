@@ -537,7 +537,8 @@ function submitQuickAudit(auditData) {
     // Per-criterion line items (score + optional remark + optional photo) — authoritative store
     var submissionId = Utilities.getUuid();
     try {
-      writeAuditLineItems_(ss, submissionId, zoneId, now, user, auditData.lineItems || [], scores, auditData.remarks || {});
+      writeAuditLineItems_(ss, submissionId, zoneId, now, user, auditData.lineItems || [], scores, auditData.remarks || {},
+        auditData.fillSeconds, auditData.clientSubmittedAt);
     } catch (e) { Logger.log("AuditLineItems write skipped: " + e.message); }
 
     // Write to DailySubmissions (delegate to V1 if available)
@@ -651,15 +652,21 @@ function submitQuickAudit(auditData) {
 }
 
 var AUDIT_LINEITEMS_HEADERS = ["SUBMISSION_ID","ZONE_ID","ZONE_NAME","TIMESTAMP","AUDITOR",
-  "CRITERION_ID","PILLAR","SCORE","REMARK","PHOTO_URL","PHOTO_FILE_ID"];
+  "CRITERION_ID","PILLAR","SCORE","REMARK","PHOTO_URL","PHOTO_FILE_ID",
+  "FILL_SECONDS","CLIENT_SUBMITTED_AT"];
 
-/** Ensure the AuditLineItems sheet exists with headers. */
+/** Ensure the AuditLineItems sheet exists with the full header (migrates old sheets). */
 function ensureAuditLineItemsSheet_(ss) {
   var sheet = ss.getSheetByName("AuditLineItems");
   if (!sheet) {
     sheet = ss.insertSheet("AuditLineItems");
     sheet.getRange(1, 1, 1, AUDIT_LINEITEMS_HEADERS.length).setValues([AUDIT_LINEITEMS_HEADERS]);
     sheet.setFrozenRows(1);
+    return sheet;
+  }
+  // Migration: extend the header row if new columns were added.
+  if (sheet.getLastColumn() < AUDIT_LINEITEMS_HEADERS.length) {
+    sheet.getRange(1, 1, 1, AUDIT_LINEITEMS_HEADERS.length).setValues([AUDIT_LINEITEMS_HEADERS]);
   }
   return sheet;
 }
@@ -668,12 +675,15 @@ function ensureAuditLineItemsSheet_(ss) {
  * Persist one row per scored criterion. Uploads optional per-criterion photo with a
  * canonical name: <zoneId>_<yyyyMMdd-HHmmss>_<criterionId>_<auditorSlug>.jpg
  */
-function writeAuditLineItems_(ss, submissionId, zoneId, now, user, lineItems, scores, remarks) {
+function writeAuditLineItems_(ss, submissionId, zoneId, now, user, lineItems, scores, remarks, fillSeconds, clientAt) {
   var sheet = ensureAuditLineItemsSheet_(ss);
   var zoneName = v2GetZoneName_(zoneId);
   var tz = (typeof TZ !== "undefined" && TZ) ? TZ : (Session.getScriptTimeZone() || "Asia/Kolkata");
   var stamp = Utilities.formatDate(now, tz, "yyyyMMdd-HHmmss");
   var slug = String(user || "auditor").replace(/[^A-Za-z0-9]/g, "").toLowerCase().substring(0, 16) || "auditor";
+  var fillS = (fillSeconds != null && fillSeconds !== "" && !isNaN(fillSeconds)) ? parseInt(fillSeconds, 10) : "";
+  var cAt = "";
+  if (clientAt) { var cd = new Date(clientAt); if (!isNaN(cd.getTime())) cAt = cd; }
 
   // Normalize to a list keyed by criterionId (prefer explicit lineItems, fall back to scores map)
   var items = (lineItems && lineItems.length)
@@ -693,7 +703,7 @@ function writeAuditLineItems_(ss, submissionId, zoneId, now, user, lineItems, sc
     }
     return [submissionId, zoneId, zoneName, now, user, cid, pillar,
             (li.score !== undefined && li.score !== "") ? parseInt(li.score, 10) : "",
-            li.remark || "", photoUrl, photoFileId];
+            li.remark || "", photoUrl, photoFileId, fillS, cAt];
   });
 
   if (rows.length) sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, AUDIT_LINEITEMS_HEADERS.length).setValues(rows);

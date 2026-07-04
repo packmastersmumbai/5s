@@ -95,9 +95,13 @@ function _tg5sDigestText_() {
   var redTags  = grid.reduce(function (s, z) { return s + (z.activeRedTags || 0); }, 0);
   var today = Utilities.formatDate(new Date(), TZ, 'dd-MMM-yyyy (EEE)');
 
+  var dueToday = grid.reduce(function (s, z) { return s + (z.dueToday || 0); }, 0);
+  var dueTom   = grid.reduce(function (s, z) { return s + (z.dueTomorrow || 0); }, 0);
+
   var out = '📊 <b>5S Daily Digest — ' + today + '</b>\n' +
     '✅ Submitted: <b>' + submitted.length + '</b> / ' + grid.length +
     '   📈 Avg: <b>' + avg + '%</b>\n' +
+    '🗓️ Due: <b>' + dueToday + '</b> today · <b>' + dueTom + '</b> tomorrow\n' +
     '📋 Open NCs: <b>' + openCapa + '</b> (' + overdue + ' overdue)   ' +
     '🧰 Open tasks: <b>' + openTask + '</b> (' + overTask + ' overdue)   ' +
     '🏷️ Red tags: <b>' + redTags + '</b>';

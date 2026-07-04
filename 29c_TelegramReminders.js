@@ -63,24 +63,35 @@ function _tg5sDigestText_() {
   var avg = scored.length ? Math.round(scored.reduce(function (s, z) { return s + z.pctScore; }, 0) / scored.length) : 0;
   var openCapa = grid.reduce(function (s, z) { return s + z.openCAPAs; }, 0);
   var overdue  = grid.reduce(function (s, z) { return s + z.overdueCAPAs; }, 0);
+  var openTask = grid.reduce(function (s, z) { return s + z.openTasks; }, 0);
+  var overTask = grid.reduce(function (s, z) { return s + z.overdueTasks; }, 0);
+  var redTags  = grid.reduce(function (s, z) { return s + (z.activeRedTags || 0); }, 0);
   var today = Utilities.formatDate(new Date(), TZ, 'dd-MMM-yyyy (EEE)');
 
   var out = '📊 <b>5S Daily Digest — ' + today + '</b>\n' +
     '✅ Submitted: <b>' + submitted.length + '</b> / ' + grid.length +
     '   📈 Avg: <b>' + avg + '%</b>\n' +
-    '📋 Open NCs: <b>' + openCapa + '</b>   ⚠️ Overdue: <b>' + overdue + '</b>';
+    '📋 Open NCs: <b>' + openCapa + '</b> (' + overdue + ' overdue)   ' +
+    '🧰 Open tasks: <b>' + openTask + '</b> (' + overTask + ' overdue)   ' +
+    '🏷️ Red tags: <b>' + redTags + '</b>';
 
   if (pending.length) {
-    out += '\n\n🔴 <b>Not submitted (' + pending.length + '):</b>\n' +
+    out += '\n\n🔴 <b>Audit not submitted (' + pending.length + '):</b>\n' +
       pending.map(function (z) { return '• ' + _tg5sZoneLink_(z.id) + ' ' + TelegramLib.esc(z.name); }).join('\n');
   }
-  var overdueZones = grid.filter(function (z) { return z.overdueCAPAs > 0; })
-    .sort(function (a, b) { return b.overdueCAPAs - a.overdueCAPAs; });
-  if (overdueZones.length) {
-    out += '\n\n⚠️ <b>Overdue NCs:</b>\n' +
-      overdueZones.map(function (z) { return '• ' + _tg5sZoneLink_(z.id) + ' — ' + z.overdueCAPAs + ' overdue'; }).join('\n');
-  }
+  out += _tg5sDigestSection_(grid, '⚠️', 'Overdue NCs', 'overdueCAPAs');
+  out += _tg5sDigestSection_(grid, '🧰', 'Overdue tasks/actions', 'overdueTasks');
+  out += _tg5sDigestSection_(grid, '🏷️', 'Active red tags', 'activeRedTags');
   return out;
+}
+
+// Renders a "• Z-07 Name — N" block for zones where grid[key] > 0, or ''.
+function _tg5sDigestSection_(grid, icon, label, key) {
+  var hits = grid.filter(function (z) { return (z[key] || 0) > 0; })
+    .sort(function (a, b) { return (b[key] || 0) - (a[key] || 0); });
+  if (!hits.length) return '';
+  return '\n\n' + icon + ' <b>' + label + ':</b>\n' +
+    hits.map(function (z) { return '• ' + _tg5sZoneLink_(z.id) + ' — ' + z[key]; }).join('\n');
 }
 
 // Top-level: called by the scheduled trigger + the admin menu.
@@ -98,16 +109,19 @@ function remindZoneLeaders() {
   var grid = _tg5sZoneGrid_();
   var sent = 0, skipped = 0;
   grid.forEach(function (z) {
-    var needsNudge = !z.submitted || z.overdueCAPAs > 0 || z.overdueTasks > 0;
+    var needsNudge = !z.submitted || z.openCAPAs > 0 || z.openTasks > 0 || (z.activeRedTags || 0) > 0;
     if (!needsNudge) return;
     var chatId = map[z.id];
     if (!chatId) { skipped++; return; }
     var parts = [];
-    if (!z.submitted) parts.push('daily audit is <b>pending</b>');
-    if (z.overdueCAPAs > 0) parts.push('<b>' + z.overdueCAPAs + '</b> overdue NC' + (z.overdueCAPAs > 1 ? 's' : ''));
-    if (z.overdueTasks > 0) parts.push('<b>' + z.overdueTasks + '</b> overdue task' + (z.overdueTasks > 1 ? 's' : ''));
+    if (!z.submitted) parts.push('🔴 daily 5S audit is <b>pending</b>');
+    if (z.openCAPAs > 0) parts.push('📋 <b>' + z.openCAPAs + '</b> open NC' + (z.openCAPAs > 1 ? 's' : '') +
+      (z.overdueCAPAs > 0 ? ' (' + z.overdueCAPAs + ' overdue)' : ''));
+    if (z.openTasks > 0) parts.push('🧰 <b>' + z.openTasks + '</b> open task' + (z.openTasks > 1 ? 's' : '') +
+      (z.overdueTasks > 0 ? ' (' + z.overdueTasks + ' overdue)' : ''));
+    if ((z.activeRedTags || 0) > 0) parts.push('🏷️ <b>' + z.activeRedTags + '</b> active red tag' + (z.activeRedTags > 1 ? 's' : ''));
     var msg = '⏰ <b>' + z.id + ' ' + TelegramLib.esc(z.name) + '</b>\n' +
-      'Your ' + parts.join(' and ') + '.\nTap to action → ' + _tg5sZoneLink_(z.id);
+      parts.join('\n') + '\n\nTap to action → ' + _tg5sZoneLink_(z.id);
     if (TelegramLib.reply(chatId, msg)) sent++;
   });
   Logger.log('remindZoneLeaders: sent=' + sent + ' skipped(no-registration)=' + skipped);

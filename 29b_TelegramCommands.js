@@ -19,9 +19,19 @@ var TELEGRAM_COMMANDS = {
   '/pending':    function () { return _tg5sPending_(); },
   '/register':   function (arg, chatId) { return tg5sRegister_(arg, chatId); },
   '/unregister': function (arg, chatId) { return tg5sUnregister_(arg, chatId); },
-  '/start':      function () { return _tg5sWelcome_(); },
+  '/links':      function () { return _tg5sEnrollLinks_(); },
+  '/start':      function (arg, chatId) { return _tg5sStart_(arg, chatId); },
   '/help':       function () { return _tg5sHelp_(); }
 };
+
+// Bot @username for one-tap enrolment deep links (t.me/<user>?start=Z-07).
+// Override via ScriptProperty TELEGRAM_BOT_USERNAME if the bot is renamed.
+function _tg5sBotUser_() {
+  return PropertiesService.getScriptProperties().getProperty('TELEGRAM_BOT_USERNAME') || 'PM5sBot';
+}
+function _tg5sEnrollLink_(zoneId) {
+  return 'https://t.me/' + _tg5sBotUser_() + '?start=' + encodeURIComponent(String(zoneId || '').trim());
+}
 
 // One-shot credential setup — writes the bot token + channel ID into
 // ScriptProperties. Channel: "PM 5s SQDCP" (-1004336498836), bot @PM5sBot.
@@ -70,6 +80,8 @@ function _tg5sZoneGrid_() {
   var capaData = capaSheet && capaSheet.getLastRow() > 1 ? capaSheet.getDataRange().getValues() : [];
   var taskSheet = ss.getSheetByName('TaskBoard');
   var taskData = taskSheet && taskSheet.getLastRow() > 1 ? taskSheet.getDataRange().getValues() : [];
+  var rtSheet = ss.getSheetByName('RedTagRegister');
+  var rtData = rtSheet && rtSheet.getLastRow() > 1 ? rtSheet.getDataRange().getValues() : [];
 
   return zoneIds.map(function (zoneId) {
     var zone = zoneConfig[zoneId];
@@ -98,11 +110,17 @@ function _tg5sZoneGrid_() {
       var due = taskData[t][TASK_COL.DUE_DATE];
       if (due instanceof Date && now > due) overdueTasks++;
     }
+    var activeRedTags = 0;
+    for (var g = 1; g < rtData.length; g++) {
+      if (!rtData[g][0] || String(rtData[g][RT_COL.ZONE_ID]).trim() !== zoneId) continue;
+      if (!/^(disposed|returned|scrapped)$/i.test(String(rtData[g][RT_COL.STATUS]).trim())) activeRedTags++;
+    }
     return {
       id: zoneId, name: zone.name, leader: zone.leader,
       submitted: submitted, pctScore: submitted ? Math.round(pctScore) : null,
       openCAPAs: openCAPAs, overdueCAPAs: overdueCAPAs,
-      openTasks: openTasks, overdueTasks: overdueTasks
+      openTasks: openTasks, overdueTasks: overdueTasks,
+      activeRedTags: activeRedTags
     };
   });
 }
@@ -157,13 +175,39 @@ function _tg5sPending_() {
   return '<b>Not submitted today (' + pending.length + ')</b>\n' + lines.join('\n');
 }
 
+// /start handler. A deep-link tap (t.me/PM5sBot?start=Z-07) arrives as
+// "/start Z-07" → auto-enrol that chat for the zone. Bare /start → welcome.
+function _tg5sStart_(arg, chatId) {
+  var zoneId = String(arg || '').trim().toUpperCase();
+  if (zoneId) {
+    var res = tg5sRegister_(zoneId, chatId);
+    // tg5sRegister_ returns an error string for unknown zones; pass it through.
+    return /^✅/.test(res) ? '👋 <b>Welcome!</b> ' + res : res;
+  }
+  return _tg5sWelcome_();
+}
+
 function _tg5sWelcome_() {
   return '👋 <b>Welcome to the PackMasters 5S Bot</b>\n' +
-    'Your assistant for daily 5S audits, NCs and zone status.\n\n' +
+    'Your assistant for daily 5S audits, NCs, tasks and red tags.\n\n' +
     '📊 <b>Check status:</b> /status · /zones · /pending · /capas\n' +
     '🔔 <b>Get personal reminders:</b> send <b>/register &lt;ZONE&gt;</b> (e.g. /register Z-07)\n' +
-    'and I\'ll DM you when your zone\'s audit is pending or an NC is overdue.\n\n' +
+    'or just tap your zone\'s enrolment link/QR once — I\'ll DM you when your\n' +
+    'zone has a pending audit, overdue NC/task, or an active red tag.\n\n' +
     'Type /help for the full command list.';
+}
+
+// /links — one-tap enrolment deep links per zone (for printing QR codes at each
+// zone board). Tapping a link runs /start <zone> and enrols the sender.
+function _tg5sEnrollLinks_() {
+  var cfg = (typeof v2GetZoneConfig_ === 'function') ? v2GetZoneConfig_() : {};
+  var ids = Object.keys(cfg).sort();
+  if (!ids.length) return 'No zones configured.';
+  var lines = ids.map(function (id) {
+    return '<b>' + TelegramLib.esc(id) + '</b> ' + TelegramLib.esc(cfg[id].name || '') +
+      '\n' + _tg5sEnrollLink_(id);
+  });
+  return '🔗 <b>Zone enrolment links</b> (tap once to get DM reminders):\n\n' + lines.join('\n\n');
 }
 
 function _tg5sHelp_() {
@@ -173,5 +217,6 @@ function _tg5sHelp_() {
     '/pending — zones not yet submitted today\n' +
     '/capas — open &amp; overdue CAPAs\n' +
     '/register &lt;ZONE&gt; — get DM reminders for a zone (e.g. /register Z-07)\n' +
+    '/links — one-tap enrolment links/QR for every zone\n' +
     '/unregister — stop DM reminders';
 }

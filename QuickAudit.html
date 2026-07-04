@@ -1227,7 +1227,7 @@ function openAnnotatorFor_(dataUrl, stamp, cb) {
   document.getElementById('annotatorOverlay').style.display = 'flex';
   var f = document.getElementById('annotatorFrame');
   // Lazy-load the annotator iframe on first use (not on page render).
-  if (!f.getAttribute('src')) { f.src = (QA_DEPLOY_URL || '') + '?action=photoannotator'; return; }
+  if (!f.getAttribute('src')) { f.src = (QA_DEPLOY_URL || '') + '?v2=1&action=photoannotator'; return; }
   // First open waits for the frame's ready ping; reused frame is already ready.
   if (_annReady) _annPostLoad_();
 }

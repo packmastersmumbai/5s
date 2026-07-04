@@ -1195,8 +1195,12 @@ function applyWatermark_(dataUrl) {
       var thumb = document.getElementById('cam-thumb-' + _activeCrit.idx);
       if (thumb) { thumb.src = watermarked; thumb.style.display = 'inline-block'; }
       var modalOpen = document.getElementById('qaCreateModal').classList.contains('open');
-      if (modalOpen && _qaCreate.cid === _activeCrit.cid) qaRefreshModalPhoto_();
+      var sameCrit  = (_qaCreate.cid === _activeCrit.cid);
       _activeCrit = null;
+      if (modalOpen && sameCrit) {
+        qaRefreshModalPhoto_();
+        qaModalAnnotate_();   // capture → straight into annotate (draw/highlight/colors); Cancel keeps the plain photo
+      }
       return;
     }
     var hidden = document.getElementById('photoDataUrl');

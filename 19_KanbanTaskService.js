@@ -137,7 +137,17 @@ function createTask(taskData) {
     row[TASK_COL.TITLE] = d.title; row[TASK_COL.DESCRIPTION] = d.description || "";
     row[TASK_COL.CATEGORY] = "5S"; row[TASK_COL.PRIORITY] = d.priority || PRIORITY.MEDIUM;
     row[TASK_COL.SOURCE] = d.source || "MANUAL"; row[TASK_COL.SOURCE_REF] = d.sourceRefId || "";
-    row[TASK_COL.ASSIGNED_TO] = d.assignedTo || ""; row[TASK_COL.DUE_DATE] = d.dueDate || "";
+    // Store a real Date due-date so overdue detection (5S daily reminder grid +
+    // DWM due-soon engine) actually fires. Default when none supplied: high/urgent
+    // +1 day, low +7, else +3 — so every synced action becomes reminder-eligible.
+    var dueObj = null;
+    if (d.dueDate) { var pd = new Date(d.dueDate); if (!isNaN(pd.getTime())) dueObj = pd; }
+    if (!dueObj) {
+      var pr = String(d.priority || "").toLowerCase();
+      var days = (pr === "high" || pr === "urgent") ? 1 : (pr === "low" ? 7 : 3);
+      dueObj = new Date(now.getTime() + days * 86400000);
+    }
+    row[TASK_COL.ASSIGNED_TO] = d.assignedTo || ""; row[TASK_COL.DUE_DATE] = dueObj;
     row[TASK_COL.STATUS] = STATUS.BACKLOG; row[TASK_COL.UPDATED] = now;
     row[TASK_COL.CLOSED_DATE] = ""; row[TASK_COL.CLOSED_BY] = "";
     row[TASK_COL.REMARKS] = ""; row[TASK_COL.PHOTO_URL] = "";
@@ -149,7 +159,7 @@ function createTask(taskData) {
       DWM.syncTaskSafe({ title: d.title, ref: taskId, status: "open",
         assignee: (typeof dwmResolveUser_ === "function") ? dwmResolveUser_(d.assignedTo) : (d.assignedTo || ""),
         creator: (typeof dwmResolveUser_ === "function") ? dwmResolveUser_(taskData.createdBy) : "",
-        due: d.dueDate || "", priority: d.priority || "medium",
+        due: Utilities.formatDate(dueObj, TZ, "yyyy-MM-dd"), priority: d.priority || "medium",
         desc: (d.description || "") + " · 5S task " + taskId + " · zone " + d.zoneId });
     }
     if (typeof tg5sBroadcast_ === "function") {

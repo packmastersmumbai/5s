@@ -536,7 +536,8 @@ function escHtml(s) {
 
 var scores = {}, totalCriteria = 0, timerStart = null, timerInterval = null;
 var QA_DEPLOY_URL = '<?= (typeof deployUrl !== "undefined" && deployUrl) ? deployUrl : "" ?>';
-var criterionPhotos = {};   /* criterionId -> watermarked dataURL (optional per-parameter photo) */
+var criterionPhotos = {};    /* criterionId -> watermarked dataURL (optional per-parameter photo) */
+var criterionPhotosRaw = {}; /* criterionId -> raw pre-watermark dataURL (for annotation) */
 var _activeCrit = null;     /* {idx, cid} while a per-criterion camera capture is in flight */
 
 var _ZONE_ID = '<?= (typeof params !== "undefined" && params && params.zone) ? String(params.zone).replace(/['"<>&]/g,"") : "" ?>';
@@ -654,9 +655,7 @@ function renderAudit(cfg) {
       html += '<button class="qa-ac" onclick="toggleWDGLL(' + idx + ')" title="Standard"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></button>';
     }
     html += '<button class="qa-ac" id="ac-rem-' + idx + '" onclick="toggleRemark(' + idx + ')" title="Remark"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>';
-    html += '<button class="qa-ac" id="ac-ncr-' + idx + '" onclick="openAuditCreate(' + idx + ',\'NC\')" title="Raise NCR"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></button>';
-    html += '<button class="qa-ac" id="ac-task-' + idx + '" onclick="openAuditCreate(' + idx + ',\'TASK\')" title="Create Task"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></button>';
-    html += '<button class="qa-ac" id="ac-rt-' + idx + '" onclick="openAuditCreate(' + idx + ',\'REDTAG\')" title="Raise Red Tag"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></button>';
+    html += '<button class="qa-ac" id="ac-act-' + idx + '" onclick="openAuditCreate(' + idx + ')" title="Raise action (NCR / Red Tag / Task)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></button>';
     html += '</div></div>';
 
     /* Remark */
@@ -810,38 +809,76 @@ function toggleRemarkField(idx) {
 }
 
 /* ── Create NCR / Task / Red Tag from an audit criterion ─────────────────── */
-var _qaCreate = { idx: -1, type: '' };
+var _qaCreate = { idx: -1, cid: '' };
 
-function openAuditCreate(idx, type) {
+function openAuditCreate(idx) {
   if (!_CFG || !_CFG.criteria || !_CFG.criteria[idx]) { alert('Criterion not loaded'); return; }
   var zone = getZoneId();
   if (!zone) { alert('No zone selected for this audit'); return; }
-  _qaCreate = { idx: idx, type: type };
   var c = _CFG.criteria[idx];
+  _qaCreate = { idx: idx, cid: c.criterionId || '' };
   var label = c.label || c.criterionId || '';
 
-  document.getElementById('qaCrModalTitle').textContent =
-    (type === 'NC' ? 'Raise NCR' : type === 'TASK' ? 'Create Task' : 'Raise Red Tag');
+  document.getElementById('qaCrModalTitle').textContent = 'Raise action';
   document.getElementById('qaCrContext').textContent =
     (_CFG.zoneName || zone) + ' · ' + (PILLAR_NAMES[c.pillar] || c.pillar || '') + ' · ' + label;
 
-  // Show only the field group for this type; prefill description/title from criterion
-  ['NC', 'TASK', 'REDTAG'].forEach(function(t) {
-    document.getElementById('qaCr-' + t).style.display = (t === type ? 'block' : 'none');
-  });
-  document.getElementById('qaNcDesc').value   = type === 'NC'   ? ('Non-conformance: ' + label) : '';
-  document.getElementById('qaNcResp').value    = '';
-  document.getElementById('qaTaskTitle').value = type === 'TASK' ? ('Action: ' + label) : '';
+  // Reset type selection (nothing pre-ticked; user picks one, some, or all)
+  document.getElementById('qaChkNC').checked   = false;
+  document.getElementById('qaChkRT').checked   = false;
+  document.getElementById('qaChkTASK').checked = false;
+
+  // Prefill all groups from the criterion; visibility follows the checkboxes
+  document.getElementById('qaNcDesc').value    = 'Non-conformance: ' + label;
+  document.getElementById('qaNcResp').value     = '';
+  document.getElementById('qaTaskTitle').value = 'Action: ' + label;
   document.getElementById('qaTaskDesc').value  = '';
   document.getElementById('qaTaskAssign').value = '';
   document.getElementById('qaTaskDue').value   = '';
   document.getElementById('qaRtItem').value    = '';
   document.getElementById('qaRtQty').value     = '1';
-  document.getElementById('qaRtReason').value  = type === 'REDTAG' ? ('Flagged during audit: ' + label) : '';
+  document.getElementById('qaRtReason').value  = 'Flagged during audit: ' + label;
   document.getElementById('qaRtAction').value  = '';
 
+  qaToggleType_();
+  qaRefreshModalPhoto_();
   document.getElementById('qaCreateBackdrop').classList.add('open');
   document.getElementById('qaCreateModal').classList.add('open');
+}
+
+/* Show only the field groups for ticked types */
+function qaToggleType_() {
+  document.getElementById('qaCr-NC').style.display     = document.getElementById('qaChkNC').checked   ? 'block' : 'none';
+  document.getElementById('qaCr-REDTAG').style.display = document.getElementById('qaChkRT').checked   ? 'block' : 'none';
+  document.getElementById('qaCr-TASK').style.display   = document.getElementById('qaChkTASK').checked ? 'block' : 'none';
+}
+
+/* Modal evidence photo — reuses the per-criterion photo (criterionPhotos[cid]),
+   which uploads with the audit line item. Camera → watermark → (optional) annotate. */
+function qaModalCamera_() {
+  if (_qaCreate.idx < 0) return;
+  openCriterionCamera_(_qaCreate.idx, _qaCreate.cid);
+}
+
+function qaModalAnnotate_() {
+  var cid = _qaCreate.cid, idx = _qaCreate.idx;
+  // Annotate the raw frame so the annotator applies the single watermark strip
+  var src = criterionPhotosRaw[cid] || criterionPhotos[cid];
+  if (!src) { alert('Take a photo first'); return; }
+  openAnnotatorFor_(src, qaStamp_(), function(annotated) {
+    criterionPhotos[cid] = annotated;
+    var thumb = document.getElementById('cam-thumb-' + idx);
+    if (thumb) { thumb.src = annotated; thumb.style.display = 'inline-block'; }
+    qaRefreshModalPhoto_();
+  });
+}
+
+function qaRefreshModalPhoto_() {
+  var img = document.getElementById('qaCrPhoto');
+  var ann = document.getElementById('qaCrAnnotateBtn');
+  var cur = criterionPhotos[_qaCreate.cid];
+  if (cur) { img.src = cur; img.style.display = 'block'; ann.disabled = false; }
+  else { img.removeAttribute('src'); img.style.display = 'none'; ann.disabled = true; }
 }
 
 function closeAuditCreate() {
@@ -850,71 +887,88 @@ function closeAuditCreate() {
 }
 
 function submitAuditCreate() {
-  var idx = _qaCreate.idx, type = _qaCreate.type;
+  var idx = _qaCreate.idx;
   if (idx < 0 || !_CFG || !_CFG.criteria[idx]) return;
   var c = _CFG.criteria[idx];
   var zone = getZoneId();
+
+  // NCR first so its id becomes the shared reference for Task / Red Tag
+  var types = [];
+  if (document.getElementById('qaChkNC').checked)   types.push('NC');
+  if (document.getElementById('qaChkTASK').checked) types.push('TASK');
+  if (document.getElementById('qaChkRT').checked)   types.push('REDTAG');
+  if (!types.length) { alert('Select at least one: NCR, Red Tag or Task'); return; }
+
+  // Per-type required-field checks up front (fail before any write)
+  var ncDesc   = document.getElementById('qaNcDesc').value.trim();
+  var taskTitle = document.getElementById('qaTaskTitle').value.trim();
+  var rtItem   = document.getElementById('qaRtItem').value.trim();
+  if (types.indexOf('NC') >= 0 && !ncDesc)      { alert('NCR description is required'); return; }
+  if (types.indexOf('TASK') >= 0 && !taskTitle) { alert('Task title is required'); return; }
+  if (types.indexOf('REDTAG') >= 0 && !rtItem)  { alert('Red Tag item is required'); return; }
+
   var btn = document.getElementById('qaCrSubmit');
   btn.disabled = true; btn.textContent = 'Creating…';
+  var results = [], linkRef = '';
 
-  function done(ok, msg, acId) {
-    btn.disabled = false; btn.textContent = 'Create';
-    if (ok) {
-      closeAuditCreate();
-      var ac = document.getElementById(acId + idx);
-      if (ac) ac.classList.add('on-ncr');
-      alert(msg);
-    } else {
-      alert(msg || 'Failed to create');
+  function link_(text) { return linkRef ? (text + ' [Linked NC ' + linkRef + ']') : text; }
+
+  function runNext(i) {
+    if (i >= types.length) { finish(); return; }
+    createOne(types[i], function() { runNext(i + 1); });
+  }
+
+  function createOne(type, next) {
+    if (type === 'NC') {
+      google.script.run
+        .withSuccessHandler(function(r){ if (r) { linkRef = String(r); results.push('NCR ' + r); } else results.push('NCR failed'); next(); })
+        .withFailureHandler(function(e){ results.push('NCR error: ' + e.message); next(); })
+        .createCAPA(zone, ncDesc, 'NC', c.pillar, SQCDP_MAP[c.pillar] || '',
+                    document.getElementById('qaNcResp').value.trim(), (_CFG && _CFG.auditor) || '');
+
+    } else if (type === 'TASK') {
+      var payload = {
+        title: taskTitle, zoneId: zone,
+        description: link_(document.getElementById('qaTaskDesc').value.trim()),
+        priority: document.getElementById('qaTaskPrio').value,
+        assignedTo: document.getElementById('qaTaskAssign').value.trim(),
+        dueDate: document.getElementById('qaTaskDue').value,
+        source: 'AUDIT', sourceRefId: linkRef || c.criterionId || '',
+        createdBy: (_CFG && _CFG.auditor) || ''
+      };
+      google.script.run
+        .withSuccessHandler(function(r){ results.push(r && r.success ? ('Task ' + r.taskId) : ('Task failed' + (r && r.message ? ': ' + r.message : ''))); next(); })
+        .withFailureHandler(function(e){ results.push('Task error: ' + e.message); next(); })
+        .createTask(payload);
+
+    } else { // REDTAG
+      var form = {
+        zone: zone, item: rtItem,
+        quantity: parseInt(document.getElementById('qaRtQty').value, 10) || 1,
+        category: document.getElementById('qaRtCat').value,
+        reason: link_(document.getElementById('qaRtReason').value.trim()),
+        action: document.getElementById('qaRtAction').value.trim(),
+        taggedBy: (_CFG && _CFG.auditor) || ''
+      };
+      google.script.run
+        .withSuccessHandler(function(r){ var ok = r && (r.ok || r.success); results.push(ok ? ('Red Tag ' + r.tagNo) : 'Red Tag failed'); next(); })
+        .withFailureHandler(function(e){ results.push('Red Tag error: ' + e.message); next(); })
+        .raiseRedTag(form);
     }
   }
 
-  if (type === 'NC') {
-    var desc = document.getElementById('qaNcDesc').value.trim();
-    if (!desc) { done(false, 'Description is required'); return; }
-    var resp = document.getElementById('qaNcResp').value.trim();
-    var sqcdp = SQCDP_MAP[c.pillar] || '';
-    google.script.run
-      .withSuccessHandler(function(r){ done(!!r, r ? ('NCR ' + r + ' created') : 'Failed to create NCR', 'ac-ncr-'); })
-      .withFailureHandler(function(e){ done(false, 'Error: ' + e.message); })
-      .createCAPA(zone, desc, 'NC', c.pillar, sqcdp, resp, (_CFG && _CFG.auditor) || '');
-
-  } else if (type === 'TASK') {
-    var title = document.getElementById('qaTaskTitle').value.trim();
-    if (!title) { done(false, 'Title is required'); return; }
-    var payload = {
-      title: title,
-      zoneId: zone,
-      description: document.getElementById('qaTaskDesc').value.trim(),
-      priority: document.getElementById('qaTaskPrio').value,
-      assignedTo: document.getElementById('qaTaskAssign').value.trim(),
-      dueDate: document.getElementById('qaTaskDue').value,
-      source: 'AUDIT',
-      sourceRefId: c.criterionId || '',
-      createdBy: (_CFG && _CFG.auditor) || ''
-    };
-    google.script.run
-      .withSuccessHandler(function(r){ done(r && r.success, r && r.success ? ('Task ' + r.taskId + ' created') : (r && r.message) || 'Failed', 'ac-task-'); })
-      .withFailureHandler(function(e){ done(false, 'Error: ' + e.message); })
-      .createTask(payload);
-
-  } else if (type === 'REDTAG') {
-    var item = document.getElementById('qaRtItem').value.trim();
-    if (!item) { done(false, 'Item description is required'); return; }
-    var form = {
-      zone: zone,
-      item: item,
-      quantity: parseInt(document.getElementById('qaRtQty').value, 10) || 1,
-      category: document.getElementById('qaRtCat').value,
-      reason: document.getElementById('qaRtReason').value.trim(),
-      action: document.getElementById('qaRtAction').value.trim(),
-      taggedBy: (_CFG && _CFG.auditor) || ''
-    };
-    google.script.run
-      .withSuccessHandler(function(r){ var ok = r && (r.ok || r.success); done(ok, ok ? ('Red Tag ' + r.tagNo + ' created') : 'Failed to create Red Tag', 'ac-rt-'); })
-      .withFailureHandler(function(e){ done(false, 'Error: ' + e.message); })
-      .raiseRedTag(form);
+  function finish() {
+    btn.disabled = false; btn.textContent = 'Create';
+    var anyOk = results.some(function(r){ return !/failed|error/i.test(r); });
+    if (anyOk) {
+      var ac = document.getElementById('ac-act-' + idx);
+      if (ac) ac.classList.add('on-ncr');
+      closeAuditCreate();
+    }
+    alert(results.join('\n'));
   }
+
+  runNext(0);
 }
 
 function toggleWDGLL(idx) {
@@ -1073,6 +1127,7 @@ function openCriterionCamera_(idx, cid) {
 function resetCriterion_(idx, cid) {
   delete scores[cid];
   delete criterionPhotos[cid];
+  delete criterionPhotosRaw[cid];
   var ta = document.getElementById('remark-' + idx); if (ta) ta.value = '';
   for (var s = 0; s <= 4; s++) {
     var b = document.getElementById('btn-' + idx + '-' + s);
@@ -1136,10 +1191,13 @@ function applyWatermark_(dataUrl) {
     var watermarked = c.toDataURL('image/jpeg', 0.88);
     if (_activeCrit) {
       criterionPhotos[_activeCrit.cid] = watermarked;
+      criterionPhotosRaw[_activeCrit.cid] = dataUrl;
       var camBtn = document.getElementById('ac-cam-' + _activeCrit.idx);
       if (camBtn) camBtn.classList.add('on-cam');
       var thumb = document.getElementById('cam-thumb-' + _activeCrit.idx);
       if (thumb) { thumb.src = watermarked; thumb.style.display = 'inline-block'; }
+      var modalOpen = document.getElementById('qaCreateModal').classList.contains('open');
+      if (modalOpen && _qaCreate.cid === _activeCrit.cid) qaRefreshModalPhoto_();
       _activeCrit = null;
       return;
     }
@@ -1156,15 +1214,32 @@ function applyWatermark_(dataUrl) {
   img.src = dataUrl;
 }
 
+var _annOnSave = null;
+function openAnnotatorFor_(dataUrl, stamp, cb) {
+  _annOnSave = cb || null;
+  document.getElementById('annotatorOverlay').style.display = 'flex';
+  var f = document.getElementById('annotatorFrame');
+  var load = function() { try { f.contentWindow.loadImageForAnnotation(dataUrl, stamp || {}); } catch(e) {} };
+  if (f.contentWindow && f.contentWindow.loadImageForAnnotation) load();
+  else f.onload = load;
+}
+
+function qaStamp_() {
+  var now = new Date();
+  return {
+    zone: getZoneId() || 'Unknown Zone',
+    auditor: (typeof currentUser_ !== 'undefined' && currentUser_) ? currentUser_ : 'Auditor',
+    date: now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' +
+          String(now.getDate()).padStart(2,'0') + ' ' +
+          String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0'),
+    zoom: (window.devicePixelRatio || 1).toFixed(1)
+  };
+}
+
 window.closeAnnotator = function(dataUrl) {
   document.getElementById('annotatorOverlay').style.display = 'none';
-  if (!dataUrl) return;
-  var hidden = document.getElementById('photoDataUrl');
-  var prev   = document.getElementById('photoPreviewImg');
-  var thumb  = document.getElementById('photoThumb');
-  if (hidden) hidden.value = dataUrl;
-  if (prev)   prev.src = dataUrl;
-  if (thumb)  thumb.style.display = 'block';
+  var cb = _annOnSave; _annOnSave = null;
+  if (dataUrl && cb) cb(dataUrl);
 };
 
 function isMobileDevice_() {
@@ -1211,6 +1286,16 @@ window.PM_TOUR_STEPS = [
   .qacr-submit { width:100%; padding:13px; border:none; border-radius:10px; background:#2563eb; color:#fff;
     font-size:15px; font-weight:600; cursor:pointer; }
   .qacr-submit:disabled { opacity:.6; cursor:default; }
+  .qacr-types { display:flex; gap:8px; }
+  .qacr-types label { display:flex; align-items:center; gap:6px; flex:1; margin:0; padding:9px 8px;
+    border:1px solid #d4d8e2; border-radius:9px; font-size:13px; font-weight:600; color:#334; cursor:pointer; }
+  .qacr-types input { width:auto; }
+  .qacr-photo { display:flex; align-items:center; gap:10px; }
+  .qacr-photo img { width:56px; height:56px; object-fit:cover; border-radius:8px; border:1px solid #d4d8e2; }
+  .qacr-photo-btns { display:flex; gap:8px; flex:1; }
+  .qacr-photo-btns button { flex:1; padding:9px; border:1px solid #d4d8e2; border-radius:9px; background:#f6f8fc;
+    font-size:13px; font-weight:600; color:#334; cursor:pointer; }
+  .qacr-photo-btns button:disabled { opacity:.5; cursor:default; }
 </style>
 <div id="qaCreateBackdrop" onclick="closeAuditCreate()"></div>
 <div id="qaCreateModal" role="dialog" aria-modal="true">
@@ -1220,6 +1305,26 @@ window.PM_TOUR_STEPS = [
   </div>
   <div class="qacr-ctx" id="qaCrContext"></div>
   <div class="qacr-body">
+    <!-- What to create — one, some, or all (share a common record) -->
+    <div class="qacr-f">
+      <label>Create *</label>
+      <div class="qacr-types">
+        <label><input type="checkbox" id="qaChkNC" onchange="qaToggleType_()"> NCR</label>
+        <label><input type="checkbox" id="qaChkRT" onchange="qaToggleType_()"> Red Tag</label>
+        <label><input type="checkbox" id="qaChkTASK" onchange="qaToggleType_()"> Task</label>
+      </div>
+    </div>
+    <!-- Evidence photo (annotatable) — stored on this criterion's audit line -->
+    <div class="qacr-f">
+      <label>Evidence photo (optional)</label>
+      <div class="qacr-photo">
+        <img id="qaCrPhoto" alt="Evidence" style="display:none">
+        <div class="qacr-photo-btns">
+          <button type="button" onclick="qaModalCamera_()">📷 Photo</button>
+          <button type="button" id="qaCrAnnotateBtn" onclick="qaModalAnnotate_()" disabled>✏️ Annotate</button>
+        </div>
+      </div>
+    </div>
     <!-- NC fields -->
     <div id="qaCr-NC">
       <div class="qacr-f"><label>Description *</label><textarea id="qaNcDesc" rows="3" placeholder="Describe the non-conformance"></textarea></div>

@@ -82,6 +82,11 @@ function _tg5sZoneGrid_() {
   var taskData = taskSheet && taskSheet.getLastRow() > 1 ? taskSheet.getDataRange().getValues() : [];
   var rtSheet = ss.getSheetByName('RedTagRegister');
   var rtData = rtSheet && rtSheet.getLastRow() > 1 ? rtSheet.getDataRange().getValues() : [];
+  var tomorrowStr = Utilities.formatDate(new Date(now.getTime() + 86400000), TZ, 'yyyy-MM-dd');
+  function _dueBucket(d) {
+    if (!(d instanceof Date)) return '';
+    return Utilities.formatDate(d, TZ, 'yyyy-MM-dd');
+  }
 
   return zoneIds.map(function (zoneId) {
     var zone = zoneConfig[zoneId];
@@ -93,12 +98,15 @@ function _tg5sZoneGrid_() {
         if (ds === todayStr && !dailyData[r][17]) { submitted = true; pctScore = parseFloat(dailyData[r][14]) || 0; break; }
       }
     }
+    var dueToday = 0, dueTomorrow = 0;   // across NCs + tasks
     var openCAPAs = 0, overdueCAPAs = 0;
     for (var c = 1; c < capaData.length; c++) {
       if (String(capaData[c][2]).trim() === zoneId && String(capaData[c][14]).trim() !== 'CLOSED') {
         openCAPAs++;
         var target = capaData[c][13];
         if (target instanceof Date && now > target) overdueCAPAs++;
+        var tb = _dueBucket(target);
+        if (tb === todayStr) dueToday++; else if (tb === tomorrowStr) dueTomorrow++;
       }
     }
     var openTasks = 0, overdueTasks = 0;
@@ -109,6 +117,8 @@ function _tg5sZoneGrid_() {
       openTasks++;
       var due = taskData[t][TASK_COL.DUE_DATE];
       if (due instanceof Date && now > due) overdueTasks++;
+      var db = _dueBucket(due);
+      if (db === todayStr) dueToday++; else if (db === tomorrowStr) dueTomorrow++;
     }
     var activeRedTags = 0;
     for (var g = 1; g < rtData.length; g++) {
@@ -120,6 +130,7 @@ function _tg5sZoneGrid_() {
       submitted: submitted, pctScore: submitted ? Math.round(pctScore) : null,
       openCAPAs: openCAPAs, overdueCAPAs: overdueCAPAs,
       openTasks: openTasks, overdueTasks: overdueTasks,
+      dueToday: dueToday, dueTomorrow: dueTomorrow,
       activeRedTags: activeRedTags
     };
   });

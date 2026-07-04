@@ -142,6 +142,12 @@ function remindZoneLeaders() {
     if (!chatId) { skipped++; return; }
     var parts = [];
     if (!z.submitted) parts.push('🔴 daily 5S audit is <b>pending</b>');
+    if ((z.dueToday || 0) > 0 || (z.dueTomorrow || 0) > 0) {
+      var dp = [];
+      if ((z.dueToday || 0) > 0) dp.push('<b>' + z.dueToday + '</b> today');
+      if ((z.dueTomorrow || 0) > 0) dp.push('<b>' + z.dueTomorrow + '</b> tomorrow');
+      parts.push('🗓️ Due: ' + dp.join(', '));
+    }
     if (z.openCAPAs > 0) parts.push('📋 <b>' + z.openCAPAs + '</b> open NC' + (z.openCAPAs > 1 ? 's' : '') +
       (z.overdueCAPAs > 0 ? ' (' + z.overdueCAPAs + ' overdue)' : ''));
     if (z.openTasks > 0) parts.push('🧰 <b>' + z.openTasks + '</b> open task' + (z.openTasks > 1 ? 's' : '') +

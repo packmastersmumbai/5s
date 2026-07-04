@@ -24,7 +24,8 @@ function getZoneMatrix(zoneId, maxDates) {
     // Rows: criteria from the same config QuickAudit uses
     var cfg = getQuickAuditConfig(zoneId) || {};
     var criteria = (cfg.criteria || []).map(function (c) {
-      return { id: String(c.criterionId || ''), pillar: String(c.pillar || ''), label: String(c.label || '') };
+      return { id: String(c.criterionId || ''), pillar: String(c.pillar || ''),
+               label: String(c.label || ''), labelHi: String(c.labelHi || '') };
     });
 
     // Scores: AuditLineItems -> cells[cid][date]

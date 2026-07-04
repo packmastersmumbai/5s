@@ -113,7 +113,8 @@
     h += '</tr></thead><tbody>';
     c.forEach(function(cr){
       var dot = SC[cr.pillar] || '#999';
-      h += '<tr><th class="crit"><span class="crit-pill" style="color:'+dot+'">'+esc(cr.pillar)+'</span>'+esc(cr.label)+'</th>';
+      h += '<tr><th class="crit"><span class="crit-pill" style="color:'+dot+'">'+esc(cr.pillar)+'</span>'+esc(cr.label)+
+        (cr.labelHi?'<span style="display:block;font-size:11px;font-weight:400;color:#8a8578;margin-top:2px">'+esc(cr.labelHi)+'</span>':'')+'</th>';
       dates.forEach(function(d){
         var cell = (cells[cr.id]||{})[d];
         if (!cell) { h += '<td class="cell"><span class="cell-in cell-empty">·</span></td>'; return; }
@@ -135,7 +136,9 @@
 
   function openCell(cid, date) {
     var cr = findCrit(cid); var cell = (DATA.cells[cid]||{})[date] || {};
-    var h = '<h3>'+esc(cr.label)+'</h3><div class="sub">'+esc(cr.pillar)+' · '+esc(cid)+' · '+esc(date)+'</div>';
+    var h = '<h3>'+esc(cr.label)+'</h3>'+
+      (cr.labelHi?'<div style="font-size:12px;color:#8a8578;margin-top:-2px;margin-bottom:4px">'+esc(cr.labelHi)+'</div>':'')+
+      '<div class="sub">'+esc(cr.pillar)+' · '+esc(cid)+' · '+esc(date)+'</div>';
     h += '<div class="kv"><b>Score</b><span>'+(cell.score==null?'Not scored':(cell.score+' / 4'))+'</span></div>';
     if (cell.by) h += '<div class="kv"><b>Auditor</b><span>'+esc(cell.by)+'</span></div>';
     if (cell.remark) h += '<div class="kv"><b>Remark</b><span>'+esc(cell.remark)+'</span></div>';

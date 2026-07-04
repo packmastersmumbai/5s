@@ -1018,6 +1018,8 @@ function zmCard(z,sc,idx){
   var fh=z.fl.map(function(f){return '<span class="zm-fl zm-fl-'+f+'">'+f+'</span>';}).join('');
   var score=sc&&sc.score!=null?sc.score:null;
   var nc=sc?sc.nc||0:0;
+  var rt=sc?sc.redTags||0:0;
+  var tk=sc?sc.tasks||0:0;
   var ago=sc&&sc.last?sc.last:'—';
   var s1=sc?sc.s1||score||0:0,s2=sc?sc.s2||score||0:0,s3=sc?sc.s3||score||0:0,
       s4=sc?sc.s4||score||0:0,s5=sc?sc.s5||score||0:0;
@@ -1056,6 +1058,8 @@ function zmCard(z,sc,idx){
     +'<div class="zm-bars">'+bars+'</div>'
     +'<div class="zm-foot">'
     +(nc>0?'<span class="zm-nc zm-nc-bad">'+nc+' NC</span>':'<span class="zm-nc zm-nc-ok">&#10003; 0 NC</span>')
+    +'<span class="zm-nc" style="background:#fef3e2;color:#b7791f">&#127991; '+rt+' RT</span>'
+    +'<span class="zm-nc" style="background:#e8eefc;color:#3b5bdb">&#128203; '+tk+' Task</span>'
     +'<span class="zm-ago">'+ago+'</span>'
     +(nc>0?'<button style="'+BTN_NC+'" onclick="event.stopPropagation();pm5sNav(\''+ncUrl+'\')">View NCs</button>':'')
     +'</div></div>';

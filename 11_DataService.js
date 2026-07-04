@@ -806,6 +806,34 @@ function getZoneMapData() {
       }
     }
 
+    // ── Active red-tag count per zone from RedTagRegister ──
+    var openRedTags = {};
+    var rtSh = ss.getSheetByName("RedTagRegister");
+    if (rtSh && rtSh.getLastRow() > 1) {
+      var rtD = rtSh.getDataRange().getValues();
+      for (var g = 1; g < rtD.length; g++) {
+        if (!rtD[g][0]) continue;
+        var rtZ = String(rtD[g][RT_COL.ZONE_ID] || "").trim();
+        if (!rtZ) continue;
+        if (/^(disposed|returned|scrapped)$/i.test(String(rtD[g][RT_COL.STATUS] || "").trim())) continue;
+        openRedTags[rtZ] = (openRedTags[rtZ] || 0) + 1;
+      }
+    }
+
+    // ── Open task count per zone from TaskBoard ──
+    var openTasks = {};
+    var tkSh = ss.getSheetByName("TaskBoard");
+    if (tkSh && tkSh.getLastRow() > 1) {
+      var tkD = tkSh.getDataRange().getValues();
+      for (var q = 1; q < tkD.length; q++) {
+        var tkZ = String(tkD[q][TASK_COL.ZONE_ID] || "").trim();
+        if (!tkZ) continue;
+        var tkSt = String(tkD[q][TASK_COL.STATUS] || "").trim();
+        if (tkSt === STATUS.DONE || tkSt === STATUS.DELETED) continue;
+        openTasks[tkZ] = (openTasks[tkZ] || 0) + 1;
+      }
+    }
+
     // ── Build result map ──
     var result = {};
     Object.keys(latest).forEach(function(zid) {
@@ -819,12 +847,18 @@ function getZoneMapData() {
       var s5 = Math.round((row[DS_COL.S5_SCORE] || 0) / CRITERIA_PER_PILLAR * 100);
       var lastStr = dateVal.getFullYear() > 1970
         ? Utilities.formatDate(dateVal, TZ, "d MMM") : "—";
-      result[zid] = { score: score, nc: openNCs[zid] || 0, last: lastStr, s1: s1, s2: s2, s3: s3, s4: s4, s5: s5 };
+      result[zid] = { score: score, nc: openNCs[zid] || 0, redTags: openRedTags[zid] || 0, tasks: openTasks[zid] || 0,
+                      last: lastStr, s1: s1, s2: s2, s3: s3, s4: s4, s5: s5 };
     });
 
-    // Fill NC counts for zones not yet audited
-    Object.keys(openNCs).forEach(function(zid) {
-      if (!result[zid]) result[zid] = { score: null, nc: openNCs[zid], last: "—", s1: 0, s2: 0, s3: 0, s4: 0, s5: 0 };
+    // Ensure zones that have only NCs / red tags / tasks (no audit yet) still appear.
+    [openNCs, openRedTags, openTasks].forEach(function(mapObj) {
+      Object.keys(mapObj).forEach(function(zid) {
+        if (!result[zid]) result[zid] = { score: null, nc: 0, redTags: 0, tasks: 0, last: "—", s1: 0, s2: 0, s3: 0, s4: 0, s5: 0 };
+        result[zid].nc = openNCs[zid] || result[zid].nc || 0;
+        result[zid].redTags = openRedTags[zid] || result[zid].redTags || 0;
+        result[zid].tasks = openTasks[zid] || result[zid].tasks || 0;
+      });
     });
 
     try { cache.put('pm5s_zonemap', JSON.stringify(result), 300); } catch (e) {}

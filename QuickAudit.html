@@ -695,7 +695,7 @@ function renderAudit(cfg) {
 
   /* Annotator overlay */
   html += '<div id="annotatorOverlay" style="display:none;position:fixed;inset:0;z-index:9999;background:#000;flex-direction:column">';
-  html += '<iframe id="annotatorFrame" src="?action=photoannotator" style="flex:1;width:100%;border:none;height:100%"></iframe>';
+  html += '<iframe id="annotatorFrame" src="' + ((QA_DEPLOY_URL || '') + '?action=photoannotator') + '" style="flex:1;width:100%;border:none;height:100%"></iframe>';
   html += '</div>';
 
   document.getElementById('content').innerHTML = html;
@@ -1214,15 +1214,32 @@ function applyWatermark_(dataUrl) {
   img.src = dataUrl;
 }
 
-var _annOnSave = null;
+var _annOnSave = null, _annPending = null, _annReady = false;
+
+function _annPostLoad_() {
+  if (!_annPending) return;
+  var f = document.getElementById('annotatorFrame');
+  try { f.contentWindow.postMessage({ pm5sAnnotLoad: _annPending.dataUrl, stamp: _annPending.stamp }, '*'); } catch (e) {}
+}
+
 function openAnnotatorFor_(dataUrl, stamp, cb) {
   _annOnSave = cb || null;
+  _annPending = { dataUrl: dataUrl, stamp: stamp || {} };
   document.getElementById('annotatorOverlay').style.display = 'flex';
-  var f = document.getElementById('annotatorFrame');
-  var load = function() { try { f.contentWindow.loadImageForAnnotation(dataUrl, stamp || {}); } catch(e) {} };
-  if (f.contentWindow && f.contentWindow.loadImageForAnnotation) load();
-  else f.onload = load;
+  // First open waits for the frame's ready ping; reused frame is already ready.
+  if (_annReady) _annPostLoad_();
 }
+
+// Handshake with the annotator iframe (cross-origin GAS sandbox → postMessage).
+window.addEventListener('message', function(e) {
+  var d = e.data || {};
+  if (d.pm5sAnnotReady) { _annReady = true; _annPostLoad_(); return; }
+  if (d.pm5sAnnotDone) {
+    document.getElementById('annotatorOverlay').style.display = 'none';
+    var cb = _annOnSave; _annOnSave = null; _annPending = null;
+    if (d.dataUrl && cb) cb(d.dataUrl);
+  }
+});
 
 function qaStamp_() {
   var now = new Date();
@@ -1235,12 +1252,6 @@ function qaStamp_() {
     zoom: (window.devicePixelRatio || 1).toFixed(1)
   };
 }
-
-window.closeAnnotator = function(dataUrl) {
-  document.getElementById('annotatorOverlay').style.display = 'none';
-  var cb = _annOnSave; _annOnSave = null;
-  if (dataUrl && cb) cb(dataUrl);
-};
 
 function isMobileDevice_() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);

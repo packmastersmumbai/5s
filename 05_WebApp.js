@@ -78,6 +78,19 @@ function doGet(e) {
         .setMimeType(ContentService.MimeType.JAVASCRIPT);
     }
 
+    // ── Admin-only JSON action: refresh live ZONE_CONFIG criteria from defaults ──
+    // Usage: ?v2=1&action=reseedcriteria&token=<admin session token>
+    if (params.action === 'reseedcriteria') {
+      var rsSess = validateSession(params.token);
+      if (!rsSess.valid || String(rsSess.role).toUpperCase() !== 'ADMIN') {
+        return ContentService.createTextOutput(JSON.stringify({ success: false, message: 'Admin token required' }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      var rsRes = reseedZoneCriteria();
+      return ContentService.createTextOutput(JSON.stringify({ success: true, result: rsRes }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     // ═════════════════════════════════════════════════════════
     // AUTHENTICATION CHECK
     // Worker actions (QR zone access) bypass login.

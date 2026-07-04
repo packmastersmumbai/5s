@@ -36,3 +36,7 @@ project-structure.md
 docs/superpowers/
 
 creds.json
+
+# Local artifacts
+*.bak
+excalidraw.log

@@ -693,7 +693,7 @@ function renderAudit(cfg) {
 
   /* Annotator overlay */
   html += '<div id="annotatorOverlay" style="display:none;position:fixed;inset:0;z-index:9999;background:#000;flex-direction:column">';
-  html += '<iframe id="annotatorFrame" src="' + ((QA_DEPLOY_URL || '') + '?action=photoannotator') + '" style="flex:1;width:100%;border:none;height:100%"></iframe>';
+  html += '<iframe id="annotatorFrame" src="" style="flex:1;width:100%;border:none;height:100%"></iframe>';
   html += '</div>';
 
   document.getElementById('content').innerHTML = html;
@@ -1197,10 +1197,7 @@ function applyWatermark_(dataUrl) {
       var modalOpen = document.getElementById('qaCreateModal').classList.contains('open');
       var sameCrit  = (_qaCreate.cid === _activeCrit.cid);
       _activeCrit = null;
-      if (modalOpen && sameCrit) {
-        qaRefreshModalPhoto_();
-        qaModalAnnotate_();   // capture → straight into annotate (draw/highlight/colors); Cancel keeps the plain photo
-      }
+      if (modalOpen && sameCrit) qaRefreshModalPhoto_();
       return;
     }
     var hidden = document.getElementById('photoDataUrl');
@@ -1228,6 +1225,9 @@ function openAnnotatorFor_(dataUrl, stamp, cb) {
   _annOnSave = cb || null;
   _annPending = { dataUrl: dataUrl, stamp: stamp || {} };
   document.getElementById('annotatorOverlay').style.display = 'flex';
+  var f = document.getElementById('annotatorFrame');
+  // Lazy-load the annotator iframe on first use (not on page render).
+  if (!f.getAttribute('src')) { f.src = (QA_DEPLOY_URL || '') + '?action=photoannotator'; return; }
   // First open waits for the frame's ready ping; reused frame is already ready.
   if (_annReady) _annPostLoad_();
 }

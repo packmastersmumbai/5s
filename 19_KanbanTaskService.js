@@ -163,9 +163,16 @@ function createTask(taskData) {
         desc: (d.description || "") + " · 5S task " + taskId + " · zone " + d.zoneId });
     }
     if (typeof tg5sBroadcast_ === "function") {
-      tg5sBroadcast_("🗒️ <b>Task created</b> · " + d.zoneId + " " + v2GetZoneName_(d.zoneId) +
-        "\n" + d.title + (d.assignedTo ? " → " + d.assignedTo : ""),
-        [{ text: "🗒️ Open Actions", url: _tg5sDeep_('?v2=1&action=actionlist&zone=' + d.zoneId) }]);
+      tg5sBroadcast_(_tg5sCard_({
+        icon: "🗒️", kind: "Task", id: taskId, zoneId: d.zoneId, zoneName: v2GetZoneName_(d.zoneId),
+        facts: [
+          "📌 " + TelegramLib.esc(d.title),
+          "👤 " + TelegramLib.esc(d.assignedTo || "Unassigned") + " · ⚡ " + TelegramLib.esc(d.priority || "medium") +
+            " · 📅 " + Utilities.formatDate(dueObj, TZ, "dd-MMM")
+        ],
+        action: "complete & mark done",
+        by: taskData.createdBy || "5S"
+      }), [{ text: "🗒️ Open Actions", url: _tg5sDeep_('?v2=1&action=actionlist&zone=' + d.zoneId) }]);
     }
     return { success: true, taskId: taskId, message: "Task created." };
   }, "createTask", { success: false, taskId: "", message: "Server error." });
@@ -308,9 +315,15 @@ function createRedTag(tagData) {
         desc: (d.proposedAction || "") + " · 5S red tag " + tagId + " · zone " + d.zoneId, photo: true });
     }
     if (typeof tg5sBroadcast_ === "function") {
-      tg5sBroadcast_("🏷️ <b>Red Tag raised</b> · " + d.zoneId + " " + v2GetZoneName_(d.zoneId) +
-        "\n" + d.itemDescription + (d.owner ? " → " + d.owner : ""),
-        [{ text: "🏷️ Open Red Tags", url: _tg5sDeep_('?v2=1&action=redtag&zone=' + d.zoneId) }]);
+      tg5sBroadcast_(_tg5sCard_({
+        icon: "🏷️", kind: "Red Tag", id: tagId, zoneId: d.zoneId, zoneName: v2GetZoneName_(d.zoneId),
+        facts: [
+          "📦 " + TelegramLib.esc(d.itemDescription) + (d.itemCategory ? " · " + TelegramLib.esc(d.itemCategory) : ""),
+          (d.owner ? "👤 " + TelegramLib.esc(d.owner) + " · " : "") + "🎯 " + TelegramLib.esc(d.proposedAction || "review & dispose")
+        ],
+        action: "review & dispose (48h)",
+        by: (tagData && tagData.createdBy) || v2GetCurrentUser_()
+      }), [{ text: "🏷️ Open Red Tags", url: _tg5sDeep_('?v2=1&action=redtag&zone=' + d.zoneId) }]);
     }
     return { success: true, tagId: tagId, message: "Red Tag created." };
   }, "createRedTag", { success: false, tagId: "", message: "Server error." });
@@ -472,9 +485,17 @@ function createKaizenSuggestion(kzData) {
     for (var i = KZ_COL.REVIEWER; i <= KZ_COL.BENEFIT_VERIFIED_BY; i++) { if (row[i] === undefined) row[i] = ""; }
     sheet.appendRow(row);
     if (typeof tg5sBroadcast_ === "function") {
-      tg5sBroadcast_("💡 <b>Kaizen idea</b> · " + d.zoneId + " " + v2GetZoneName_(d.zoneId) +
-        "\n" + d.title + " — by " + d.submitterName + (d.estimatedSavings ? " (est. ₹" + d.estimatedSavings + ")" : ""),
-        [{ text: "💡 Open Kaizen", url: _tg5sDeep_('?v2=1&action=kaizenboard&zone=' + d.zoneId) }]);
+      tg5sBroadcast_(_tg5sCard_({
+        icon: "💡", kind: "Kaizen", id: kaizenId, zoneId: d.zoneId, zoneName: v2GetZoneName_(d.zoneId),
+        facts: [
+          "📌 " + TelegramLib.esc(d.title),
+          "🏷 " + TelegramLib.esc(d.category || "—") +
+            (d.estimatedSavings ? " · 💰 est ₹" + d.estimatedSavings : "") +
+            " · 👤 " + TelegramLib.esc(d.submitterName || "—")
+        ],
+        action: "review & approve",
+        by: d.submitterName || "5S"
+      }), [{ text: "💡 Open Kaizen", url: _tg5sDeep_('?v2=1&action=kaizenboard&zone=' + d.zoneId) }]);
     }
     return { success: true, kaizenId: kaizenId, message: "Kaizen suggestion submitted." };
   }, "createKaizenSuggestion", { success: false, kaizenId: "", message: "Server error." });

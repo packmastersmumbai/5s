@@ -551,9 +551,12 @@ function submitQuickAudit(auditData) {
       });
       if (res && res.success !== false && typeof tg5sBroadcast_ === "function") {
         var pct = (res && res.percentage != null) ? res.percentage : null;
-        tg5sBroadcast_("✅ <b>Daily audit</b> · " + zoneId + " " + v2GetZoneName_(zoneId) +
-          (pct != null ? " — " + pct + "%" : "") + " by " + user,
-          [{ text: "📊 Zone Records", url: _tg5sDeep_('?v2=1&action=zonematrix&zone=' + zoneId) }]);
+        tg5sBroadcast_(_tg5sCard_({
+          icon: "✅", kind: "Daily Audit", zoneId: zoneId, zoneName: v2GetZoneName_(zoneId),
+          facts: [ (pct != null ? "📊 Score " + pct + "%" : "📊 Submitted") ],
+          action: "review low-score items",
+          by: user
+        }), [{ text: "📊 Zone Records", url: _tg5sDeep_('?v2=1&action=zonematrix&zone=' + zoneId) }]);
       }
       return res;
     }

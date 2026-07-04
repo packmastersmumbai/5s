@@ -23,6 +23,27 @@ function tg5sBroadcast_(text, buttons) {
   } catch (e) { Logger.log('tg5sBroadcast_ skipped: ' + e.message); }
 }
 
+// Rich, icon-labelled broadcast card (QMS/WhatsApp-template style):
+//   <icon> <b>Kind</b> · <id> · <zone> <name>
+//   <fact line(s)>
+//   → <next action>
+//   👤 <by> · <dd-MMM HH:mm>
+// opts: { icon, kind, id, zoneId, zoneName, facts:[str], action, by }
+function _tg5sCard_(opts) {
+  var esc = (typeof TelegramLib !== 'undefined' && TelegramLib.esc)
+    ? TelegramLib.esc : function (s) { return String(s == null ? '' : s); };
+  var head = (opts.icon || '🔔') + ' <b>' + esc(opts.kind || '') + '</b>' +
+    (opts.id ? ' · ' + esc(opts.id) : '') +
+    ' · ' + esc(opts.zoneId || '') + (opts.zoneName ? ' ' + esc(opts.zoneName) : '');
+  var out = [head];
+  (opts.facts || []).forEach(function (f) { if (f) out.push(f); });
+  if (opts.action) out.push('→ ' + esc(opts.action));
+  var when = '';
+  try { when = Utilities.formatDate(new Date(), TZ, 'dd-MMM HH:mm'); } catch (e) {}
+  if (opts.by || when) out.push('👤 ' + esc(opts.by || '—') + (when ? ' · ' + when : ''));
+  return out.join('\n');
+}
+
 // Raw deployed /exec URL + query — for inline button links (not an <a> tag).
 function _tg5sDeep_(query) {
   var base = '';

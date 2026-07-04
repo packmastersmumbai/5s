@@ -136,9 +136,15 @@ function createCAPA(zoneId, description, type, pillar, sqcdpDim, responsiblePers
     });
   }
   if (typeof tg5sBroadcast_ === "function") {
-    tg5sBroadcast_("🔴 <b>NC raised</b> " + ncId + " · " + zoneId + " " + (zoneConfig.name || "") +
-      "\n" + (description || "") + (responsiblePerson ? " → " + responsiblePerson : ""),
-      [{ text: "📋 Open CAPA", url: _tg5sDeep_('?v2=1&action=capa&zone=' + zoneId) }]);
+    tg5sBroadcast_(_tg5sCard_({
+      icon: "🔴", kind: "NC", id: ncId, zoneId: zoneId, zoneName: (zoneConfig.name || ""),
+      facts: [
+        "⚠ " + TelegramLib.esc(description || ""),
+        "🎯 " + TelegramLib.esc(pillar || "—") + (responsiblePerson ? " · 👤 " + TelegramLib.esc(responsiblePerson) : "")
+      ],
+      action: "investigate & close (CAPA)",
+      by: createdBy || "5S"
+    }), [{ text: "📋 Open CAPA", url: _tg5sDeep_('?v2=1&action=capa&zone=' + zoneId) }]);
   }
   return ncId;
 }

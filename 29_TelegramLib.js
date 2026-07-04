@@ -57,9 +57,17 @@ var TelegramLib = (function () {
   // ── Low-level POST with HTML→plain-text fallback ──────────
   // Telegram returns 400 "can't parse entities" on malformed HTML; retry the
   // same text with tags stripped and no parse_mode so the message still lands.
-  function postMessage(tok, to, text) {
+  // buttons: optional array of {text, url} → rendered as a row of inline URL buttons.
+  function postMessage(tok, to, text, buttons) {
     var url = API + tok + '/sendMessage';
+    var markup = null;
+    if (buttons && buttons.length) {
+      var row = buttons.filter(function (b) { return b && b.text && b.url; })
+        .map(function (b) { return { text: String(b.text), url: String(b.url) }; });
+      if (row.length) markup = { inline_keyboard: [row] };
+    }
     function post(payload) {
+      if (markup) payload.reply_markup = markup;
       return UrlFetchApp.fetch(url, {
         method: 'post', contentType: 'application/json',
         payload: JSON.stringify(payload), muteHttpExceptions: true
@@ -76,17 +84,18 @@ var TelegramLib = (function () {
   }
 
   // ── Public: broadcast to the configured channel/chat ──────
-  function send(text) {
+  // send(text) or send(text, [{text,url}, ...]) for inline buttons.
+  function send(text, buttons) {
     var tok = token(), to = chatId();
     if (!tok || !to) { Logger.log('TelegramLib: not configured (token/chatId)'); return false; }
-    return postMessage(tok, to, text);
+    return postMessage(tok, to, text, buttons);
   }
 
   // ── Public: reply to a specific chat (command sender) ─────
-  function reply(to, text) {
+  function reply(to, text, buttons) {
     var tok = token();
     if (!tok || !to) return false;
-    return postMessage(tok, to, text);
+    return postMessage(tok, to, text, buttons);
   }
 
   // ── Command routing ───────────────────────────────────────

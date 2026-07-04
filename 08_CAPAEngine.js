@@ -137,7 +137,8 @@ function createCAPA(zoneId, description, type, pillar, sqcdpDim, responsiblePers
   }
   if (typeof tg5sBroadcast_ === "function") {
     tg5sBroadcast_("🔴 <b>NC raised</b> " + ncId + " · " + zoneId + " " + (zoneConfig.name || "") +
-      "\n" + (description || "") + (responsiblePerson ? " → " + responsiblePerson : ""));
+      "\n" + (description || "") + (responsiblePerson ? " → " + responsiblePerson : ""),
+      [{ text: "📋 Open CAPA", url: _tg5sDeep_('?v2=1&action=capa&zone=' + zoneId) }]);
   }
   return ncId;
 }
@@ -312,7 +313,8 @@ function updateCAPAStatus(ncId, newStatus, verifiedBy, remarks, additionalFields
       status: (newStatus === "CLOSED" ? "completed" : newStatus === "IN_PROGRESS" ? "in-progress" : "open") });
   }
   if (newStatus === "CLOSED" && typeof tg5sBroadcast_ === "function") {
-    tg5sBroadcast_("🟢 <b>NC closed</b> " + ncId + " · " + zoneId + " by " + actorEmail);
+    tg5sBroadcast_("🟢 <b>NC closed</b> " + ncId + " · " + zoneId + " by " + actorEmail,
+      [{ text: "📋 Open CAPA", url: _tg5sDeep_('?v2=1&action=capa&zone=' + zoneId) }]);
   }
   return { success: true, message: ncId + " updated to " + newStatus };
 }

@@ -552,7 +552,8 @@ function submitQuickAudit(auditData) {
       if (res && res.success !== false && typeof tg5sBroadcast_ === "function") {
         var pct = (res && res.percentage != null) ? res.percentage : null;
         tg5sBroadcast_("✅ <b>Daily audit</b> · " + zoneId + " " + v2GetZoneName_(zoneId) +
-          (pct != null ? " — " + pct + "%" : "") + " by " + user);
+          (pct != null ? " — " + pct + "%" : "") + " by " + user,
+          [{ text: "📊 Zone Records", url: _tg5sDeep_('?v2=1&action=zonematrix&zone=' + zoneId) }]);
       }
       return res;
     }

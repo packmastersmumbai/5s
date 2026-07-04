@@ -164,7 +164,8 @@ function createTask(taskData) {
     }
     if (typeof tg5sBroadcast_ === "function") {
       tg5sBroadcast_("🗒️ <b>Task created</b> · " + d.zoneId + " " + v2GetZoneName_(d.zoneId) +
-        "\n" + d.title + (d.assignedTo ? " → " + d.assignedTo : ""));
+        "\n" + d.title + (d.assignedTo ? " → " + d.assignedTo : ""),
+        [{ text: "🗒️ Open Actions", url: _tg5sDeep_('?v2=1&action=actionlist&zone=' + d.zoneId) }]);
     }
     return { success: true, taskId: taskId, message: "Task created." };
   }, "createTask", { success: false, taskId: "", message: "Server error." });
@@ -190,7 +191,8 @@ function updateTaskStatus(taskId, newStatus, remarks) {
         }
         if (newStatus === STATUS.DONE && typeof tg5sBroadcast_ === "function") {
           tg5sBroadcast_("✔️ <b>Task done</b> · " + String(data[r][TASK_COL.ZONE_ID]).trim() +
-            " — " + String(data[r][TASK_COL.TITLE] || taskId) + " by " + v2GetCurrentUser_());
+            " — " + String(data[r][TASK_COL.TITLE] || taskId) + " by " + v2GetCurrentUser_(),
+            [{ text: "🗒️ Open Actions", url: _tg5sDeep_('?v2=1&action=actionlist&zone=' + String(data[r][TASK_COL.ZONE_ID]).trim()) }]);
         }
         return { success: true, message: "Task " + taskId + " → " + newStatus };
       }
@@ -307,7 +309,8 @@ function createRedTag(tagData) {
     }
     if (typeof tg5sBroadcast_ === "function") {
       tg5sBroadcast_("🏷️ <b>Red Tag raised</b> · " + d.zoneId + " " + v2GetZoneName_(d.zoneId) +
-        "\n" + d.itemDescription + (d.owner ? " → " + d.owner : ""));
+        "\n" + d.itemDescription + (d.owner ? " → " + d.owner : ""),
+        [{ text: "🏷️ Open Red Tags", url: _tg5sDeep_('?v2=1&action=redtag&zone=' + d.zoneId) }]);
     }
     return { success: true, tagId: tagId, message: "Red Tag created." };
   }, "createRedTag", { success: false, tagId: "", message: "Server error." });
@@ -404,7 +407,8 @@ function advanceRedTagPhase(tagId, toPhase, notes) {
       }
       if ((toPhase === STATUS.CLOSED || toPhase === STATUS.DISPOSED) && typeof tg5sBroadcast_ === "function") {
         tg5sBroadcast_("✔️ <b>Red Tag " + toPhase.toLowerCase() + "</b> · " + String(data[r][RT_COL.ZONE_ID]).trim() +
-          " — " + String(data[r][RT_COL.ITEM_DESC] || tagId) + " by " + v2GetCurrentUser_());
+          " — " + String(data[r][RT_COL.ITEM_DESC] || tagId) + " by " + v2GetCurrentUser_(),
+          [{ text: "🏷️ Open Red Tags", url: _tg5sDeep_('?v2=1&action=redtag&zone=' + String(data[r][RT_COL.ZONE_ID]).trim()) }]);
       }
       return { success: true, message: "Red Tag " + tagId + " → " + toPhase };
     }
@@ -469,7 +473,8 @@ function createKaizenSuggestion(kzData) {
     sheet.appendRow(row);
     if (typeof tg5sBroadcast_ === "function") {
       tg5sBroadcast_("💡 <b>Kaizen idea</b> · " + d.zoneId + " " + v2GetZoneName_(d.zoneId) +
-        "\n" + d.title + " — by " + d.submitterName + (d.estimatedSavings ? " (est. ₹" + d.estimatedSavings + ")" : ""));
+        "\n" + d.title + " — by " + d.submitterName + (d.estimatedSavings ? " (est. ₹" + d.estimatedSavings + ")" : ""),
+        [{ text: "💡 Open Kaizen", url: _tg5sDeep_('?v2=1&action=kaizenboard&zone=' + d.zoneId) }]);
     }
     return { success: true, kaizenId: kaizenId, message: "Kaizen suggestion submitted." };
   }, "createKaizenSuggestion", { success: false, kaizenId: "", message: "Server error." });

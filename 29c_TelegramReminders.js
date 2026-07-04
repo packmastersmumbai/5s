@@ -14,13 +14,21 @@
 // ── Safe channel broadcast (event-driven "after each action") ───────────────
 // Gated by ScriptProperty TELEGRAM_ACTIONS_ENABLED ("false" mutes without a
 // redeploy; default ON). Never throws — a Telegram outage must never block a save.
-function tg5sBroadcast_(text) {
+function tg5sBroadcast_(text, buttons) {
   try {
     if (typeof TelegramLib === 'undefined') return;
     var flag = PropertiesService.getScriptProperties().getProperty('TELEGRAM_ACTIONS_ENABLED');
     if (flag === 'false') return;
-    TelegramLib.send(text);
+    TelegramLib.send(text, buttons);
   } catch (e) { Logger.log('tg5sBroadcast_ skipped: ' + e.message); }
+}
+
+// Raw deployed /exec URL + query — for inline button links (not an <a> tag).
+function _tg5sDeep_(query) {
+  var base = '';
+  try { base = ScriptApp.getService().getUrl() || ''; } catch (e) {}
+  if (!base) return '';
+  return base + (query ? (query.charAt(0) === '?' ? query : '?' + query) : '');
 }
 
 // ── Enrolment map (zoneId -> chatId) ────────────────────────────────────────

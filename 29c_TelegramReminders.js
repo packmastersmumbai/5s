@@ -23,25 +23,23 @@ function tg5sBroadcast_(text, buttons) {
   } catch (e) { Logger.log('tg5sBroadcast_ skipped: ' + e.message); }
 }
 
-// Rich, icon-labelled broadcast card (QMS/WhatsApp-template style):
-//   <icon> <b>Kind</b> · <id> · <zone> <name>
-//   <fact line(s)>
-//   → <next action>
-//   👤 <by> · <dd-MMM HH:mm>
-// opts: { icon, kind, id, zoneId, zoneName, facts:[str], action, by }
+// Compact 2-line broadcast card with a tappable record link:
+//   <icon> <b>Kind</b> <a href=link><id></a> · <zone> <name>
+//   <facts · joined> · → <action> · 👤 <by>
+// (Telegram already stamps the send time, so no date footer.)
+// opts: { icon, kind, id, link, zoneId, zoneName, facts:[str], action, by }
 function _tg5sCard_(opts) {
   var esc = (typeof TelegramLib !== 'undefined' && TelegramLib.esc)
     ? TelegramLib.esc : function (s) { return String(s == null ? '' : s); };
+  var id = opts.id ? esc(opts.id) : '';
+  if (id && opts.link) id = '<a href="' + esc(opts.link) + '">' + id + '</a>';
   var head = (opts.icon || '🔔') + ' <b>' + esc(opts.kind || '') + '</b>' +
-    (opts.id ? ' · ' + esc(opts.id) : '') +
+    (id ? ' ' + id : '') +
     ' · ' + esc(opts.zoneId || '') + (opts.zoneName ? ' ' + esc(opts.zoneName) : '');
-  var out = [head];
-  (opts.facts || []).forEach(function (f) { if (f) out.push(f); });
-  if (opts.action) out.push('→ ' + esc(opts.action));
-  var when = '';
-  try { when = Utilities.formatDate(new Date(), TZ, 'dd-MMM HH:mm'); } catch (e) {}
-  if (opts.by || when) out.push('👤 ' + esc(opts.by || '—') + (when ? ' · ' + when : ''));
-  return out.join('\n');
+  var line2 = (opts.facts || []).filter(Boolean).join(' · ');
+  if (opts.action) line2 += (line2 ? ' · ' : '') + '→ ' + esc(opts.action);
+  if (opts.by) line2 += (line2 ? ' · ' : '') + '👤 ' + esc(opts.by);
+  return line2 ? head + '\n' + line2 : head;
 }
 
 // Raw deployed /exec URL + query — for inline button links (not an <a> tag).

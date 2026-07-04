@@ -164,7 +164,8 @@ function createTask(taskData) {
     }
     if (typeof tg5sBroadcast_ === "function") {
       tg5sBroadcast_(_tg5sCard_({
-        icon: "🗒️", kind: "Task", id: taskId, zoneId: d.zoneId, zoneName: v2GetZoneName_(d.zoneId),
+        icon: "🗒️", kind: "Task", id: taskId, link: _tg5sDeep_('?v2=1&action=actionlist&zone=' + d.zoneId),
+        zoneId: d.zoneId, zoneName: v2GetZoneName_(d.zoneId),
         facts: [
           "📌 " + TelegramLib.esc(d.title),
           "👤 " + TelegramLib.esc(d.assignedTo || "Unassigned") + " · ⚡ " + TelegramLib.esc(d.priority || "medium") +
@@ -316,7 +317,8 @@ function createRedTag(tagData) {
     }
     if (typeof tg5sBroadcast_ === "function") {
       tg5sBroadcast_(_tg5sCard_({
-        icon: "🏷️", kind: "Red Tag", id: tagId, zoneId: d.zoneId, zoneName: v2GetZoneName_(d.zoneId),
+        icon: "🏷️", kind: "Red Tag", id: tagId, link: _tg5sDeep_('?v2=1&action=redtag&zone=' + d.zoneId),
+        zoneId: d.zoneId, zoneName: v2GetZoneName_(d.zoneId),
         facts: [
           "📦 " + TelegramLib.esc(d.itemDescription) + (d.itemCategory ? " · " + TelegramLib.esc(d.itemCategory) : ""),
           (d.owner ? "👤 " + TelegramLib.esc(d.owner) + " · " : "") + "🎯 " + TelegramLib.esc(d.proposedAction || "review & dispose")
@@ -486,7 +488,8 @@ function createKaizenSuggestion(kzData) {
     sheet.appendRow(row);
     if (typeof tg5sBroadcast_ === "function") {
       tg5sBroadcast_(_tg5sCard_({
-        icon: "💡", kind: "Kaizen", id: kaizenId, zoneId: d.zoneId, zoneName: v2GetZoneName_(d.zoneId),
+        icon: "💡", kind: "Kaizen", id: kaizenId, link: _tg5sDeep_('?v2=1&action=kaizenboard&zone=' + d.zoneId),
+        zoneId: d.zoneId, zoneName: v2GetZoneName_(d.zoneId),
         facts: [
           "📌 " + TelegramLib.esc(d.title),
           "🏷 " + TelegramLib.esc(d.category || "—") +

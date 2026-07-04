@@ -552,7 +552,8 @@ function submitQuickAudit(auditData) {
       if (res && res.success !== false && typeof tg5sBroadcast_ === "function") {
         var pct = (res && res.percentage != null) ? res.percentage : null;
         tg5sBroadcast_(_tg5sCard_({
-          icon: "✅", kind: "Daily Audit", zoneId: zoneId, zoneName: v2GetZoneName_(zoneId),
+          icon: "✅", kind: "Daily Audit", link: _tg5sDeep_('?v2=1&action=zonematrix&zone=' + zoneId),
+          zoneId: zoneId, zoneName: v2GetZoneName_(zoneId),
           facts: [ (pct != null ? "📊 Score " + pct + "%" : "📊 Submitted") ],
           action: "review low-score items",
           by: user

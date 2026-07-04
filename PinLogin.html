@@ -61,6 +61,7 @@
 
   <script>
     var DEPLOY_URL = '<?= deployUrl ?>';
+    var NEXT_QS = '<?= (typeof nextQs !== "undefined" && nextQs) ? nextQs : "" ?>';
     var CLEAR_STALE = <?= clearStaleToken ? 'true' : 'false' ?>;
     if (CLEAR_STALE) { try { localStorage.removeItem('pm5s_token'); } catch (e) {} }
 
@@ -109,7 +110,9 @@
         .withSuccessHandler(function (res) {
           if (res && res.success) {
             try { localStorage.setItem('pm5s_token', res.token); } catch (e) {}
-            window.pm5sNav(DEPLOY_URL + '?v2=1&action=home&token=' + encodeURIComponent(res.token));
+            var dest = NEXT_QS ? (NEXT_QS + '&token=' + encodeURIComponent(res.token))
+                               : ('v2=1&action=home&token=' + encodeURIComponent(res.token));
+            window.pm5sNav(DEPLOY_URL + '?' + dest);
             return;
           }
           pin = ''; renderDots(); shake();

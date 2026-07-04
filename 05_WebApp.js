@@ -113,10 +113,13 @@ function doGet(e) {
         if (!action) {
           return serveZoneSelector_();
         }
-        // Protected action requested without session → show login
+        // Protected action requested without session → show login, remembering
+        // the requested destination so we can return there after sign-in.
         var loginTmpl = HtmlService.createTemplateFromFile("PinLogin");
         loginTmpl.deployUrl = ScriptApp.getService().getUrl();
         loginTmpl.clearStaleToken = token ? true : false;
+        var _nz = params.zone ? String(params.zone).replace(/[^a-zA-Z0-9\-_]/g, "") : "";
+        loginTmpl.nextQs = "v2=1&action=" + encodeURIComponent(action) + (_nz ? "&zone=" + _nz : "");
         return loginTmpl.evaluate()
           .setTitle("PackMasters 5S — Login")
           .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
@@ -138,6 +141,7 @@ function doGet(e) {
       var loginTmpl = HtmlService.createTemplateFromFile("PinLogin");
       loginTmpl.deployUrl = ScriptApp.getService().getUrl();
       loginTmpl.clearStaleToken = token ? true : false;
+      loginTmpl.nextQs = params.next ? String(params.next).replace(/[^a-zA-Z0-9=&\-_%]/g, "") : "";
       return loginTmpl.evaluate()
         .setTitle("PackMasters 5S — Login")
         .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)

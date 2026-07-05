@@ -274,9 +274,18 @@ function floorOf_(id) {
   if (n <= 19) return '1st Floor';
   return '2nd Floor';
 }
+// Zone config injected server-side (same reliable path as KaizenForm) — the old
+// google.script.run.getZoneConfig() had no failure handler and left "Loading zones…" stuck.
+var GW_ZC = {};
+try { GW_ZC = <?!= config.zoneConfig ?> || {}; } catch (e) { GW_ZC = {}; }
 function loadZonesForForm() {
+  if (GW_ZC && Object.keys(GW_ZC).length) { renderZoneChips(GW_ZC); return; }
   google.script.run
     .withSuccessHandler(function(cfg) { renderZoneChips(cfg || {}); })
+    .withFailureHandler(function(e) {
+      var w = document.getElementById('walkZoneChips');
+      if (w) w.innerHTML = '<div style="color:var(--score-red);font-size:12px">Could not load zones: ' + escHtml(e && e.message || '') + '</div>';
+    })
     .getZoneConfig();
 }
 function renderZoneChips(cfg) {

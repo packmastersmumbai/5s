@@ -829,45 +829,52 @@ function updateCreateArea_(idx) {
   if (d && !d.value) d.value = (_CFG.criteria[idx].label || '');
 }
 
+function toast_(msg, kind) {
+  if (typeof pmToast === 'function') { pmToast(msg, kind || 'info'); return; }
+  if (kind === 'error') alert(msg);
+}
+
 function submitCardCreate(idx) {
   var c = _CFG.criteria[idx], zone = getZoneId();
   var types = selectedTypes_(idx);
   if (!types.length) return;
   var desc = (document.getElementById('cdesc-' + idx).value || '').trim();
   if (!desc) { alert('Enter a description'); return; }
-  var btn = document.getElementById('cbtn-' + idx);
-  btn.disabled = true; btn.textContent = 'Creating…';
-  var results = [], linkRef = '';
+
+  // Optimistic UI: createCAPA/createTask/raiseRedTag each do a synchronous
+  // Telegram broadcast + DWM sync (10–20s each), so DON'T block the button —
+  // give instant feedback and let the server work finish in the background.
   types.sort(function(a, b){ return a === 'NC' ? -1 : b === 'NC' ? 1 : 0; });   // NCR first → shared ref
+  types.forEach(function(t){ var b = document.getElementById(TYPE_META[t].btn + idx); if (b) { b.classList.remove('sel'); b.classList.add('pending'); } });
+  document.getElementById('create-' + idx).style.display = 'none';
+  toast_('Creating ' + types.map(function(t){ return TYPE_META[t].label; }).join(' + ') + '…', 'info');
+
+  var linkRef = '', errors = [], okIds = [];
   function link_(t){ return linkRef ? (t + ' [Linked NC ' + linkRef + ']') : t; }
-  function run(i){ if (i >= types.length) { finish(); return; } one(types[i], function(){ run(i + 1); }); }
+  function mark(t, ok){ var b = document.getElementById(TYPE_META[t].btn + idx); if (b) { b.classList.remove('pending'); b.classList.toggle('done', ok); } }
+  function run(i){ if (i >= types.length) { done_(); return; } one(types[i], function(){ run(i + 1); }); }
   function one(type, next) {
     if (type === 'NC') {
       google.script.run
-        .withSuccessHandler(function(r){ if (r) { linkRef = String(r); results.push('NCR ' + r); } else results.push('NCR failed'); next(); })
-        .withFailureHandler(function(e){ results.push('NCR error: ' + e.message); next(); })
+        .withSuccessHandler(function(r){ if (r) { linkRef = String(r); okIds.push('NCR ' + r); mark('NC', true); } else { errors.push('NCR failed'); mark('NC', false); } next(); })
+        .withFailureHandler(function(e){ errors.push('NCR: ' + e.message); mark('NC', false); next(); })
         .createCAPA(zone, desc, 'NC', c.pillar, SQCDP_MAP[c.pillar] || '', '', (_CFG && _CFG.auditor) || '');
     } else if (type === 'TASK') {
       google.script.run
-        .withSuccessHandler(function(r){ results.push(r && r.success ? ('Task ' + r.taskId) : 'Task failed'); next(); })
-        .withFailureHandler(function(e){ results.push('Task error: ' + e.message); next(); })
+        .withSuccessHandler(function(r){ if (r && r.success) { okIds.push('Task ' + r.taskId); mark('TASK', true); } else { errors.push('Task failed'); mark('TASK', false); } next(); })
+        .withFailureHandler(function(e){ errors.push('Task: ' + e.message); mark('TASK', false); next(); })
         .createTask({ title: desc, zoneId: zone, description: link_(''), priority: 'MEDIUM', assignedTo: '', dueDate: '',
                       source: 'AUDIT', sourceRefId: linkRef || c.criterionId || '', createdBy: (_CFG && _CFG.auditor) || '' });
     } else {
       google.script.run
-        .withSuccessHandler(function(r){ var ok = r && (r.ok || r.success); results.push(ok ? ('Red Tag ' + r.tagNo) : 'Red Tag failed'); next(); })
-        .withFailureHandler(function(e){ results.push('Red Tag error: ' + e.message); next(); })
+        .withSuccessHandler(function(r){ var ok = r && (r.ok || r.success); if (ok) { okIds.push('Red Tag ' + r.tagNo); mark('REDTAG', true); } else { errors.push('Red Tag failed'); mark('REDTAG', false); } next(); })
+        .withFailureHandler(function(e){ errors.push('Red Tag: ' + e.message); mark('REDTAG', false); next(); })
         .raiseRedTag({ zone: zone, item: desc, quantity: 1, category: 'Other', reason: link_('Flagged during audit'), action: '', taggedBy: (_CFG && _CFG.auditor) || '' });
     }
   }
-  function finish() {
-    btn.disabled = false; btn.textContent = 'Create';
-    var anyOk = results.some(function(r){ return !/failed|error/i.test(r); });
-    if (anyOk) {
-      types.forEach(function(t){ var b = document.getElementById(TYPE_META[t].btn + idx); if (b) { b.classList.remove('sel'); b.classList.add('done'); } });
-      document.getElementById('create-' + idx).style.display = 'none';
-    }
-    alert(results.join('\n'));
+  function done_() {
+    if (okIds.length) toast_('Created: ' + okIds.join(', '), 'success');
+    if (errors.length) toast_('Failed: ' + errors.join('; '), 'error');
   }
   run(0);
 }
@@ -1271,7 +1278,9 @@ window.PM_TOUR_STEPS = [
   .qa-ic { width:30px; height:30px; display:inline-flex; align-items:center; justify-content:center; border:1px solid #e3e6ee; border-radius:7px; background:#fff; color:#5a6472; cursor:pointer; padding:0; flex-shrink:0; }
   .qa-ic:active { transform:scale(.9); }
   .qa-ic.sel { background:#e8f0ff; border-color:#2563eb; color:#2563eb; }
+  .qa-ic.pending { background:#fff7e6; border-color:#f0c069; color:#b9770a; animation:qaPulse 1s ease-in-out infinite; }
   .qa-ic.done { background:#2563eb; border-color:#2563eb; color:#fff; }
+  @keyframes qaPulse { 0%,100%{opacity:1} 50%{opacity:.5} }
   /* SQCDP → horizontal top-right (neutralise legacy left-rail) */
   .qa-sqcdp { order:0; justify-self:end; position:static; display:flex; flex-direction:row; gap:3px; padding:0; border-right:none; background:none; }
   .qa-card.scored .qa-sqcdp { display:flex; }

@@ -91,6 +91,8 @@
 <script>
   var ZONE = '<?= zoneId ?>';
   var DEPLOY = '<?= deployUrl ?>';
+  var TOKEN = '<?= (params && params.token) ? params.token : "" ?>';
+  var ACTQS = '&token=' + encodeURIComponent(TOKEN);   // carry session so Actions doesn't bounce to login
   var DATA = null;
   var SC = { S1:'#e11d48', S2:'#2563eb', S3:'#0891b2', S4:'#16a34a', S5:'#7c3aed' };
 
@@ -151,7 +153,7 @@
     });
     if (cell.photo) h += '<img class="m-photo" src="'+esc(cell.photo)+'" onerror="this.style.display=\'none\'">';
     h += '<div class="m-actions">';
-    if (cell.ncs && cell.ncs.length) h += '<a class="m-btn p" href="'+DEPLOY+'?v2=1&action=actionlist&zone='+encodeURIComponent(ZONE)+'" target="_top">Open in Actions</a>';
+    if (cell.ncs && cell.ncs.length) h += '<a class="m-btn p" href="'+DEPLOY+'?v2=1&action=actionlist&zone='+encodeURIComponent(ZONE)+ACTQS+'" target="_top">Open in Actions</a>';
     h += '<button class="m-btn s" onclick="closeSheet()">Close</button></div>';
     openSheet(h);
   }
@@ -161,7 +163,7 @@
     (DATA.redTags||[]).forEach(function(rt){
       h += '<div class="kv"><b>'+esc(rt.status)+'</b><span>'+esc(rt.item||rt.tagId)+'</span></div>';
     });
-    h += '<div class="m-actions"><a class="m-btn p" href="'+DEPLOY+'?v2=1&action=actionlist&zone='+encodeURIComponent(ZONE)+'" target="_top">Open in Actions</a><button class="m-btn s" onclick="closeSheet()">Close</button></div>';
+    h += '<div class="m-actions"><a class="m-btn p" href="'+DEPLOY+'?v2=1&action=actionlist&zone='+encodeURIComponent(ZONE)+ACTQS+'" target="_top">Open in Actions</a><button class="m-btn s" onclick="closeSheet()">Close</button></div>';
     openSheet(h);
   }
 

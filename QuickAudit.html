@@ -654,10 +654,9 @@ function renderAudit(cfg) {
     html += '<textarea class="qa-remark-input" id="remark-' + idx + '" data-cid="' + cid + '" rows="2" placeholder="Optional remark…" style="display:block"></textarea>';
     html += '</div>';
 
-    /* Inline create (shown when NCR/RT/Task toggled) */
+    /* Inline create — one field group per selected action (populated by updateCreateArea_) */
     html += '<div class="qa-create" id="create-' + idx + '" style="display:none">';
-    html += '<span class="qa-create-lbl" id="create-lbl-' + idx + '"></span>';
-    html += '<input class="qa-create-desc" id="cdesc-' + idx + '" type="text" placeholder="Description">';
+    html += '<div class="qa-create-fields" id="createfields-' + idx + '"></div>';
     html += '<button class="qa-create-btn" id="cbtn-' + idx + '" onclick="submitCardCreate(' + idx + ')">Create</button>';
     html += '</div>';
 
@@ -817,16 +816,46 @@ function selectedTypes_(idx) {
   return out;
 }
 
+function cfEsc_(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+/* Build one labelled field group per selected action, preserving typed values */
 function updateCreateArea_(idx) {
   var types = selectedTypes_(idx);
   var area = document.getElementById('create-' + idx);
-  if (!area) return;
+  var fields = document.getElementById('createfields-' + idx);
+  if (!area || !fields) return;
   if (!types.length) { area.style.display = 'none'; return; }
-  area.style.display = 'flex';
-  document.getElementById('create-lbl-' + idx).textContent =
-    types.map(function(t){ return TYPE_META[t].label; }).join(' + ');
-  var d = document.getElementById('cdesc-' + idx);
-  if (d && !d.value) d.value = (_CFG.criteria[idx].label || '');
+  area.style.display = 'block';
+
+  var prev = {};
+  fields.querySelectorAll('[data-f]').forEach(function(el){ prev[el.getAttribute('data-f')] = el.value; });
+  var label = (_CFG.criteria[idx].label || '');
+  var h = '';
+  if (types.indexOf('NC') >= 0) {
+    h += '<div class="qa-cf-grp"><span class="qa-cf-lbl nc">NCR</span>';
+    h += '<input class="qa-cf" data-f="nc_desc" type="text" placeholder="Non-conformance description">';
+    h += '<div class="qa-cf-row"><input class="qa-cf" data-f="nc_resp" type="text" placeholder="Responsible person">';
+    h += '<input class="qa-cf qa-cf-date" data-f="nc_target" type="date" title="Target date"></div></div>';
+  }
+  if (types.indexOf('TASK') >= 0) {
+    h += '<div class="qa-cf-grp"><span class="qa-cf-lbl task">Task</span>';
+    h += '<input class="qa-cf" data-f="task_title" type="text" placeholder="Task title"></div>';
+  }
+  if (types.indexOf('REDTAG') >= 0) {
+    h += '<div class="qa-cf-grp"><span class="qa-cf-lbl rt">Red Tag</span>';
+    h += '<input class="qa-cf" data-f="rt_item" type="text" placeholder="Item to tag"></div>';
+  }
+  fields.innerHTML = h;
+
+  fields.querySelectorAll('[data-f]').forEach(function(el){ var k = el.getAttribute('data-f'); if (prev[k] !== undefined) el.value = prev[k]; });
+  var d = fields.querySelector('[data-f="nc_desc"]');   if (d && !d.value)  d.value = 'Non-conformance: ' + label;
+  var tt = fields.querySelector('[data-f="task_title"]'); if (tt && !tt.value) tt.value = 'Action: ' + label;
+  var ri = fields.querySelector('[data-f="rt_item"]');   if (ri && !ri.value) ri.value = label;
+}
+
+function cfVal_(idx, f) {
+  var e = document.querySelector('#createfields-' + idx + ' [data-f="' + f + '"]');
+  return e ? (e.value || '').trim() : '';
 }
 
 function toast_(msg, kind) {
@@ -838,8 +867,14 @@ function submitCardCreate(idx) {
   var c = _CFG.criteria[idx], zone = getZoneId();
   var types = selectedTypes_(idx);
   if (!types.length) return;
-  var desc = (document.getElementById('cdesc-' + idx).value || '').trim();
-  if (!desc) { alert('Enter a description'); return; }
+
+  // Per-action fields
+  var ncDesc = cfVal_(idx, 'nc_desc'), ncResp = cfVal_(idx, 'nc_resp'), ncTarget = cfVal_(idx, 'nc_target');
+  var taskTitle = cfVal_(idx, 'task_title');
+  var rtItem = cfVal_(idx, 'rt_item');
+  if (types.indexOf('NC') >= 0 && !ncDesc)      { alert('NCR: enter a description'); return; }
+  if (types.indexOf('TASK') >= 0 && !taskTitle) { alert('Task: enter a title'); return; }
+  if (types.indexOf('REDTAG') >= 0 && !rtItem)  { alert('Red Tag: enter an item'); return; }
 
   // Optimistic UI: createCAPA/createTask/raiseRedTag each do a synchronous
   // Telegram broadcast + DWM sync (10–20s each), so DON'T block the button —
@@ -858,18 +893,18 @@ function submitCardCreate(idx) {
       google.script.run
         .withSuccessHandler(function(r){ if (r) { linkRef = String(r); okIds.push('NCR ' + r); mark('NC', true); } else { errors.push('NCR failed'); mark('NC', false); } next(); })
         .withFailureHandler(function(e){ errors.push('NCR: ' + e.message); mark('NC', false); next(); })
-        .createCAPA(zone, desc, 'NC', c.pillar, SQCDP_MAP[c.pillar] || '', '', (_CFG && _CFG.auditor) || '');
+        .createCAPA(zone, ncDesc, 'NC', c.pillar, SQCDP_MAP[c.pillar] || '', ncResp, (_CFG && _CFG.auditor) || '', ncTarget);
     } else if (type === 'TASK') {
       google.script.run
         .withSuccessHandler(function(r){ if (r && r.success) { okIds.push('Task ' + r.taskId); mark('TASK', true); } else { errors.push('Task failed'); mark('TASK', false); } next(); })
         .withFailureHandler(function(e){ errors.push('Task: ' + e.message); mark('TASK', false); next(); })
-        .createTask({ title: desc, zoneId: zone, description: link_(''), priority: 'MEDIUM', assignedTo: '', dueDate: '',
+        .createTask({ title: taskTitle, zoneId: zone, description: link_(''), priority: 'MEDIUM', assignedTo: '', dueDate: '',
                       source: 'AUDIT', sourceRefId: linkRef || c.criterionId || '', createdBy: (_CFG && _CFG.auditor) || '' });
     } else {
       google.script.run
         .withSuccessHandler(function(r){ var ok = r && (r.ok || r.success); if (ok) { okIds.push('Red Tag ' + r.tagNo); mark('REDTAG', true); } else { errors.push('Red Tag failed'); mark('REDTAG', false); } next(); })
         .withFailureHandler(function(e){ errors.push('Red Tag: ' + e.message); mark('REDTAG', false); next(); })
-        .raiseRedTag({ zone: zone, item: desc, quantity: 1, category: 'Other', reason: link_('Flagged during audit'), action: '', taggedBy: (_CFG && _CFG.auditor) || '' });
+        .raiseRedTag({ zone: zone, item: rtItem, quantity: 1, category: 'Other', reason: link_('Flagged during audit'), action: '', taggedBy: (_CFG && _CFG.auditor) || '' });
     }
   }
   function done_() {
@@ -1299,10 +1334,15 @@ window.PM_TOUR_STEPS = [
   .qa-row .qa-sbtn { flex:0 0 auto; width:34px; height:34px; border-width:1px; border-radius:7px; font-size:14px; }
   .qa-picked { width:34px; height:34px; border:none; border-radius:7px; font-size:14px; font-weight:700; color:#fff; cursor:pointer; align-items:center; justify-content:center; padding:0; }
   .qa-picked.sc0{background:#e5484d} .qa-picked.sc1{background:#e5793a} .qa-picked.sc2{background:#d9a441} .qa-picked.sc3{background:#5bab4e} .qa-picked.sc4{background:#2e9e57}
-  .qa-create { display:flex; align-items:center; gap:6px; margin-top:8px; }
-  .qa-create-lbl { font-size:11px; font-weight:600; color:#2563eb; white-space:nowrap; }
-  .qa-create-desc { flex:1; min-width:0; height:30px; padding:0 10px; border:1px solid #d4d8e2; border-radius:7px; font-size:13px; font-family:inherit; }
-  .qa-create-btn { height:30px; padding:0 13px; border:none; border-radius:7px; background:#2563eb; color:#fff; font-size:13px; font-weight:600; cursor:pointer; flex-shrink:0; }
+  .qa-create { margin-top:8px; padding:8px; border:1px solid #e3e6ee; border-radius:8px; background:#fafbfe; }
+  .qa-create-fields { display:flex; flex-direction:column; gap:8px; }
+  .qa-cf-grp { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+  .qa-cf-lbl { font-size:10px; font-weight:700; letter-spacing:.3px; padding:2px 7px; border-radius:20px; flex-shrink:0; }
+  .qa-cf-lbl.nc { background:#fdecec; color:#c0392b; } .qa-cf-lbl.task { background:#eafaf1; color:#1e8e50; } .qa-cf-lbl.rt { background:#fef5e7; color:#b9770a; }
+  .qa-cf { flex:1; min-width:120px; height:30px; padding:0 10px; border:1px solid #d4d8e2; border-radius:7px; font-size:13px; font-family:inherit; box-sizing:border-box; }
+  .qa-cf-row { display:flex; gap:6px; flex:1 1 100%; }
+  .qa-cf-date { flex:0 0 130px; min-width:0; }
+  .qa-create-btn { margin-top:8px; width:100%; height:32px; border:none; border-radius:7px; background:#2563eb; color:#fff; font-size:13px; font-weight:600; cursor:pointer; }
   .qa-create-btn:disabled { opacity:.6; cursor:default; }
   .qa-remark-row { margin-top:8px; }
   .qa-thumb { width:54px; flex-shrink:0; align-self:stretch; overflow:hidden; border-left:1px solid #eef; cursor:pointer; }

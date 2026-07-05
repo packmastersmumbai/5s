@@ -12,8 +12,9 @@ async function setVal(frame, id, v) {
   await frame.evaluate(({ i, val }) => { const el = document.getElementById(i); if (el) { el.value = val; el.dispatchEvent(new Event('input', { bubbles: true })); } }, { i: id, val: v });
 }
 async function createVisible(frame) { return frame.evaluate(() => { const e = document.getElementById('create-0'); return !!e && e.style.display !== 'none'; }); }
-async function createLabel(frame) { return frame.evaluate(() => (document.getElementById('create-lbl-0') || {}).textContent || ''); }
-async function waitDialog(page, get, ms) { const end = Date.now() + (ms || 15000); while (Date.now() < end) { if (get() !== null) return true; await page.waitForTimeout(400); } return false; }
+async function fieldPresent(frame, f) { return frame.evaluate((ff) => !!document.querySelector('#createfields-0 [data-f="' + ff + '"]'), f); }
+async function setField(frame, f, v) { await frame.evaluate(({ ff, val }) => { const el = document.querySelector('#createfields-0 [data-f="' + ff + '"]'); if (el) { el.value = val; el.dispatchEvent(new Event('input', { bubbles: true })); } }, { ff: f, val: v }); }
+async function iconDone(frame, id) { return frame.evaluate((i) => document.getElementById(i).classList.contains('done'), id); }
 
 (async () => {
   const run = makeRunner('QuickAudit Inline Create');
@@ -53,38 +54,38 @@ async function waitDialog(page, get, ms) { const end = Date.now() + (ms || 15000
       return (s.hidden && s.chip && s.val === '2') ? true : 'chip collapse failed: ' + JSON.stringify(s);
     });
 
-    await run.check('Toggling NCR reveals inline create (label "NCR")', async () => {
+    await run.check('Toggling NCR reveals its field group (desc + responsible + target)', async () => {
       await clickId(frame, 'ac-ncr-0');
       if (!(await createVisible(frame))) return 'create area not shown';
-      const l = await createLabel(frame);
-      return /^NCR/.test(l) ? true : 'label was: ' + l;
+      const ok = (await fieldPresent(frame, 'nc_desc')) && (await fieldPresent(frame, 'nc_resp')) && (await fieldPresent(frame, 'nc_target'));
+      return ok ? true : 'NCR fields (desc/resp/target) not all present';
     });
 
-    await run.check('Adding Task → label "NCR + Task" (multi common record)', async () => {
+    await run.check('Adding Task → separate Task field appears (NCR fields kept)', async () => {
       await clickId(frame, 'ac-task-0');
-      const l = await createLabel(frame);
-      return /NCR \+ Task/.test(l) ? true : 'label was: ' + l;
+      const ok = (await fieldPresent(frame, 'nc_desc')) && (await fieldPresent(frame, 'task_title'));
+      return ok ? true : 'expected both nc_desc and task_title field groups';
     });
 
-    await run.check('Create files NCR + linked Task', async () => {
-      await setVal(frame, 'cdesc-0', 'SMOKE_TEST inline e2e');
-      lastDialog = null;
+    await run.check('Optimistic: create row closes instantly, icons pending', async () => {
+      await setField(frame, 'nc_desc', 'SMOKE_TEST inline e2e');
+      await setField(frame, 'nc_resp', 'Auditor');
+      await setField(frame, 'task_title', 'SMOKE_TEST task e2e');
       await clickId(frame, 'cbtn-0');
-      if (!(await waitDialog(page, () => lastDialog, 45000))) return 'no dialog after Create';  // 2 server calls + DWM + Telegram on cold start
-      const hasNcr = /NCR\s+\S/i.test(lastDialog), hasTask = /Task\s+\S/i.test(lastDialog);
-      return (hasNcr && hasTask) ? true : 'summary missing NCR or Task: ' + lastDialog;
+      await page.waitForTimeout(300);
+      const s = await frame.evaluate(() => ({
+        closed: document.getElementById('create-0').style.display === 'none',
+        pending: document.getElementById('ac-ncr-0').classList.contains('pending') || document.getElementById('ac-ncr-0').classList.contains('done')
+      }));
+      return (s.closed && s.pending) ? true : 'not instant: ' + JSON.stringify(s);
     });
 
-    await run.check('Create area closes; icons marked done', async () => {
-      for (let i = 0; i < 15; i++) {
-        const s = await frame.evaluate(() => ({
-          closed: document.getElementById('create-0').style.display === 'none',
-          done: document.getElementById('ac-ncr-0').classList.contains('done')
-        }));
-        if (s.closed && s.done) return true;
-        await page.waitForTimeout(300);
+    await run.check('Background create completes → NCR + Task icons done', async () => {
+      for (let i = 0; i < 90; i++) {
+        if ((await iconDone(frame, 'ac-ncr-0')) && (await iconDone(frame, 'ac-task-0'))) return true;
+        await page.waitForTimeout(500);
       }
-      return 'create area still open or icon not marked done';
+      return 'icons not both done within 45s';
     });
 
     const { pass, total } = run.report();

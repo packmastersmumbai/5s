@@ -78,7 +78,7 @@ function generateNCId_() {
  * @param {string} auditorEmail — Auditor email
  * @returns {string} The generated NC ID
  */
-function createCAPA(zoneId, description, type, pillar, sqcdpDim, responsiblePerson, createdBy) {
+function createCAPA(zoneId, description, type, pillar, sqcdpDim, responsiblePerson, createdBy, targetDateOverride) {
   var ss = (typeof v2GetSpreadsheet_ === 'function') ? v2GetSpreadsheet_() : SpreadsheetApp.getActiveSpreadsheet();
   var capaSheet = ss.getSheetByName("NC_CAPA");
   if (!capaSheet) {
@@ -87,8 +87,13 @@ function createCAPA(zoneId, description, type, pillar, sqcdpDim, responsiblePers
 
   var ncId = generateNCId_();
   var now = new Date();
-  var targetDate = new Date(now.getTime() + (14 * 24 * 60 * 60 * 1000));
-  var targetDateStr = Utilities.formatDate(targetDate, "Asia/Kolkata", "yyyy-MM-dd");
+  // Target date: caller override (yyyy-MM-dd) if valid, else default +14 days.
+  var targetDateStr;
+  if (targetDateOverride && /^\d{4}-\d{2}-\d{2}$/.test(String(targetDateOverride))) {
+    targetDateStr = String(targetDateOverride);
+  } else {
+    targetDateStr = Utilities.formatDate(new Date(now.getTime() + (14 * 24 * 60 * 60 * 1000)), "Asia/Kolkata", "yyyy-MM-dd");
+  }
   var auditDateStr = Utilities.formatDate(now, "Asia/Kolkata", "yyyy-MM-dd");
 
   // NC_CAPA column schema (20 columns) — matches actual sheet:

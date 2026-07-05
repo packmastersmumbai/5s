@@ -605,81 +605,75 @@ function renderAudit(cfg) {
     var delay = (idx * 45) + 'ms';
     var pillarName = PILLAR_NAMES[c.pillar] || c.pillar || '';
 
+    var cid = escHtml(c.criterionId);
     html += '<div class="qa-card ' + pCls + '" id="card-' + idx + '" style="animation-delay:' + delay + '">';
+    html += '<div class="qa-main">';
 
-    /* Collapsed scored row */
-    html += '<div class="qa-scored-row" id="scored-row-' + idx + '">';
-    html += '<span class="qa-s-pill">' + escHtml(c.pillar) + '</span>';
-    html += '<span class="qa-s-label">' + escHtml(c.label) + '</span>';
-    html += '<span class="qa-s-dot" id="score-dot-' + idx + '"></span>';
-    html += '<button class="qa-s-reset" id="ac-reset-' + idx + '" onclick="resetCriterion_(' + idx + ',\'' + escHtml(c.criterionId) + '\')" title="Reset score / re-score"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button>';
-    html += '</div>';
-
-    /* Expanded body */
-    html += '<div class="qa-body" id="body-' + idx + '">';
-
-    /* Pillar tag + name row */
-    html += '<div class="qa-name-row">';
-    html += '<div style="flex:1">';
-    html += '<div class="qa-pillar-tag"><span class="pt-dot"></span>' + escHtml(pillarName) + '</div>';
+    /* Header: label (EN · HI · pillar) | action icons | SQCDP */
+    html += '<div class="qa-head">';
+    html += '<div class="qa-hlabel">';
     html += '<span class="qa-name">' + escHtml(c.label) + '</span>';
-    html += '</div>';
+    if (c.labelHi) html += ' <span class="qa-hi">· ' + escHtml(c.labelHi) + '</span>';
+    html += ' <span class="qa-ptag">' + escHtml(c.pillar) + '</span>';
     html += '<button class="qa-info-btn" id="info-btn-' + idx + '" onclick="toggleTooltip(' + idx + ')" title="Guidance">i</button>';
+    html += '</div>';
+
+    html += '<div class="qa-hicons">';
+    html += '<button class="qa-ic" id="ac-cam-' + idx + '" onclick="captureFor_(' + idx + ',\'' + cid + '\')" title="Photo + annotate"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>';
+    html += '<button class="qa-ic" id="ac-ncr-' + idx + '" onclick="toggleType_(' + idx + ',\'NC\')" title="Raise NCR"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></button>';
+    html += '<button class="qa-ic" id="ac-rt-' + idx + '" onclick="toggleType_(' + idx + ',\'REDTAG\')" title="Raise Red Tag"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></button>';
+    html += '<button class="qa-ic" id="ac-task-' + idx + '" onclick="toggleType_(' + idx + ',\'TASK\')" title="Create Task"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></button>';
+    html += '</div>';
+
+    html += '<div class="qa-sqcdp">';
+    html += sqIcon('S', 'sq-s', sqcdp.S) + sqIcon('Q', 'sq-q', sqcdp.Q) + sqIcon('C', 'sq-c', sqcdp.C) + sqIcon('D', 'sq-d', sqcdp.D) + sqIcon('P', 'sq-p', sqcdp.P);
+    html += '</div>';
+    html += '</div>'; /* end qa-head */
+
+    /* Guidance tooltip */
     html += '<div class="qa-tooltip" id="tooltip-' + idx + '">';
     html += '<div class="qa-tt-row"><div class="qa-tt-ic ta">&#10003;</div><div><div class="qa-tt-lbl">Guidance</div><div class="qa-tt-txt">' + escHtml(c.task || 'Check this criterion against the zone standard.') + '</div></div></div>';
-    if (c.goal) {
-      html += '<div class="qa-tt-row"><div class="qa-tt-ic go">&#9673;</div><div><div class="qa-tt-lbl">Goal</div><div class="qa-tt-txt">' + escHtml(c.goal) + '</div></div></div>';
-    }
-    if (c.outcome) {
-      html += '<div class="qa-tt-row"><div class="qa-tt-ic ou">&#8679;</div><div><div class="qa-tt-lbl">Outcome</div><div class="qa-tt-txt">' + escHtml(c.outcome) + '</div></div></div>';
-    }
-    html += '</div></div>';
+    if (c.goal) html += '<div class="qa-tt-row"><div class="qa-tt-ic go">&#9673;</div><div><div class="qa-tt-lbl">Goal</div><div class="qa-tt-txt">' + escHtml(c.goal) + '</div></div></div>';
+    if (c.outcome) html += '<div class="qa-tt-row"><div class="qa-tt-ic ou">&#8679;</div><div><div class="qa-tt-lbl">Outcome</div><div class="qa-tt-txt">' + escHtml(c.outcome) + '</div></div></div>';
+    html += '</div>';
 
-    /* Hindi label */
-    if (c.labelHi) {
-      html += '<div class="qa-bi"><div class="qa-hi">' + escHtml(c.labelHi) + '</div></div>';
-    }
-
-    /* Score controls */
-    html += '<div class="qa-controls"><div class="qa-scores">';
+    /* Score row (collapses to a chip once picked) + inline remark */
+    html += '<div class="qa-row">';
+    html += '<div class="qa-scores" id="scores-' + idx + '">';
     for (var s = 0; s <= (c.maxScore || 4); s++) {
-      html += '<button class="qa-sbtn s' + s + '" id="btn-' + idx + '-' + s + '" ' +
-              'onclick="setScore(\'' + escHtml(c.criterionId) + '\',' + s + ',' + idx + ')">' + s + '</button>';
+      html += '<button class="qa-sbtn s' + s + '" id="btn-' + idx + '-' + s + '" onclick="setScore(\'' + cid + '\',' + s + ',' + idx + ')">' + s + '</button>';
     }
     html += '</div>';
-    html += '<div class="qa-vsep"></div>';
-    html += '<div class="qa-acts">';
-    if (c.wdgllPhotos && c.wdgllPhotos.length > 0) {
-      html += '<button class="qa-ac" onclick="toggleWDGLL(' + idx + ')" title="Standard"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></button>';
-    }
-    html += '<button class="qa-ac" id="ac-rem-' + idx + '" onclick="toggleRemark(' + idx + ')" title="Remark"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>';
-    html += '<button class="qa-ac" id="ac-act-' + idx + '" onclick="openAuditCreate(' + idx + ')" title="Raise action (NCR / Red Tag / Task)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></button>';
-    html += '</div></div>';
+    html += '<button class="qa-picked" id="picked-' + idx + '" style="display:none" onclick="resetCriterion_(' + idx + ',\'' + cid + '\')" title="Re-score"></button>';
+    html += '<span style="flex:1"></span>';
+    html += '<button class="qa-ic" id="ac-rem-' + idx + '" onclick="toggleRemark(' + idx + ')" title="Remark"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>';
+    html += '</div>';
 
-    /* Remark */
-    html += '<div class="qa-remark-row" id="remark-row-' + idx + '">';
-    html += '<button class="qa-remark-toggle" onclick="toggleRemarkField(' + idx + ')">+ Add remark</button>';
-    html += '<textarea class="qa-remark-input" id="remark-' + idx + '" data-cid="' + escHtml(c.criterionId) + '" rows="2" placeholder="Optional remark…"></textarea>';
+    /* Remark field (opens directly) */
+    html += '<div class="qa-remark-row" id="remark-row-' + idx + '" style="display:none">';
+    html += '<textarea class="qa-remark-input" id="remark-' + idx + '" data-cid="' + cid + '" rows="2" placeholder="Optional remark…" style="display:block"></textarea>';
+    html += '</div>';
+
+    /* Inline create (shown when NCR/RT/Task toggled) */
+    html += '<div class="qa-create" id="create-' + idx + '" style="display:none">';
+    html += '<span class="qa-create-lbl" id="create-lbl-' + idx + '"></span>';
+    html += '<input class="qa-create-desc" id="cdesc-' + idx + '" type="text" placeholder="Description">';
+    html += '<button class="qa-create-btn" id="cbtn-' + idx + '" onclick="submitCardCreate(' + idx + ')">Create</button>';
     html += '</div>';
 
     /* WDGLL */
     if (c.wdgllPhotos && c.wdgllPhotos.length > 0) {
+      html += '<button class="qa-ic qa-wdgll-btn" onclick="toggleWDGLL(' + idx + ')" title="Standard"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></button>';
       html += '<div class="qa-wdgll-box" id="wdgll-' + idx + '">';
       html += '<img src="' + escHtml(c.wdgllPhotos[0].photoUrl) + '" alt="Standard" onerror="this.style.display=\'none\'">';
       html += '<div class="qa-wdgll-label">' + escHtml(c.wdgllPhotos[0].description) + '</div>';
       html += '</div>';
     }
 
-    html += '</div>'; /* end qa-body */
+    html += '</div>'; /* end qa-main */
 
-    /* SQCDP */
-    html += '<div class="qa-sqcdp">';
-    html += sqIcon('S', 'sq-s', sqcdp.S) +
-            sqIcon('Q', 'sq-q', sqcdp.Q) +
-            sqIcon('C', 'sq-c', sqcdp.C) +
-            sqIcon('D', 'sq-d', sqcdp.D) +
-            sqIcon('P', 'sq-p', sqcdp.P);
-    html += '</div>';
+    /* Photo thumbnail column (appears after capture; tap to enlarge) */
+    html += '<div class="qa-thumb" id="thumb-' + idx + '" style="display:none" onclick="openViewer_(\'' + cid + '\')" title="View photo"><img id="thumbimg-' + idx + '" alt="Evidence"></div>';
 
     html += '</div>'; /* end qa-card */
   });
@@ -752,25 +746,13 @@ function setScore(criterionId, score, idx) {
     if (b) b.classList.toggle('selected', s === score);
   }
 
-  var rr = document.getElementById('remark-row-' + idx);
-  if (rr) rr.style.display = 'block';
-
-  /* Animated collapse */
+  /* Collapse the 0–4 buttons to a single picked chip, keep the card usable */
+  var scoresEl = document.getElementById('scores-' + idx);
+  var picked = document.getElementById('picked-' + idx);
+  if (scoresEl) scoresEl.style.display = 'none';
+  if (picked) { picked.style.display = 'flex'; picked.textContent = score; picked.className = 'qa-picked sc' + score; }
   var card = document.getElementById('card-' + idx);
-  var body = document.getElementById('body-' + idx);
-  var scoredRow = document.getElementById('scored-row-' + idx);
-  var dot = document.getElementById('score-dot-' + idx);
-
-  if (dot) { dot.textContent = score; dot.className = 'qa-s-dot sc' + score; }
-
-  if (body) {
-    body.classList.add('fading');
-    setTimeout(function() {
-      body.style.display = 'none';
-      if (scoredRow) scoredRow.classList.add('show');
-      if (card) { card.classList.add('scored'); card.classList.remove('active'); }
-    }, 180);
-  }
+  if (card) card.classList.add('scored');
 
   /* Activate next unscored */
   var next = document.getElementById('card-' + (idx + 1));
@@ -778,14 +760,15 @@ function setScore(criterionId, score, idx) {
     setTimeout(function() {
       next.classList.add('active');
       next.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 260);
+    }, 200);
   }
 
   /* Progress */
   var scored = Object.keys(scores).length;
   document.getElementById('progressBar').style.width =
     (totalCriteria > 0 ? (scored / totalCriteria * 100).toFixed(1) : 0) + '%';
-  document.getElementById('scoreSummary').textContent = scored + ' / ' + totalCriteria;
+  var ss = document.getElementById('scoreSummary');
+  if (ss) ss.textContent = scored + ' / ' + totalCriteria;
   document.getElementById('submitBtn').disabled = (scored < totalCriteria);
 }
 
@@ -801,183 +784,107 @@ function toggleTooltip(idx) {
 
 function toggleRemark(idx) {
   var rr = document.getElementById('remark-row-' + idx);
-  if (rr) rr.style.display = rr.style.display === 'block' ? 'none' : 'block';
-}
-
-function toggleRemarkField(idx) {
-  var ta = document.getElementById('remark-' + idx);
-  var btn = document.querySelector('#remark-row-' + idx + ' .qa-remark-toggle');
-  if (!ta) return;
-  var showing = ta.style.display === 'block';
-  ta.style.display = showing ? 'none' : 'block';
-  if (btn) btn.textContent = showing ? '+ Add remark' : '− Remark';
+  if (!rr) return;
+  var showing = rr.style.display !== 'none';
+  rr.style.display = showing ? 'none' : 'block';
   var ac = document.getElementById('ac-rem-' + idx);
   if (ac) ac.classList.toggle('on-rem', !showing);
-  if (!showing) setTimeout(function() { ta.focus(); }, 50);
+  if (!showing) { var ta = document.getElementById('remark-' + idx); if (ta) setTimeout(function() { ta.focus(); }, 50); }
 }
 
-/* ── Create NCR / Task / Red Tag from an audit criterion ─────────────────── */
-var _qaCreate = { idx: -1, cid: '' };
+/* ── Per-card capture / create (NCR / Task / Red Tag), inline — no modal ────── */
 
-function openAuditCreate(idx) {
-  if (!_CFG || !_CFG.criteria || !_CFG.criteria[idx]) { alert('Criterion not loaded'); return; }
-  var zone = getZoneId();
-  if (!zone) { alert('No zone selected for this audit'); return; }
-  var c = _CFG.criteria[idx];
-  _qaCreate = { idx: idx, cid: c.criterionId || '' };
-  var label = c.label || c.criterionId || '';
-
-  document.getElementById('qaCrModalTitle').textContent = 'Raise action';
-  document.getElementById('qaCrContext').textContent =
-    (_CFG.zoneName || zone) + ' · ' + (PILLAR_NAMES[c.pillar] || c.pillar || '') + ' · ' + label;
-
-  // Reset type selection (nothing pre-ticked; user picks one, some, or all)
-  document.getElementById('qaChkNC').checked   = false;
-  document.getElementById('qaChkRT').checked   = false;
-  document.getElementById('qaChkTASK').checked = false;
-
-  // Prefill all groups from the criterion; visibility follows the checkboxes
-  document.getElementById('qaNcDesc').value    = 'Non-conformance: ' + label;
-  document.getElementById('qaNcResp').value     = '';
-  document.getElementById('qaTaskTitle').value = 'Action: ' + label;
-  document.getElementById('qaTaskDesc').value  = '';
-  document.getElementById('qaTaskAssign').value = '';
-  document.getElementById('qaTaskDue').value   = '';
-  document.getElementById('qaRtItem').value    = '';
-  document.getElementById('qaRtQty').value     = '1';
-  document.getElementById('qaRtReason').value  = 'Flagged during audit: ' + label;
-  document.getElementById('qaRtAction').value  = '';
-
-  qaToggleType_();
-  qaRefreshModalPhoto_();
-  document.getElementById('qaCreateBackdrop').classList.add('open');
-  document.getElementById('qaCreateModal').classList.add('open');
+function captureFor_(idx, cid) {
+  if (!getZoneId()) { alert('No zone selected'); return; }
+  openCriterionCamera_(idx, cid);   // → file input → applyWatermark_ stores + auto-annotates
 }
 
-/* Show only the field groups for ticked types */
-function qaToggleType_() {
-  document.getElementById('qaCr-NC').style.display     = document.getElementById('qaChkNC').checked   ? 'block' : 'none';
-  document.getElementById('qaCr-REDTAG').style.display = document.getElementById('qaChkRT').checked   ? 'block' : 'none';
-  document.getElementById('qaCr-TASK').style.display   = document.getElementById('qaChkTASK').checked ? 'block' : 'none';
+var TYPE_META = { NC: { btn: 'ac-ncr-', label: 'NCR' }, REDTAG: { btn: 'ac-rt-', label: 'Red Tag' }, TASK: { btn: 'ac-task-', label: 'Task' } };
+
+function toggleType_(idx, type) {
+  if (!_CFG || !_CFG.criteria || !_CFG.criteria[idx]) return;
+  var btn = document.getElementById(TYPE_META[type].btn + idx);
+  if (btn) btn.classList.toggle('sel');
+  updateCreateArea_(idx);
 }
 
-/* Modal evidence photo — reuses the per-criterion photo (criterionPhotos[cid]),
-   which uploads with the audit line item. Camera → watermark → (optional) annotate. */
-function qaModalCamera_() {
-  if (_qaCreate.idx < 0) return;
-  openCriterionCamera_(_qaCreate.idx, _qaCreate.cid);
-}
-
-function qaModalAnnotate_() {
-  var cid = _qaCreate.cid, idx = _qaCreate.idx;
-  // Annotate the raw frame so the annotator applies the single watermark strip
-  var src = criterionPhotosRaw[cid] || criterionPhotos[cid];
-  if (!src) { alert('Take a photo first'); return; }
-  openAnnotatorFor_(src, qaStamp_(), function(annotated) {
-    criterionPhotos[cid] = annotated;
-    var thumb = document.getElementById('cam-thumb-' + idx);
-    if (thumb) { thumb.src = annotated; thumb.style.display = 'inline-block'; }
-    qaRefreshModalPhoto_();
+function selectedTypes_(idx) {
+  var out = [];
+  ['NC', 'TASK', 'REDTAG'].forEach(function(t) {
+    var b = document.getElementById(TYPE_META[t].btn + idx);
+    if (b && b.classList.contains('sel')) out.push(t);
   });
+  return out;
 }
 
-function qaRefreshModalPhoto_() {
-  var img = document.getElementById('qaCrPhoto');
-  var ann = document.getElementById('qaCrAnnotateBtn');
-  var cur = criterionPhotos[_qaCreate.cid];
-  if (cur) { img.src = cur; img.style.display = 'block'; ann.disabled = false; }
-  else { img.removeAttribute('src'); img.style.display = 'none'; ann.disabled = true; }
+function updateCreateArea_(idx) {
+  var types = selectedTypes_(idx);
+  var area = document.getElementById('create-' + idx);
+  if (!area) return;
+  if (!types.length) { area.style.display = 'none'; return; }
+  area.style.display = 'flex';
+  document.getElementById('create-lbl-' + idx).textContent =
+    types.map(function(t){ return TYPE_META[t].label; }).join(' + ');
+  var d = document.getElementById('cdesc-' + idx);
+  if (d && !d.value) d.value = (_CFG.criteria[idx].label || '');
 }
 
-function closeAuditCreate() {
-  document.getElementById('qaCreateBackdrop').classList.remove('open');
-  document.getElementById('qaCreateModal').classList.remove('open');
-}
-
-function submitAuditCreate() {
-  var idx = _qaCreate.idx;
-  if (idx < 0 || !_CFG || !_CFG.criteria[idx]) return;
-  var c = _CFG.criteria[idx];
-  var zone = getZoneId();
-
-  // NCR first so its id becomes the shared reference for Task / Red Tag
-  var types = [];
-  if (document.getElementById('qaChkNC').checked)   types.push('NC');
-  if (document.getElementById('qaChkTASK').checked) types.push('TASK');
-  if (document.getElementById('qaChkRT').checked)   types.push('REDTAG');
-  if (!types.length) { alert('Select at least one: NCR, Red Tag or Task'); return; }
-
-  // Per-type required-field checks up front (fail before any write)
-  var ncDesc   = document.getElementById('qaNcDesc').value.trim();
-  var taskTitle = document.getElementById('qaTaskTitle').value.trim();
-  var rtItem   = document.getElementById('qaRtItem').value.trim();
-  if (types.indexOf('NC') >= 0 && !ncDesc)      { alert('NCR description is required'); return; }
-  if (types.indexOf('TASK') >= 0 && !taskTitle) { alert('Task title is required'); return; }
-  if (types.indexOf('REDTAG') >= 0 && !rtItem)  { alert('Red Tag item is required'); return; }
-
-  var btn = document.getElementById('qaCrSubmit');
+function submitCardCreate(idx) {
+  var c = _CFG.criteria[idx], zone = getZoneId();
+  var types = selectedTypes_(idx);
+  if (!types.length) return;
+  var desc = (document.getElementById('cdesc-' + idx).value || '').trim();
+  if (!desc) { alert('Enter a description'); return; }
+  var btn = document.getElementById('cbtn-' + idx);
   btn.disabled = true; btn.textContent = 'Creating…';
   var results = [], linkRef = '';
-
-  function link_(text) { return linkRef ? (text + ' [Linked NC ' + linkRef + ']') : text; }
-
-  function runNext(i) {
-    if (i >= types.length) { finish(); return; }
-    createOne(types[i], function() { runNext(i + 1); });
-  }
-
-  function createOne(type, next) {
+  types.sort(function(a, b){ return a === 'NC' ? -1 : b === 'NC' ? 1 : 0; });   // NCR first → shared ref
+  function link_(t){ return linkRef ? (t + ' [Linked NC ' + linkRef + ']') : t; }
+  function run(i){ if (i >= types.length) { finish(); return; } one(types[i], function(){ run(i + 1); }); }
+  function one(type, next) {
     if (type === 'NC') {
       google.script.run
         .withSuccessHandler(function(r){ if (r) { linkRef = String(r); results.push('NCR ' + r); } else results.push('NCR failed'); next(); })
         .withFailureHandler(function(e){ results.push('NCR error: ' + e.message); next(); })
-        .createCAPA(zone, ncDesc, 'NC', c.pillar, SQCDP_MAP[c.pillar] || '',
-                    document.getElementById('qaNcResp').value.trim(), (_CFG && _CFG.auditor) || '');
-
+        .createCAPA(zone, desc, 'NC', c.pillar, SQCDP_MAP[c.pillar] || '', '', (_CFG && _CFG.auditor) || '');
     } else if (type === 'TASK') {
-      var payload = {
-        title: taskTitle, zoneId: zone,
-        description: link_(document.getElementById('qaTaskDesc').value.trim()),
-        priority: document.getElementById('qaTaskPrio').value,
-        assignedTo: document.getElementById('qaTaskAssign').value.trim(),
-        dueDate: document.getElementById('qaTaskDue').value,
-        source: 'AUDIT', sourceRefId: linkRef || c.criterionId || '',
-        createdBy: (_CFG && _CFG.auditor) || ''
-      };
       google.script.run
-        .withSuccessHandler(function(r){ results.push(r && r.success ? ('Task ' + r.taskId) : ('Task failed' + (r && r.message ? ': ' + r.message : ''))); next(); })
+        .withSuccessHandler(function(r){ results.push(r && r.success ? ('Task ' + r.taskId) : 'Task failed'); next(); })
         .withFailureHandler(function(e){ results.push('Task error: ' + e.message); next(); })
-        .createTask(payload);
-
-    } else { // REDTAG
-      var form = {
-        zone: zone, item: rtItem,
-        quantity: parseInt(document.getElementById('qaRtQty').value, 10) || 1,
-        category: document.getElementById('qaRtCat').value,
-        reason: link_(document.getElementById('qaRtReason').value.trim()),
-        action: document.getElementById('qaRtAction').value.trim(),
-        taggedBy: (_CFG && _CFG.auditor) || ''
-      };
+        .createTask({ title: desc, zoneId: zone, description: link_(''), priority: 'MEDIUM', assignedTo: '', dueDate: '',
+                      source: 'AUDIT', sourceRefId: linkRef || c.criterionId || '', createdBy: (_CFG && _CFG.auditor) || '' });
+    } else {
       google.script.run
         .withSuccessHandler(function(r){ var ok = r && (r.ok || r.success); results.push(ok ? ('Red Tag ' + r.tagNo) : 'Red Tag failed'); next(); })
         .withFailureHandler(function(e){ results.push('Red Tag error: ' + e.message); next(); })
-        .raiseRedTag(form);
+        .raiseRedTag({ zone: zone, item: desc, quantity: 1, category: 'Other', reason: link_('Flagged during audit'), action: '', taggedBy: (_CFG && _CFG.auditor) || '' });
     }
   }
-
   function finish() {
     btn.disabled = false; btn.textContent = 'Create';
     var anyOk = results.some(function(r){ return !/failed|error/i.test(r); });
     if (anyOk) {
-      var ac = document.getElementById('ac-act-' + idx);
-      if (ac) ac.classList.add('on-ncr');
-      closeAuditCreate();
+      types.forEach(function(t){ var b = document.getElementById(TYPE_META[t].btn + idx); if (b) { b.classList.remove('sel'); b.classList.add('done'); } });
+      document.getElementById('create-' + idx).style.display = 'none';
     }
     alert(results.join('\n'));
   }
-
-  runNext(0);
+  run(0);
 }
+
+/* Photo thumbnail + full-screen viewer */
+function showThumb_(idx, url) {
+  var t = document.getElementById('thumb-' + idx), im = document.getElementById('thumbimg-' + idx);
+  if (im) im.src = url;
+  if (t) t.style.display = 'block';
+}
+function openViewer_(cid) {
+  var url = criterionPhotos[cid];
+  if (!url) return;
+  document.getElementById('viewerImg').src = url;
+  document.getElementById('photoViewer').style.display = 'flex';
+}
+function closeViewer_() { document.getElementById('photoViewer').style.display = 'none'; }
 
 function toggleWDGLL(idx) {
   var el = document.getElementById('wdgll-' + idx);
@@ -1133,26 +1040,19 @@ function openCriterionCamera_(idx, cid) {
 }
 
 function resetCriterion_(idx, cid) {
-  delete scores[cid];
-  delete criterionPhotos[cid];
-  delete criterionPhotosRaw[cid];
-  var ta = document.getElementById('remark-' + idx); if (ta) ta.value = '';
+  delete scores[cid];   /* keep photo + remark — re-scoring shouldn't wipe evidence */
   for (var s = 0; s <= 4; s++) {
     var b = document.getElementById('btn-' + idx + '-' + s);
     if (b) b.classList.remove('selected');
   }
-  var cam = document.getElementById('ac-cam-' + idx); if (cam) cam.classList.remove('on-cam');
-  var camThumb = document.getElementById('cam-thumb-' + idx); if (camThumb) { camThumb.removeAttribute('src'); camThumb.style.display = 'none'; }
-  var dot = document.getElementById('score-dot-' + idx); if (dot) { dot.textContent = ''; dot.className = 'qa-s-dot'; }
-  var card = document.getElementById('card-' + idx);
-  var body = document.getElementById('body-' + idx);
-  var scoredRow = document.getElementById('scored-row-' + idx);
-  if (scoredRow) scoredRow.classList.remove('show');
-  if (card) card.classList.remove('scored');
-  if (body) { body.classList.remove('fading'); body.style.display = ''; }
+  var scoresEl = document.getElementById('scores-' + idx); if (scoresEl) scoresEl.style.display = '';
+  var picked = document.getElementById('picked-' + idx); if (picked) picked.style.display = 'none';
+  var card = document.getElementById('card-' + idx); if (card) card.classList.remove('scored');
   var scored = Object.keys(scores).length;
   var pb = document.getElementById('progressBar');
-  if (pb && totalCriteria) pb.style.width = Math.round(scored / totalCriteria * 100) + '%';
+  if (pb && totalCriteria) pb.style.width = (scored / totalCriteria * 100).toFixed(1) + '%';
+  var ss = document.getElementById('scoreSummary'); if (ss) ss.textContent = scored + ' / ' + totalCriteria;
+  document.getElementById('submitBtn').disabled = (scored < totalCriteria);
 }
 
 (function wirePhotoInput_() {
@@ -1198,16 +1098,17 @@ function applyWatermark_(dataUrl) {
     ctx.fillText(right, c.width - ctx.measureText(right).width - 10, midY);
     var watermarked = c.toDataURL('image/jpeg', 0.88);
     if (_activeCrit) {
-      criterionPhotos[_activeCrit.cid] = watermarked;
-      criterionPhotosRaw[_activeCrit.cid] = dataUrl;
-      var camBtn = document.getElementById('ac-cam-' + _activeCrit.idx);
-      if (camBtn) camBtn.classList.add('on-cam');
-      var thumb = document.getElementById('cam-thumb-' + _activeCrit.idx);
-      if (thumb) { thumb.src = watermarked; thumb.style.display = 'inline-block'; }
-      var modalOpen = document.getElementById('qaCreateModal').classList.contains('open');
-      var sameCrit  = (_qaCreate.cid === _activeCrit.cid);
-      _activeCrit = null;
-      if (modalOpen && sameCrit) qaRefreshModalPhoto_();
+      var ac = _activeCrit; _activeCrit = null;
+      criterionPhotos[ac.cid] = watermarked;
+      criterionPhotosRaw[ac.cid] = dataUrl;
+      var camBtn = document.getElementById('ac-cam-' + ac.idx);
+      if (camBtn) camBtn.classList.add('done');
+      showThumb_(ac.idx, watermarked);
+      /* Capture flows straight into annotate (same-document canvas) */
+      openAnnotatorFor_(dataUrl, qaStamp_(), function(annotated) {
+        criterionPhotos[ac.cid] = annotated;
+        showThumb_(ac.idx, annotated);
+      });
       return;
     }
     var hidden = document.getElementById('photoDataUrl');
@@ -1354,38 +1255,41 @@ window.PM_TOUR_STEPS = [
 </script>
 <?!= include('GuidedTour') ?>
 
-<!-- ── Audit Create Modal (NCR / Task / Red Tag) ─────────────────────────── -->
+<!-- ── Redesigned card layout + annotator + full-screen viewer ─────────────── -->
 <style>
-  #qaCreateBackdrop { position:fixed; inset:0; background:rgba(0,0,0,.45); opacity:0; visibility:hidden; transition:opacity .2s; z-index:998; }
-  #qaCreateBackdrop.open { opacity:1; visibility:visible; }
-  #qaCreateModal { position:fixed; left:50%; bottom:0; transform:translate(-50%,100%); width:min(96vw,460px);
-    background:#fff; border-radius:16px 16px 0 0; box-shadow:0 -8px 30px rgba(0,0,0,.2); z-index:999;
-    transition:transform .25s ease; max-height:88vh; overflow-y:auto; }
-  #qaCreateModal.open { transform:translate(-50%,0); }
-  .qacr-hd { display:flex; align-items:center; justify-content:space-between; padding:16px 18px 8px; }
-  .qacr-hd h3 { margin:0; font-size:17px; font-weight:700; }
-  .qacr-x { background:none; border:none; font-size:20px; cursor:pointer; color:#888; line-height:1; }
-  .qacr-ctx { padding:0 18px 12px; font-size:12px; color:#667; border-bottom:1px solid #eef; }
-  .qacr-body { padding:14px 18px 4px; }
-  .qacr-f { margin-bottom:12px; }
-  .qacr-f label { display:block; font-size:12px; font-weight:600; color:#445; margin-bottom:5px; }
-  .qacr-f input, .qacr-f select, .qacr-f textarea { width:100%; box-sizing:border-box; padding:10px 12px;
-    border:1px solid #d4d8e2; border-radius:9px; font-size:14px; font-family:inherit; }
-  .qacr-row { display:flex; gap:10px; } .qacr-row > * { flex:1; }
-  .qacr-foot { padding:6px 18px 20px; }
-  .qacr-submit { width:100%; padding:13px; border:none; border-radius:10px; background:#2563eb; color:#fff;
-    font-size:15px; font-weight:600; cursor:pointer; }
-  .qacr-submit:disabled { opacity:.6; cursor:default; }
-  .qacr-types { display:flex; gap:8px; }
-  .qacr-types label { display:flex; align-items:center; gap:6px; flex:1; margin:0; padding:9px 8px;
-    border:1px solid #d4d8e2; border-radius:9px; font-size:13px; font-weight:600; color:#334; cursor:pointer; }
-  .qacr-types input { width:auto; }
-  .qacr-photo { display:flex; align-items:center; gap:10px; }
-  .qacr-photo img { width:56px; height:56px; object-fit:cover; border-radius:8px; border:1px solid #d4d8e2; }
-  .qacr-photo-btns { display:flex; gap:8px; flex:1; }
-  .qacr-photo-btns button { flex:1; padding:9px; border:1px solid #d4d8e2; border-radius:9px; background:#f6f8fc;
-    font-size:13px; font-weight:600; color:#334; cursor:pointer; }
-  .qacr-photo-btns button:disabled { opacity:.5; cursor:default; }
+  .qa-card { display:flex; gap:10px; align-items:stretch; }
+  .qa-main { flex:1; min-width:0; }
+  .qa-head { display:grid; grid-template-columns:1fr auto auto; align-items:center; gap:8px; margin-bottom:8px; }
+  .qa-hlabel { min-width:0; font-size:13px; font-weight:600; line-height:1.3; }
+  .qa-hlabel .qa-name { font-weight:600; }
+  .qa-hlabel .qa-hi { font-weight:400; color:#667; }
+  .qa-ptag { color:#9aa1ad; font-weight:400; font-size:12px; margin-left:3px; }
+  .qa-info-btn { width:17px; height:17px; margin-left:5px; border:1px solid #cfd4df; border-radius:50%; background:#fff; color:#889; font-size:11px; line-height:1; cursor:pointer; vertical-align:middle; padding:0; }
+  .qa-hicons { display:flex; gap:8px; }
+  .qa-ic { width:30px; height:30px; display:inline-flex; align-items:center; justify-content:center; border:1px solid #e3e6ee; border-radius:7px; background:#fff; color:#5a6472; cursor:pointer; padding:0; flex-shrink:0; }
+  .qa-ic:active { transform:scale(.9); }
+  .qa-ic.sel { background:#e8f0ff; border-color:#2563eb; color:#2563eb; }
+  .qa-ic.done { background:#2563eb; border-color:#2563eb; color:#fff; }
+  .qa-sqcdp { position:static; display:flex; gap:3px; }
+  .qa-sq { width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:1px solid #e3e6ee; }
+  .qa-sq .qa-sq-l { font-size:10px; font-weight:600; color:#9aa1ad; }
+  .qa-sq .qa-sq-ic { display:none; }
+  .qa-sq.sq-s { background:#fdecec; border-color:#f5c6c6; } .qa-sq.sq-s .qa-sq-l { color:#c0392b; }
+  .qa-sq.sq-q { background:#eef0fd; border-color:#c9cef5; } .qa-sq.sq-q .qa-sq-l { color:#4a4ab7; }
+  .qa-sq.sq-c { background:#eafaf1; border-color:#bde8cf; } .qa-sq.sq-c .qa-sq-l { color:#1e8e50; }
+  .qa-sq.sq-d { background:#fef5e7; border-color:#f7dca6; } .qa-sq.sq-d .qa-sq-l { color:#b9770a; }
+  .qa-sq.sq-p { background:#f3ecfb; border-color:#ddc9f0; } .qa-sq.sq-p .qa-sq-l { color:#7b34a8; }
+  .qa-row { display:flex; align-items:center; gap:6px; }
+  .qa-picked { width:30px; height:30px; border:none; border-radius:7px; font-size:14px; font-weight:700; color:#fff; cursor:pointer; align-items:center; justify-content:center; padding:0; }
+  .qa-picked.sc0{background:#e5484d} .qa-picked.sc1{background:#e5793a} .qa-picked.sc2{background:#d9a441} .qa-picked.sc3{background:#5bab4e} .qa-picked.sc4{background:#2e9e57}
+  .qa-create { display:flex; align-items:center; gap:6px; margin-top:8px; }
+  .qa-create-lbl { font-size:11px; font-weight:600; color:#2563eb; white-space:nowrap; }
+  .qa-create-desc { flex:1; min-width:0; height:30px; padding:0 10px; border:1px solid #d4d8e2; border-radius:7px; font-size:13px; font-family:inherit; }
+  .qa-create-btn { height:30px; padding:0 13px; border:none; border-radius:7px; background:#2563eb; color:#fff; font-size:13px; font-weight:600; cursor:pointer; flex-shrink:0; }
+  .qa-create-btn:disabled { opacity:.6; cursor:default; }
+  .qa-thumb { width:52px; flex-shrink:0; border-radius:8px; overflow:hidden; border:1px solid #e3e6ee; cursor:pointer; }
+  .qa-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+  .qa-wdgll-btn { margin-top:8px; }
   #annotatorOverlay { display:none; }
   .pma-bar { flex:0 0 auto; display:flex; gap:6px; padding:10px; background:#1a1a1a; flex-wrap:wrap; align-items:center; }
   .pma-bar button, .pma-bar select { padding:8px 10px; border:1px solid #444; border-radius:8px; background:#2a2a2a;
@@ -1397,64 +1301,13 @@ window.PM_TOUR_STEPS = [
   .pma-foot button { flex:1; padding:13px; border:none; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; }
   .pma-cancel { background:#3a3a3a; color:#eee; }
   .pma-save { background:#27ae60; color:#fff; }
+  #photoViewer { display:none; position:fixed; inset:0; z-index:10000; background:#000; align-items:center; justify-content:center; }
+  #photoViewer img { max-width:100%; max-height:92vh; object-fit:contain; }
+  #photoViewer .pv-close { position:absolute; top:12px; right:12px; width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,.16); color:#fff; border:none; font-size:18px; cursor:pointer; }
 </style>
-<div id="qaCreateBackdrop" onclick="closeAuditCreate()"></div>
-<div id="qaCreateModal" role="dialog" aria-modal="true">
-  <div class="qacr-hd">
-    <h3 id="qaCrModalTitle">Create</h3>
-    <button class="qacr-x" onclick="closeAuditCreate()" aria-label="Close">✕</button>
-  </div>
-  <div class="qacr-ctx" id="qaCrContext"></div>
-  <div class="qacr-body">
-    <!-- What to create — one, some, or all (share a common record) -->
-    <div class="qacr-f">
-      <label>Create *</label>
-      <div class="qacr-types">
-        <label><input type="checkbox" id="qaChkNC" onchange="qaToggleType_()"> NCR</label>
-        <label><input type="checkbox" id="qaChkRT" onchange="qaToggleType_()"> Red Tag</label>
-        <label><input type="checkbox" id="qaChkTASK" onchange="qaToggleType_()"> Task</label>
-      </div>
-    </div>
-    <!-- Evidence photo (annotatable) — stored on this criterion's audit line -->
-    <div class="qacr-f">
-      <label>Evidence photo (optional)</label>
-      <div class="qacr-photo">
-        <img id="qaCrPhoto" alt="Evidence" style="display:none">
-        <div class="qacr-photo-btns">
-          <button type="button" onclick="qaModalCamera_()">📷 Photo</button>
-          <button type="button" id="qaCrAnnotateBtn" onclick="qaModalAnnotate_()" disabled>✏️ Annotate</button>
-        </div>
-      </div>
-    </div>
-    <!-- NC fields -->
-    <div id="qaCr-NC">
-      <div class="qacr-f"><label>Description *</label><textarea id="qaNcDesc" rows="3" placeholder="Describe the non-conformance"></textarea></div>
-      <div class="qacr-f"><label>Responsible person</label><input id="qaNcResp" type="text" placeholder="Optional — who will fix it"></div>
-    </div>
-    <!-- Task fields -->
-    <div id="qaCr-TASK" style="display:none">
-      <div class="qacr-f"><label>Title *</label><input id="qaTaskTitle" type="text" placeholder="Task title"></div>
-      <div class="qacr-f"><label>Description</label><textarea id="qaTaskDesc" rows="2" placeholder="Details (optional)"></textarea></div>
-      <div class="qacr-row">
-        <div class="qacr-f"><label>Priority</label><select id="qaTaskPrio"><option value="LOW">Low</option><option value="MEDIUM" selected>Medium</option><option value="HIGH">High</option></select></div>
-        <div class="qacr-f"><label>Due date</label><input id="qaTaskDue" type="date"></div>
-      </div>
-      <div class="qacr-f"><label>Assigned to</label><input id="qaTaskAssign" type="text" placeholder="Optional"></div>
-    </div>
-    <!-- Red Tag fields -->
-    <div id="qaCr-REDTAG" style="display:none">
-      <div class="qacr-row">
-        <div class="qacr-f" style="flex:2"><label>Item *</label><input id="qaRtItem" type="text" placeholder="What is being tagged"></div>
-        <div class="qacr-f"><label>Qty</label><input id="qaRtQty" type="number" min="1" value="1"></div>
-      </div>
-      <div class="qacr-f"><label>Category</label><select id="qaRtCat"><option>Equipment</option><option>Material</option><option>Tool</option><option>Document</option><option>Other</option></select></div>
-      <div class="qacr-f"><label>Reason</label><textarea id="qaRtReason" rows="2" placeholder="Why is it being tagged"></textarea></div>
-      <div class="qacr-f"><label>Proposed action</label><input id="qaRtAction" type="text" placeholder="e.g. Dispose / Relocate / Return"></div>
-    </div>
-  </div>
-  <div class="qacr-foot">
-    <button class="qacr-submit" id="qaCrSubmit" onclick="submitAuditCreate()">Create</button>
-  </div>
+<div id="photoViewer" onclick="closeViewer_()">
+  <button class="pv-close" onclick="closeViewer_()" aria-label="Close">✕</button>
+  <img id="viewerImg" alt="Evidence photo">
 </div>
 </body>
 </html>

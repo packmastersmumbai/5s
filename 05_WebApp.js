@@ -99,7 +99,7 @@ function doGet(e) {
     // ═════════════════════════════════════════════════════════
 
     // Actions that floor workers can access without logging in
-    var WORKER_ACTIONS = ['quickaudit', 'daily', 'weeklyaudit', 'sw', 'manifest', 'photoannotate', 'photoannotator'];
+    var WORKER_ACTIONS = ['quickaudit', 'daily', 'weeklyaudit', 'sw', 'manifest', 'photoannotate', 'photoannotator', 'record'];
 
     var isLoginAction  = action === "login";
     var isWorkerAction = WORKER_ACTIONS.indexOf(action) >= 0;

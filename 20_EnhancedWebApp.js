@@ -117,6 +117,7 @@ function handleV2Route_(params) {
     case "skills":       return serveV2Page_("SkillsMatrix", params);
     case "photoannotate":
     case "photoannotator": return serveV2Page_("PhotoAnnotator", params);
+    case "record":         return serveV2Page_("RecordView", params);   // public read-only single record
     case "wdgll":        return serveV2Page_("WDGLLLibrary", params);
     case "setupwizard":  return serveV2Page_("SetupWizard", params);
     case "dataimport":   return serveV2Page_("DataImport", params);

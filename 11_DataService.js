@@ -1241,6 +1241,64 @@ function getNcDetail(ncId) {
 }
 
 // ============================================================================
+// PUBLIC RECORD — read-only single record for the login-free record view
+// (Telegram links open this; edits still require sign-in.)
+// ============================================================================
+function getPublicRecord(type, id) {
+  type = String(type || '').toLowerCase();
+  id = String(id || '').trim();
+  if (!id) return null;
+  var fmtD = function(v){ if (!v) return ''; try { return Utilities.formatDate(new Date(v), 'Asia/Kolkata', 'yyyy-MM-dd'); } catch(e){ return String(v); } };
+  var ss = v2GetSpreadsheet_();
+
+  if (type === 'nc' || type === 'ncr' || type === 'capa') {
+    var d = getNcDetail(id);
+    if (!d) return null;
+    return { type: 'NCR', id: d.id, title: d.description, status: d.status,
+      zone: (d.zoneId + (d.zoneName ? ' — ' + d.zoneName : '')),
+      fields: [
+        { l: 'Pillar', v: d.pillar }, { l: 'Responsible', v: d.responsible },
+        { l: 'Target date', v: fmtD(d.targetDate) }, { l: 'Root cause', v: d.rootCause },
+        { l: 'Corrective action', v: d.correctiveAction }, { l: 'Preventive action', v: d.preventiveAction },
+        { l: 'Verified by', v: d.verifiedBy }, { l: 'Created', v: fmtD(d.createdDate) }
+      ] };
+  }
+  if (type === 'task') {
+    var ts = ss.getSheetByName('TaskBoard'); if (!ts) return null;
+    var td = ts.getDataRange().getValues();
+    for (var r = 1; r < td.length; r++) {
+      if (String(td[r][TASK_COL.TASK_ID]).trim() !== id) continue;
+      var t = td[r];
+      return { type: 'Task', id: id, title: String(t[TASK_COL.TITLE] || ''), status: String(t[TASK_COL.STATUS] || ''),
+        zone: String(t[TASK_COL.ZONE_ID] || ''),
+        fields: [
+          { l: 'Description', v: String(t[TASK_COL.DESCRIPTION] || '') }, { l: 'Priority', v: String(t[TASK_COL.PRIORITY] || '') },
+          { l: 'Assigned to', v: String(t[TASK_COL.ASSIGNED_TO] || '') }, { l: 'Due', v: fmtD(t[TASK_COL.DUE_DATE]) },
+          { l: 'Created', v: fmtD(t[TASK_COL.CREATED]) }
+        ] };
+    }
+    return null;
+  }
+  if (type === 'rt' || type === 'redtag') {
+    var rs = ss.getSheetByName('RedTagRegister'); if (!rs) return null;
+    var rd = rs.getDataRange().getValues();
+    for (var r2 = 1; r2 < rd.length; r2++) {
+      if (String(rd[r2][RT_COL.TAG_ID]).trim() !== id) continue;
+      var g = rd[r2];
+      return { type: 'Red Tag', id: id, title: String(g[RT_COL.ITEM_DESC] || ''), status: String(g[RT_COL.STATUS] || ''),
+        zone: String(g[RT_COL.ZONE_ID] || ''),
+        fields: [
+          { l: 'Category', v: String(g[RT_COL.ITEM_CATEGORY] || '') }, { l: 'Proposed action', v: String(g[RT_COL.PROPOSED_ACTION] || '') },
+          { l: 'Owner', v: String(g[RT_COL.OWNER] || '') }, { l: 'Deadline', v: fmtD(g[RT_COL.DEADLINE]) },
+          { l: 'Created', v: fmtD(g[RT_COL.CREATED]) }
+        ] };
+    }
+    return null;
+  }
+  return null;
+}
+
+// ============================================================================
 // UNIFIED ACTION LIST  (NC + TASK + RED_TAG merged view)
 // ============================================================================
 

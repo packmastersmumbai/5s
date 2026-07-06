@@ -164,7 +164,7 @@ function createTask(taskData) {
     }
     if (typeof tg5sBroadcast_ === "function") {
       tg5sBroadcast_(_tg5sCard_({
-        icon: "🗒️", kind: "Task", id: taskId, link: _tg5sDeep_('?v2=1&action=actionlist&zone=' + d.zoneId),
+        icon: "🗒️", kind: "Task", id: taskId, link: _tg5sDeep_('?v2=1&action=record&type=task&id=' + taskId),
         zoneId: d.zoneId, zoneName: v2GetZoneName_(d.zoneId),
         facts: [
           "📌 " + TelegramLib.esc(d.title),
@@ -173,7 +173,7 @@ function createTask(taskData) {
         ],
         action: "complete & mark done",
         by: taskData.createdBy || "5S"
-      }), [{ text: "🗒️ Open Actions", url: _tg5sDeep_('?v2=1&action=actionlist&zone=' + d.zoneId) }]);
+      }), [{ text: "🗒️ Open record", url: _tg5sDeep_('?v2=1&action=record&type=task&id=' + taskId) }]);
     }
     return { success: true, taskId: taskId, message: "Task created." };
   }, "createTask", { success: false, taskId: "", message: "Server error." });
@@ -200,7 +200,7 @@ function updateTaskStatus(taskId, newStatus, remarks) {
         if (newStatus === STATUS.DONE && typeof tg5sBroadcast_ === "function") {
           tg5sBroadcast_("✔️ <b>Task done</b> · " + String(data[r][TASK_COL.ZONE_ID]).trim() +
             " — " + String(data[r][TASK_COL.TITLE] || taskId) + " by " + v2GetCurrentUser_(),
-            [{ text: "🗒️ Open Actions", url: _tg5sDeep_('?v2=1&action=actionlist&zone=' + String(data[r][TASK_COL.ZONE_ID]).trim()) }]);
+            [{ text: "🗒️ Open record", url: _tg5sDeep_('?v2=1&action=record&type=task&id=' + taskId) }]);
         }
         return { success: true, message: "Task " + taskId + " → " + newStatus };
       }
@@ -227,6 +227,19 @@ function editTask(taskId, updates) {
       if (updates.remarks !== undefined) editable[TASK_COL.REMARKS] = String(updates.remarks).substring(0, 500);
       v2BatchUpdateRow_(sheet, r + 1, editable, data[r]);
       try { var c = CacheService.getScriptCache(), z = String(data[r][TASK_COL.ZONE_ID]).trim(); c.remove("pm5s_tasks_ALL_ALL"); c.remove("pm5s_tasks_" + z + "_ALL"); } catch(e) {}
+      // Sync edits (retitle / reassign / reschedule) to DWM — idempotent on ref.
+      if (typeof DWM !== "undefined") {
+        var _st = String(data[r][TASK_COL.STATUS] || "");
+        var _title    = updates.title      !== undefined ? updates.title      : data[r][TASK_COL.TITLE];
+        var _assignee = updates.assignedTo !== undefined ? updates.assignedTo : data[r][TASK_COL.ASSIGNED_TO];
+        var _due      = updates.dueDate    !== undefined ? updates.dueDate     : data[r][TASK_COL.DUE_DATE];
+        DWM.syncTaskSafe({
+          title: String(_title || "Task"), ref: taskId,
+          status: (_st === STATUS.DONE ? "completed" : _st === STATUS.IN_PROGRESS ? "in-progress" : "open"),
+          assignee: (typeof dwmResolveUser_ === "function") ? dwmResolveUser_(_assignee) : (_assignee || ""),
+          due: _due ? (typeof v2FormatDate_ === "function" ? v2FormatDate_(new Date(_due)) : String(_due)) : ""
+        });
+      }
       return { success: true, message: "Task " + taskId + " updated." };
     }
     return { success: false, message: "Task not found: " + taskId };
@@ -317,7 +330,7 @@ function createRedTag(tagData) {
     }
     if (typeof tg5sBroadcast_ === "function") {
       tg5sBroadcast_(_tg5sCard_({
-        icon: "🏷️", kind: "Red Tag", id: tagId, link: _tg5sDeep_('?v2=1&action=redtag&zone=' + d.zoneId),
+        icon: "🏷️", kind: "Red Tag", id: tagId, link: _tg5sDeep_('?v2=1&action=record&type=rt&id=' + tagId),
         zoneId: d.zoneId, zoneName: v2GetZoneName_(d.zoneId),
         facts: [
           "📦 " + TelegramLib.esc(d.itemDescription) + (d.itemCategory ? " · " + TelegramLib.esc(d.itemCategory) : ""),
@@ -325,7 +338,7 @@ function createRedTag(tagData) {
         ],
         action: "review & dispose (48h)",
         by: (tagData && tagData.createdBy) || v2GetCurrentUser_()
-      }), [{ text: "🏷️ Open Red Tags", url: _tg5sDeep_('?v2=1&action=redtag&zone=' + d.zoneId) }]);
+      }), [{ text: "🏷️ Open record", url: _tg5sDeep_('?v2=1&action=record&type=rt&id=' + tagId) }]);
     }
     return { success: true, tagId: tagId, message: "Red Tag created." };
   }, "createRedTag", { success: false, tagId: "", message: "Server error." });
@@ -373,6 +386,17 @@ function editRedTag(tagId, updates) {
       if (updates.remarks !== undefined) editable[RT_COL.REMARKS] = String(updates.remarks).substring(0, 500);
       v2BatchUpdateRow_(sheet, r + 1, editable, data[r]);
       try { var c = CacheService.getScriptCache(), z = String(data[r][RT_COL.ZONE_ID]).trim(), s = String(data[r][RT_COL.STATUS]).trim(); c.remove("pm5s_redtags_ALL_ALL"); c.remove("pm5s_redtags_" + z + "_ALL"); c.remove("pm5s_redtags_" + z + "_" + s); } catch(e) {}
+      // Sync edits (re-item / reassign / re-deadline) to DWM — idempotent on ref.
+      if (typeof DWM !== "undefined") {
+        var _item  = updates.itemDescription !== undefined ? updates.itemDescription : data[r][RT_COL.ITEM_DESC];
+        var _owner = updates.owner           !== undefined ? updates.owner           : data[r][RT_COL.OWNER];
+        var _dl    = updates.deadline        !== undefined ? updates.deadline         : data[r][RT_COL.DEADLINE];
+        DWM.syncTaskSafe({
+          title: "Red Tag: " + String(_item || tagId), ref: tagId, status: "open",
+          assignee: (typeof dwmResolveUser_ === "function") ? dwmResolveUser_(_owner) : (_owner || ""),
+          due: _dl ? (typeof v2FormatDate_ === "function" ? v2FormatDate_(new Date(_dl)) : String(_dl)) : ""
+        });
+      }
       return { success: true, message: "Red Tag " + tagId + " updated." };
     }
     return { success: false, message: "Red Tag not found: " + tagId };
@@ -423,7 +447,7 @@ function advanceRedTagPhase(tagId, toPhase, notes) {
       if ((toPhase === STATUS.CLOSED || toPhase === STATUS.DISPOSED) && typeof tg5sBroadcast_ === "function") {
         tg5sBroadcast_("✔️ <b>Red Tag " + toPhase.toLowerCase() + "</b> · " + String(data[r][RT_COL.ZONE_ID]).trim() +
           " — " + String(data[r][RT_COL.ITEM_DESC] || tagId) + " by " + v2GetCurrentUser_(),
-          [{ text: "🏷️ Open Red Tags", url: _tg5sDeep_('?v2=1&action=redtag&zone=' + String(data[r][RT_COL.ZONE_ID]).trim()) }]);
+          [{ text: "🏷️ Open record", url: _tg5sDeep_('?v2=1&action=record&type=rt&id=' + tagId) }]);
       }
       return { success: true, message: "Red Tag " + tagId + " → " + toPhase };
     }

@@ -142,7 +142,7 @@ function createCAPA(zoneId, description, type, pillar, sqcdpDim, responsiblePers
   }
   if (typeof tg5sBroadcast_ === "function") {
     tg5sBroadcast_(_tg5sCard_({
-      icon: "🔴", kind: "NC", id: ncId, link: _tg5sDeep_('?v2=1&action=capa&zone=' + zoneId),
+      icon: "🔴", kind: "NC", id: ncId, link: _tg5sDeep_('?v2=1&action=record&type=nc&id=' + ncId),
       zoneId: zoneId, zoneName: (zoneConfig.name || ""),
       facts: [
         "⚠ " + TelegramLib.esc(description || ""),
@@ -150,7 +150,7 @@ function createCAPA(zoneId, description, type, pillar, sqcdpDim, responsiblePers
       ],
       action: "investigate & close (CAPA)",
       by: createdBy || "5S"
-    }), [{ text: "📋 Open CAPA", url: _tg5sDeep_('?v2=1&action=capa&zone=' + zoneId) }]);
+    }), [{ text: "📋 Open record", url: _tg5sDeep_('?v2=1&action=record&type=nc&id=' + ncId) }]);
   }
   return ncId;
 }
@@ -326,7 +326,7 @@ function updateCAPAStatus(ncId, newStatus, verifiedBy, remarks, additionalFields
   }
   if (newStatus === "CLOSED" && typeof tg5sBroadcast_ === "function") {
     tg5sBroadcast_("🟢 <b>NC closed</b> " + ncId + " · " + zoneId + " by " + actorEmail,
-      [{ text: "📋 Open CAPA", url: _tg5sDeep_('?v2=1&action=capa&zone=' + zoneId) }]);
+      [{ text: "📋 Open record", url: _tg5sDeep_('?v2=1&action=record&type=nc&id=' + ncId) }]);
   }
   return { success: true, message: ncId + " updated to " + newStatus };
 }

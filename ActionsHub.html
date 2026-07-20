@@ -523,6 +523,18 @@ body {
 .rc-cell.wide { grid-column: 1 / -1; }
 .rc-cell.wide .rc-v { white-space: normal; }
 .rc-desc { font-size: 12.5px; color: var(--text-secondary); line-height: 1.4; margin-bottom: 8px; }
+.rc-section {
+  font-family: var(--font-mono); font-size: 9px; font-weight: 700;
+  letter-spacing: .6px; text-transform: uppercase; color: var(--text-muted);
+  border-top: 1px solid var(--border-light); padding-top: 8px; margin: 10px 0 6px;
+}
+.rc-para { font-size: 12.5px; color: var(--text-primary); line-height: 1.45; margin-bottom: 6px; }
+.rc-para .rc-k { color: var(--text-muted); font-weight: 600; margin-right: 4px; }
+.rc-repeat {
+  display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-mono);
+  font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 4px;
+  background: var(--score-red-bg); color: var(--score-red);
+}
 
 /* ── RCA START MODAL ────────────────────── */
 .rca-modal {
@@ -1615,38 +1627,47 @@ function closeNcDetail() {
 function renderNcDetail(d) {
   var body = document.getElementById('recordDetailBody');
   if (!d) { body.innerHTML = '<div class="ah-loading">Record not found.</div>'; return; }
-  function row(label, val) {
-    var display = (val !== null && val !== undefined && val !== '')
-      ? escHtml(String(val))
-      : '<span class="rd-dd empty">—</span>';
-    return '<dt class="rd-dt">' + label + '</dt><dd class="rd-dd">' + display + '</dd>';
+  function cell(icon, val, wide) {
+    if (val === null || val === undefined || val === '') return '';
+    return '<div class="rc-cell' + (wide ? ' wide' : '') + '"><span class="rc-ic">' + icon +
+      '</span><span class="rc-v">' + escHtml(String(val)) + '</span></div>';
   }
-  var html = '<dl class="rd-dl">';
-  html += row('ID',                d.id);
-  html += row('Zone',              d.zoneName || d.zoneId);
-  html += row('Pillar',            d.pillar);
-  html += row('Status',            d.status);
-  html += row('Responsible',       d.responsible);
-  html += row('Target Date',       d.targetDate);
-  html += '<hr class="rd-divider">';
-  html += row('Description',       d.description);
-  html += row('Score Given',       d.scoreGiven);
-  html += '<hr class="rd-divider">';
-  html += row('Root Cause',        d.rootCause);
-  html += row('Corrective Action', d.correctiveAction);
-  html += row('Preventive Action', d.preventiveAction);
-  html += '<hr class="rd-divider">';
-  html += row('Auditor',           d.auditor);
-  html += row('Audit Date',        d.auditDate);
-  html += row('Created Date',      d.createdDate);
-  html += row('Closure Date',      d.closureDate);
-  html += row('Verified By',       d.verifiedBy);
-  html += row('Verification',      d.verificationRemarks);
-  html += '<hr class="rd-divider">';
-  html += row('Repeat?',           d.isRepeat ? 'Yes' : 'No');
-  html += row('Recurrence Count',  d.recurrenceCount);
-  html += '</dl>';
-  var ncAction = { type: 'NC', id: d.id, title: d.description, status: d.status, zone: d.zoneName || d.zoneId };
+  function para(key, val) {
+    if (val === null || val === undefined || val === '') return '';
+    return '<div class="rc-para"><span class="rc-k">' + key + '</span>' + escHtml(String(val)) + '</div>';
+  }
+  var zone = d.zoneName || d.zoneId;
+  var badges = d.status ? '<span class="status-lbl ' + escHtml(d.status) + '">' + escHtml(statusLabel(d.status)) + '</span>' : '';
+  if (d.isRepeat) badges += '<span class="rc-repeat">&#128257; Repeat' + (d.recurrenceCount ? ' ×' + escHtml(String(d.recurrenceCount)) : '') + '</span>';
+  var html = '<div class="rc-hero"><span class="rc-emoji">&#128995;</span>' +
+    '<span class="rc-id">' + escHtml(d.id) + '</span>' +
+    '<span class="rc-badges">' + badges + '</span></div>';
+  if (d.description) html += '<div class="rc-title">' + escHtml(d.description) + '</div>';
+  html += '<div class="rc-grid">';
+  html += cell('&#128205;', zone);                       /* 📍 */
+  html += cell('&#128100;', d.responsible);              /* 👤 */
+  html += cell('&#127919;', d.pillar);                   /* 🎯 */
+  html += cell('&#128197;', d.targetDate && ('Target ' + d.targetDate)); /* 📅 */
+  html += cell('&#128202;', d.scoreGiven != null && d.scoreGiven !== '' && ('Score ' + d.scoreGiven)); /* 📊 */
+  html += '</div>';
+
+  var rca = para('Root Cause:', d.rootCause) + para('Corrective:', d.correctiveAction) + para('Preventive:', d.preventiveAction);
+  if (rca) html += '<div class="rc-section">Root Cause Analysis</div>' + rca;
+
+  var auditCells =
+    cell('&#128373;', d.auditor && ('By ' + d.auditor)) +      /* 🕵 */
+    cell('&#128197;', d.auditDate && ('Audit ' + d.auditDate)) +
+    cell('&#10133;',  d.createdDate && ('Created ' + d.createdDate)) +  /* ➕ */
+    cell('&#9989;',   d.closureDate && ('Closed ' + d.closureDate)) +   /* ✅ */
+    cell('&#128100;', d.verifiedBy && ('Verified by ' + d.verifiedBy));
+  var remarks = para('Remarks:', d.verificationRemarks);
+  if (auditCells || remarks) {
+    html += '<div class="rc-section">Audit &amp; Verification</div>';
+    if (auditCells) html += '<div class="rc-grid">' + auditCells + '</div>';
+    html += remarks;
+  }
+
+  var ncAction = { type: 'NC', id: d.id, title: d.description, status: d.status, zone: zone };
   html += '<div class="ah-card__actions" style="border-top:1px solid var(--border-light);margin-top:2px;padding:10px 0 0">' + buildActionBtns(ncAction) + '</div>';
   html += '<div id="acShare" style="display:flex;gap:6px;margin-top:8px"><span style="font-size:11px;color:var(--text-muted);opacity:.7">Preparing report…</span></div>';
   body.innerHTML = html;

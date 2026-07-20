@@ -1669,29 +1669,7 @@ function renderNcDetail(d) {
 
   var ncAction = { type: 'NC', id: d.id, title: d.description, status: d.status, zone: zone };
   html += '<div class="ah-card__actions" style="border-top:1px solid var(--border-light);margin-top:2px;padding:10px 0 0">' + buildActionBtns(ncAction) + '</div>';
-  html += '<div id="acShare" style="display:flex;gap:6px;margin-top:8px"><span style="font-size:11px;color:var(--text-muted);opacity:.7">Preparing report…</span></div>';
   body.innerHTML = html;
-  actionShareLinks_('NC', d.id, 'acShare');
-}
-
-/* Generate PDF + WhatsApp links for an NC/Task/RedTag and render share buttons. */
-function actionShareLinks_(type, id, containerId) {
-  google.script.run
-    .withSuccessHandler(function(r) {
-      var el = document.getElementById(containerId);
-      if (!el) return;
-      if (r && r.success) {
-        var h = '';
-        if (r.pdfUrl) h += '<a href="' + r.pdfUrl + '" target="_blank" rel="noopener" style="flex:1;text-align:center;padding:9px;border-radius:8px;background:#eef2ff;color:#3730a3;font-weight:600;text-decoration:none;font-size:13px">&#128196; View PDF</a>';
-        if (r.waUrl)  h += '<a href="' + r.waUrl + '" target="_blank" rel="noopener" style="flex:1;text-align:center;padding:9px;border-radius:8px;background:#25D366;color:#fff;font-weight:600;text-decoration:none;font-size:13px">&#128241; WhatsApp</a>';
-        el.innerHTML = h;
-      } else { el.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">Report unavailable</span>'; }
-    })
-    .withFailureHandler(function() {
-      var el = document.getElementById(containerId);
-      if (el) el.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">Report unavailable</span>';
-    })
-    .generateActionPdf(type, id);
 }
 
 /* ── Inline detail (TASK / RED_TAG) ── */
@@ -1730,9 +1708,7 @@ function openInlineDetail(type, id) {
     h += '</div>';
     if (item.description) h += '<div class="rc-desc">' + escHtml(item.description) + '</div>';
     h += '<div class="ah-card__actions" style="border-top:1px solid var(--border-light);margin-top:2px;padding:10px 0 0">' + buildActionBtns(item) + '</div>';
-    h += '<div id="acShareInline" style="display:flex;gap:6px;margin-top:8px"><span style="font-size:11px;color:var(--text-muted);opacity:.7">Preparing report…</span></div>';
     body.innerHTML = h;
-    actionShareLinks_(type, id, 'acShareInline');
   }
   document.getElementById('inlineDetailModal').classList.add('open');
   document.getElementById('idBackdrop').classList.add('open');

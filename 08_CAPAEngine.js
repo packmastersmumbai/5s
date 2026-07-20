@@ -78,7 +78,7 @@ function generateNCId_() {
  * @param {string} auditorEmail — Auditor email
  * @returns {string} The generated NC ID
  */
-function createCAPA(zoneId, description, type, pillar, sqcdpDim, responsiblePerson, createdBy, targetDateOverride) {
+function createCAPA(zoneId, description, type, pillar, sqcdpDim, responsiblePerson, createdBy, targetDateOverride, photosB64) {
   var ss = (typeof v2GetSpreadsheet_ === 'function') ? v2GetSpreadsheet_() : SpreadsheetApp.getActiveSpreadsheet();
   var capaSheet = ss.getSheetByName("NC_CAPA");
   if (!capaSheet) {
@@ -103,6 +103,22 @@ function createCAPA(zoneId, description, type, pillar, sqcdpDim, responsiblePers
   // responsible_person(12),target_date(13),status(14),closure_date(15),
   // verified_by(16),verification_remarks(17),is_repeat_nc(18),repeat_count(19)
   var zoneConfig = getZoneConfig()[zoneId] || {};
+
+  // Optional evidence photos (array of base64 strings, up to a few) — uploaded
+  // to the zone's Drive folder and stored comma-joined, mirroring how
+  // TaskBoard/RedTagRegister/AuditLineItems already store multi-photo evidence.
+  var ncPhotoUrls = [], ncPhotoFileIds = [];
+  if (Array.isArray(photosB64)) {
+    photosB64.forEach(function (b64, pIdx) {
+      if (!b64) return;
+      try {
+        var pname = zoneId + "_" + ncId + (pIdx ? "_" + (pIdx + 1) : "") + ".jpg";
+        var pres = uploadPhotoToDrive(b64, pname, zoneId);
+        if (pres && pres.thumbnailUrl) { ncPhotoUrls.push(pres.thumbnailUrl); ncPhotoFileIds.push(pres.fileId || ""); }
+      } catch (e) { Logger.log("NC photo skipped (" + ncId + " #" + pIdx + "): " + e.message); }
+    });
+  }
+
   capaSheet.appendRow([
     ncId,                       // 0: nc_id
     auditDateStr,               // 1: created_date
@@ -123,7 +139,9 @@ function createCAPA(zoneId, description, type, pillar, sqcdpDim, responsiblePers
     "",                         // 16: verified_by
     "",                         // 17: verification_remarks
     "false",                    // 18: is_repeat_nc
-    0                           // 19: repeat_count
+    0,                          // 19: repeat_count
+    ncPhotoUrls.join(","),      // 20: photo_url(s)
+    ncPhotoFileIds.join(",")    // 21: photo_file_id(s)
   ]);
 
   Logger.log("  📌 CAPA created: " + ncId + " | Zone: " + zoneId + " | Pillar: " + pillar);

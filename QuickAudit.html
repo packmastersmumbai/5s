@@ -902,10 +902,11 @@ function submitCardCreate(idx) {
   function run(i){ if (i >= types.length) { done_(); return; } one(types[i], function(){ run(i + 1); }); }
   function one(type, next) {
     if (type === 'NC') {
+      var ncPhotos = (criterionPhotos[c.criterionId] || []).map(function(p) { return p.split(',')[1]; });
       google.script.run
         .withSuccessHandler(function(r){ if (r) { linkRef = String(r); okIds.push('NCR ' + r); mark('NC', true); } else { errors.push('NCR failed'); mark('NC', false); } next(); })
         .withFailureHandler(function(e){ errors.push('NCR: ' + e.message); mark('NC', false); next(); })
-        .createCAPA(zone, ncDesc, 'NC', c.pillar, SQCDP_MAP[c.pillar] || '', ncResp, (_CFG && _CFG.auditor) || '', ncTarget);
+        .createCAPA(zone, ncDesc, 'NC', c.pillar, SQCDP_MAP[c.pillar] || '', ncResp, (_CFG && _CFG.auditor) || '', ncTarget, ncPhotos);
     } else if (type === 'TASK') {
       google.script.run
         .withSuccessHandler(function(r){ if (r && r.success) { okIds.push('Task ' + r.taskId); mark('TASK', true); } else { errors.push('Task failed'); mark('TASK', false); } next(); })

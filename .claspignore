@@ -6,6 +6,13 @@ node_modules/**
 package.json
 package-lock.json
 
+# One-off Node verification scripts (created ad hoc during a session, e.g.
+# with require() to call e2e-lib-5s). clasp push does NOT delete files that
+# vanish locally — a leaked _tmp.js here breaks every clasp run call with
+# "ReferenceError: require is not defined" until it's overwritten remotely.
+# Naming convention: always suffix throwaway Node scripts with _tmp.js.
+*_tmp.js
+
 # Docs / GitHub Pages (served outside GAS)
 docs/**
 scripts/**

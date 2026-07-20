@@ -2,28 +2,130 @@
 <html>
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>PackMasters 5S — Record</title>
 <style>
-  :root{--ink:#1a1f2e;--ink2:#5a6472;--ink3:#9aa1ad;--line:#e3e6ee;--bg:#f6f8fc;--accent:#2563eb;}
-  *{box-sizing:border-box;}
-  body{margin:0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--ink);padding:16px;}
-  .wrap{max-width:560px;margin:0 auto;}
-  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 18px 20px;box-shadow:0 2px 14px rgba(16,24,40,.05);}
-  .loading,.err{color:var(--ink2);font-size:14px;padding:20px 0;text-align:center;}
-  .err{color:#c0392b;}
-  .hd{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;}
-  .badge{font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;}
-  .badge.NCR{background:#fdecec;color:#c0392b;} .badge.Task{background:#eafaf1;color:#1e8e50;} .badge.RedTag{background:#fef5e7;color:#b9770a;}
-  .st{font-size:12px;font-weight:600;color:var(--ink2);padding:3px 10px;border:1px solid var(--line);border-radius:20px;text-transform:uppercase;letter-spacing:.03em;}
-  .id{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink3);margin-bottom:10px;}
-  .ti{font-size:18px;font-weight:600;line-height:1.35;margin-bottom:14px;}
-  .tbl{width:100%;border-collapse:collapse;}
-  .tbl td{padding:9px 0;border-top:1px solid var(--line);vertical-align:top;font-size:14px;}
-  .tbl td.l{color:var(--ink2);width:38%;font-size:13px;}
-  .tbl td.v{color:var(--ink);}
-  .signin{display:block;margin-top:18px;text-align:center;background:var(--accent);color:#fff;text-decoration:none;padding:12px;border-radius:10px;font-size:14px;font-weight:600;}
-  .foot{margin-top:12px;text-align:center;font-size:11px;color:var(--ink3);}
+  :root {
+    --ink: #1a1f2e; --ink2: #5a6472; --ink3: #9aa1ad;
+    --line: #e3e6ee; --line-lt: #eef0f6; --bg: #f4f6fb;
+    --card: #ffffff; --accent: #2563eb; --accent-soft: #eaf1ff;
+    --red: #c0392b; --red-bg: #fdecec;
+    --amber: #b9770a; --amber-bg: #fef5e7;
+    --green: #1e8e50; --green-bg: #eafaf1;
+    --r: 14px; --shadow: 0 2px 14px rgba(16,24,40,.06);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg); color: var(--ink); padding: 14px 14px 40px;
+  }
+  .wrap { max-width: 620px; margin: 0 auto; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--r);
+    padding: 18px 18px 20px; box-shadow: var(--shadow);
+  }
+  .loading, .err {
+    color: var(--ink2); font-size: 14px; padding: 40px 0; text-align: center;
+  }
+  .loading::before {
+    content: ''; display: block; width: 26px; height: 26px; margin: 0 auto 12px;
+    border: 3px solid var(--line); border-top-color: var(--accent); border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .err { color: var(--red); }
+
+  .hd { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+  .badge { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+  .badge.NCR    { background: var(--red-bg);   color: var(--red); }
+  .badge.Task   { background: var(--green-bg); color: var(--green); }
+  .badge.RedTag { background: var(--amber-bg); color: var(--amber); }
+  .st {
+    font-size: 11px; font-weight: 700; color: var(--ink2); padding: 3px 10px;
+    border: 1px solid var(--line); border-radius: 20px; text-transform: uppercase; letter-spacing: .04em;
+  }
+  .id { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink3); margin-bottom: 10px; }
+  .ti { font-size: 18px; font-weight: 700; line-height: 1.35; margin-bottom: 16px; }
+
+  .tbl { width: 100%; border-collapse: collapse; }
+  .tbl td { padding: 9px 0; border-top: 1px solid var(--line-lt); vertical-align: top; font-size: 13.5px; }
+  .tbl td.l { color: var(--ink2); width: 36%; font-size: 12.5px; }
+  .tbl td.v { color: var(--ink); }
+
+  /* ── Photo gallery ── */
+  .gal-hd {
+    font-size: 12px; font-weight: 700; color: var(--ink2); text-transform: uppercase;
+    letter-spacing: .04em; margin: 18px 0 8px;
+  }
+  .gal { display: flex; gap: 8px; flex-wrap: wrap; }
+  .gal-thumb {
+    width: 84px; height: 84px; border-radius: 10px; object-fit: cover;
+    border: 1px solid var(--line); cursor: zoom-in;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .gal-thumb:hover { transform: scale(1.06); box-shadow: 0 4px 16px rgba(16,24,40,.15); }
+
+  .signin {
+    display: block; margin-top: 12px; text-align: center; background: var(--card);
+    color: var(--accent); text-decoration: none; padding: 11px; border-radius: 10px;
+    font-size: 12.5px; font-weight: 600; border: 1px solid var(--line);
+  }
+  .foot { margin-top: 14px; text-align: center; font-size: 11px; color: var(--ink3); }
+
+  /* ── Quick action (no login) ── */
+  .qa-box {
+    margin-top: 18px; padding: 14px; background: var(--accent-soft);
+    border: 1px solid #cfe0ff; border-radius: 12px;
+  }
+  .qa-label { font-size: 11.5px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 8px; }
+  .qa-name {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px;
+    font-size: 14px; margin-bottom: 8px; font-family: inherit; box-sizing: border-box;
+  }
+  .qa-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .qa-btn {
+    flex: 1; min-width: 110px; padding: 11px; border: none; border-radius: 9px;
+    background: var(--accent); color: #fff; font-size: 13.5px; font-weight: 700; cursor: pointer;
+  }
+  .qa-btn:disabled { opacity: .55; cursor: default; }
+  .qa-msg { font-size: 12.5px; margin-top: 8px; min-height: 16px; }
+  .qa-msg.ok { color: var(--green); font-weight: 600; }
+  .qa-msg.err { color: var(--red); font-weight: 600; }
+
+  /* ── Lightbox + annotator ── */
+  .lb {
+    display: none; position: fixed; inset: 0; z-index: 500; background: rgba(8,8,14,.95);
+    flex-direction: column; align-items: center; justify-content: center;
+  }
+  .lb.open { display: flex; }
+  .lb-bar {
+    flex: 0 0 auto; display: flex; gap: 6px; padding: 10px; background: #16161f;
+    flex-wrap: wrap; align-items: center; width: 100%; box-sizing: border-box; justify-content: center;
+  }
+  .lb-bar button, .lb-bar select {
+    padding: 8px 11px; border: 1px solid #3a3a48; border-radius: 8px; background: #24242f;
+    color: #d7d9e2; font-size: 12.5px; cursor: pointer; font-family: inherit;
+  }
+  .lb-bar button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .lb-bar button:active { transform: scale(.95); }
+  .lb-stage { flex: 1; width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; min-height: 0; }
+  .lb-stage canvas { max-width: 96vw; max-height: 100%; touch-action: none; background: #000; }
+  .lb-foot { flex: 0 0 auto; display: flex; gap: 8px; padding: 10px 14px; width: 100%; box-sizing: border-box; }
+  .lb-foot button {
+    flex: 1; padding: 12px; border: none; border-radius: 9px; font-size: 13.5px; font-weight: 700; cursor: pointer;
+  }
+  .lb-close   { background: #2a2a36; color: #d7d9e2; }
+  .lb-dl      { background: var(--accent); color: #fff; }
+  .lb-nav {
+    position: absolute; top: 50%; transform: translateY(-50%); width: 42px; height: 42px;
+    border-radius: 50%; border: none; background: rgba(255,255,255,.14); color: #fff; font-size: 15px; cursor: pointer;
+  }
+  .lb-nav.prev { left: 10px; } .lb-nav.next { right: 10px; }
+  .lb-count {
+    position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; color: rgba(255,255,255,.7);
+    background: rgba(0,0,0,.4); padding: 3px 10px; border-radius: 12px;
+  }
 </style>
 </head>
 <body>
@@ -31,11 +133,39 @@
   <div id="rec" class="card"><div class="loading">Loading record…</div></div>
   <div class="foot">PackMasters 5S · read-only</div>
 </div>
+
+<!-- ── Photo lightbox + annotate (pen / arrow / circle / text / symbol) ── -->
+<div id="lb" class="lb">
+  <div class="lb-bar">
+    <button type="button" id="an-draw"   class="on" onclick="Annot.tool('draw')">&#9998; Pen</button>
+    <button type="button" id="an-arrow"  onclick="Annot.tool('arrow')">&#10142; Arrow</button>
+    <button type="button" id="an-circle" onclick="Annot.tool('circle')">&#9711; Circle</button>
+    <button type="button" id="an-text"   onclick="Annot.tool('text')">A Text</button>
+    <button type="button" id="an-symbol" onclick="Annot.cycleSymbol()">&#10003; Symbol</button>
+    <select id="anColor" onchange="Annot.color(this.value)">
+      <option value="#e74c3c">Red</option><option value="#f39c12">Amber</option>
+      <option value="#2ecc71">Green</option><option value="#3498db">Blue</option><option value="#ffffff">White</option>
+    </select>
+    <button type="button" onclick="Annot.undo()">&#8630; Undo</button>
+  </div>
+  <div class="lb-stage">
+    <div class="lb-count" id="lbCount"></div>
+    <button type="button" class="lb-nav prev" id="lbPrev" onclick="lbStep(-1)">&#10094;</button>
+    <canvas id="anCanvas"></canvas>
+    <button type="button" class="lb-nav next" id="lbNext" onclick="lbStep(1)">&#10095;</button>
+  </div>
+  <div class="lb-foot">
+    <button type="button" class="lb-close" onclick="closeLb()">Close</button>
+    <button type="button" class="lb-dl" onclick="Annot.download()">&#8681; Save annotated image</button>
+  </div>
+</div>
+
 <script>
 var TYPE = '<?= (params && params.type) ? String(params.type).replace(/[^a-zA-Z]/g,"") : "" ?>';
 var ID   = '<?= (params && params.id) ? String(params.id).replace(/[^a-zA-Z0-9\-_]/g,"") : "" ?>';
 var DU   = '<?= deployUrl ?>';
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
 function render(rec){
   var el = document.getElementById('rec');
   if(!rec){ el.innerHTML = '<div class="err">Record not found (' + esc(TYPE) + ' ' + esc(ID) + ').</div>'; return; }
@@ -44,13 +174,97 @@ function render(rec){
   var zoneId = (String(rec.zone||'').match(/Z-\d+/)||[''])[0];
   var editAction = rec.type === 'NCR' ? 'capa' : 'actionlist';
   var next = 'v2=1&action=' + editAction + (zoneId ? '&zone=' + zoneId : '');
+
+  var photos = rec.photoUrls || [];
+  var fileIds = rec.photoFileIds || [];
+  _lbUrls = photos; _lbFileIds = fileIds;
+  var gallery = photos.length
+    ? '<div class="gal-hd">Photos (' + photos.length + ')</div><div class="gal">' +
+      photos.map(function(u, i){ return '<img class="gal-thumb" src="' + esc(u) + '" onclick="openLb(' + i + ')" alt="Evidence ' + (i+1) + '">'; }).join('') +
+      '</div>'
+    : '';
+
+  _currentRec = rec;
   el.innerHTML =
     '<div class="hd"><span class="badge ' + esc(rec.type).replace(/\s/g,'') + '">' + esc(rec.type) + '</span><span class="st">' + esc(rec.status) + '</span></div>' +
     '<div class="id">' + esc(rec.id) + ' · ' + esc(rec.zone) + '</div>' +
     '<div class="ti">' + esc(rec.title) + '</div>' +
     '<table class="tbl">' + rows + '</table>' +
-    '<a class="signin" href="' + DU + '?v2=1&action=login&next=' + encodeURIComponent(next) + '" target="_top">Sign in to update</a>';
+    gallery +
+    buildQuickAction_(rec) +
+    '<a class="signin" href="' + DU + '?v2=1&action=login&next=' + encodeURIComponent(next) + '" target="_top">Sign in for full access</a>';
 }
+
+/* ── Quick action (no login) — narrow, safe verbs per type/status.
+   Name is captured once and remembered on this device via localStorage. ── */
+var _currentRec = null;
+function _savedName_(){ try { return localStorage.getItem('pm5s_public_name') || ''; } catch(e){ return ''; } }
+function _saveName_(n){ try { localStorage.setItem('pm5s_public_name', n); } catch(e){} }
+
+function buildQuickAction_(rec){
+  var opts = quickActionOptions_(rec);
+  if (!opts.length) return '';
+  var name = esc(_savedName_());
+  var btns = opts.map(function(o){
+    return '<button type="button" class="qa-btn" onclick="doQuickAction_(\'' + esc(o.action).replace(/'/g,"\\'") + '\',this)">' + esc(o.label) + '</button>';
+  }).join('');
+  return '<div class="qa-box">' +
+    '<div class="qa-label">Quick action — no sign-in needed</div>' +
+    '<input type="text" id="qaName" class="qa-name" placeholder="Your name" value="' + name + '" maxlength="60">' +
+    '<div class="qa-btns">' + btns + '</div>' +
+    '<div class="qa-msg" id="qaMsg"></div>' +
+    '</div>';
+}
+
+function quickActionOptions_(rec){
+  var t = rec.type, s = String(rec.status || '').toUpperCase();
+  if (t === 'Task') {
+    var o = [];
+    if (s === 'BACKLOG' || s === 'THIS_WEEK' || s === 'OPEN') o.push({ action: 'IN_PROGRESS', label: 'Start' });
+    if (s !== 'DONE' && s !== 'CLOSED') o.push({ action: 'DONE', label: 'Mark Done' });
+    return o;
+  }
+  if (t === 'Red Tag') {
+    var next = { IDENTIFIED: ['EVALUATED','Evaluate'], EVALUATED: ['DISPOSED','Dispose'], DISPOSED: ['CLOSED','Close'] }[s];
+    return next ? [{ action: next[0], label: next[1] }] : [];
+  }
+  if (t === 'NCR' && s !== 'CLOSED') {
+    return [{ action: 'ACKNOWLEDGE', label: 'Acknowledge' }];
+  }
+  return [];
+}
+
+function doQuickAction_(action, btn){
+  var nameEl = document.getElementById('qaName');
+  var name = (nameEl.value || '').trim();
+  var msg = document.getElementById('qaMsg');
+  if (!name) { msg.textContent = 'Enter your name first.'; msg.className = 'qa-msg err'; nameEl.focus(); return; }
+  _saveName_(name);
+  btn.disabled = true; var origText = btn.textContent; btn.textContent = '…';
+  document.querySelectorAll('.qa-btn').forEach(function(b){ b.disabled = true; });
+  var apiType = TYPE; // same type param the page loaded with
+  google.script.run
+    .withSuccessHandler(function(res){
+      if (res && res.success) {
+        msg.textContent = 'Done — thanks, ' + name + '.';
+        msg.className = 'qa-msg ok';
+        load(); // refresh the record to show new status
+      } else {
+        msg.textContent = (res && res.message) || 'Action failed.';
+        msg.className = 'qa-msg err';
+        btn.disabled = false; btn.textContent = origText;
+        document.querySelectorAll('.qa-btn').forEach(function(b){ b.disabled = false; });
+      }
+    })
+    .withFailureHandler(function(e){
+      msg.textContent = 'Error: ' + (e && e.message || 'server error');
+      msg.className = 'qa-msg err';
+      btn.disabled = false; btn.textContent = origText;
+      document.querySelectorAll('.qa-btn').forEach(function(b){ b.disabled = false; });
+    })
+    .publicRecordAction(apiType, ID, action, name);
+}
+
 function load(){
   if(!TYPE || !ID){ document.getElementById('rec').innerHTML = '<div class="err">Missing record type or id.</div>'; return; }
   google.script.run
@@ -59,6 +273,209 @@ function load(){
     .getPublicRecord(TYPE, ID);
 }
 load();
+
+/* ══════════════════════════════════════════════════════════════════════
+   Photo lightbox + annotate — pen / arrow / circle / text / symbol stamp.
+   Local-only: draws over the photo and offers a "save annotated image"
+   download. This page has no session, so annotations are never written
+   back to the record — they're for pointing something out / exporting.
+   ══════════════════════════════════════════════════════════════════════ */
+var _lbUrls = [], _lbFileIds = [], _lbIdx = 0;
+
+function _lbLoadCurrent(){
+  var fid = _lbFileIds[_lbIdx];
+  Annot.loading();
+  if (fid) {
+    // Route through the server so the canvas draws a same-origin data: URL —
+    // drive.google.com/thumbnail has no CORS headers, so loading it directly
+    // into the canvas would work for *display* but throw on export/annotate.
+    google.script.run
+      .withSuccessHandler(function(dataUrl){ Annot.load(dataUrl || _lbUrls[_lbIdx], !dataUrl); })
+      .withFailureHandler(function(){ Annot.load(_lbUrls[_lbIdx], true); })
+      .getPhotoAsDataUrl(fid);
+  } else {
+    Annot.load(_lbUrls[_lbIdx], true); // no fileId known — view-only, export disabled
+  }
+}
+function openLb(idx){
+  _lbIdx = idx;
+  document.getElementById('lb').classList.add('open');
+  _lbLoadCurrent();
+  _lbUpdateNav();
+}
+function lbStep(dir){
+  if (!_lbUrls.length) return;
+  _lbIdx = (_lbIdx + dir + _lbUrls.length) % _lbUrls.length;
+  _lbLoadCurrent();
+  _lbUpdateNav();
+}
+function _lbUpdateNav(){
+  var multi = _lbUrls.length > 1;
+  document.getElementById('lbPrev').style.display = multi ? '' : 'none';
+  document.getElementById('lbNext').style.display = multi ? '' : 'none';
+  document.getElementById('lbCount').textContent = (_lbIdx + 1) + ' / ' + _lbUrls.length;
+}
+function closeLb(){ document.getElementById('lb').classList.remove('open'); }
+document.addEventListener('keydown', function(e){
+  var lb = document.getElementById('lb');
+  if (!lb.classList.contains('open')) return;
+  if (e.key === 'Escape') closeLb();
+  else if (e.key === 'ArrowLeft') lbStep(-1);
+  else if (e.key === 'ArrowRight') lbStep(1);
+});
+
+var Annot = (function(){
+  var canvas, ctx, baseImg = null, strokes = [], cur = null;
+  var tool = 'draw', color = '#e74c3c', lineW = 5;
+  var symbols = ['✓', '✗', '⚠']; var symIdx = 0; // check, cross, warning
+  var pendingText = null; // {x,y} while composing a text annotation
+
+  function drawOne(s){
+    ctx.strokeStyle = s.color; ctx.fillStyle = s.color; ctx.lineWidth = s.lineW;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    if (s.type === 'draw') {
+      ctx.beginPath();
+      s.pts.forEach(function(p, i){ i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); });
+      ctx.stroke();
+    } else if (s.type === 'circle') {
+      ctx.beginPath();
+      ctx.ellipse((s.sx+s.ex)/2, (s.sy+s.ey)/2, Math.abs(s.ex-s.sx)/2, Math.abs(s.ey-s.sy)/2, 0, 0, 2*Math.PI);
+      ctx.stroke();
+    } else if (s.type === 'arrow') {
+      ctx.beginPath(); ctx.moveTo(s.sx, s.sy); ctx.lineTo(s.ex, s.ey); ctx.stroke();
+      var a = Math.atan2(s.ey - s.sy, s.ex - s.sx), h = 8 + s.lineW * 2;
+      ctx.beginPath(); ctx.moveTo(s.ex, s.ey);
+      ctx.lineTo(s.ex - h*Math.cos(a-0.4), s.ey - h*Math.sin(a-0.4));
+      ctx.lineTo(s.ex - h*Math.cos(a+0.4), s.ey - h*Math.sin(a+0.4));
+      ctx.closePath(); ctx.fill();
+    } else if (s.type === 'text') {
+      var fs = Math.max(18, Math.round(canvas.width * 0.028));
+      ctx.font = 'bold ' + fs + 'px Arial';
+      ctx.textBaseline = 'top';
+      ctx.lineWidth = Math.max(3, fs * 0.12); ctx.strokeStyle = 'rgba(0,0,0,.55)';
+      ctx.strokeText(s.text, s.x, s.y);
+      ctx.fillText(s.text, s.x, s.y);
+    } else if (s.type === 'symbol') {
+      var sfs = Math.max(28, Math.round(canvas.width * 0.06));
+      ctx.font = 'bold ' + sfs + 'px Arial'; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+      ctx.lineWidth = Math.max(3, sfs * 0.1); ctx.strokeStyle = 'rgba(0,0,0,.55)';
+      ctx.strokeText(s.glyph, s.x, s.y); ctx.fillText(s.glyph, s.x, s.y);
+      ctx.textAlign = 'left';
+    }
+  }
+
+  function redraw(){
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (baseImg) ctx.drawImage(baseImg, 0, 0, canvas.width, canvas.height);
+    strokes.forEach(drawOne);
+    if (cur) drawOne(cur);
+  }
+
+  function pos(ev){
+    var r = canvas.getBoundingClientRect();
+    var t = ev.touches && ev.touches[0] ? ev.touches[0] : ev;
+    return { x: (t.clientX - r.left) * (canvas.width / r.width), y: (t.clientY - r.top) * (canvas.height / r.height) };
+  }
+
+  function down(ev){
+    ev.preventDefault();
+    var p = pos(ev);
+    if (tool === 'text') {
+      var txt = prompt('Annotation text:');
+      if (txt) strokes.push({ type: 'text', color: color, x: p.x, y: p.y, text: txt });
+      redraw();
+      return;
+    }
+    if (tool === 'symbol') {
+      strokes.push({ type: 'symbol', color: color, x: p.x, y: p.y, glyph: symbols[symIdx] });
+      redraw();
+      return;
+    }
+    cur = (tool === 'draw')
+      ? { type: 'draw', color: color, lineW: lineW, pts: [p] }
+      : { type: tool, color: color, lineW: lineW, sx: p.x, sy: p.y, ex: p.x, ey: p.y };
+  }
+  function move(ev){
+    if (!cur) return;
+    ev.preventDefault();
+    var p = pos(ev);
+    if (cur.type === 'draw') cur.pts.push(p); else { cur.ex = p.x; cur.ey = p.y; }
+    redraw();
+  }
+  function up(){ if (cur) { strokes.push(cur); cur = null; redraw(); } }
+
+  var exportBlocked = false;
+
+  function loading(){
+    canvas = document.getElementById('anCanvas'); ctx = canvas.getContext('2d');
+    canvas.width = 600; canvas.height = 400;
+    ctx.fillStyle = '#0c0c12'; ctx.fillRect(0, 0, 600, 400);
+    ctx.fillStyle = '#666'; ctx.font = '13px Arial'; ctx.textAlign = 'center';
+    ctx.fillText('Loading…', 300, 200); ctx.textAlign = 'left';
+  }
+
+  function load(url, viewOnly){
+    strokes = []; cur = null; tool = 'draw'; exportBlocked = !!viewOnly;
+    document.querySelectorAll('.lb-bar button[id^="an-"]').forEach(function(b){ b.classList.remove('on'); });
+    document.getElementById('an-draw').classList.add('on');
+    var dl = document.querySelector('.lb-dl');
+    if (dl) dl.textContent = exportBlocked ? '⤓ Save (unavailable — open image link instead)' : '⤓ Save annotated image';
+    canvas = document.getElementById('anCanvas'); ctx = canvas.getContext('2d');
+    var img = new Image();
+    img.onload = function(){
+      baseImg = img;
+      var maxW = Math.min(1100, img.width), scale = maxW / img.width;
+      canvas.width = maxW; canvas.height = Math.round(img.height * scale);
+      redraw();
+    };
+    img.onerror = function(){
+      canvas.width = 600; canvas.height = 400;
+      ctx.fillStyle = '#1a1a1a'; ctx.fillRect(0,0,600,400);
+      ctx.fillStyle = '#aaa'; ctx.font = '14px Arial'; ctx.textAlign = 'center';
+      ctx.fillText('Preview unavailable', 300, 200);
+      ctx.textAlign = 'left';
+    };
+    img.src = url;
+    if (!canvas._wired) {
+      canvas._wired = true;
+      canvas.addEventListener('mousedown', down); canvas.addEventListener('mousemove', move);
+      window.addEventListener('mouseup', up);
+      canvas.addEventListener('touchstart', down, { passive: false });
+      canvas.addEventListener('touchmove', move, { passive: false });
+      canvas.addEventListener('touchend', up);
+    }
+  }
+
+  return {
+    load: load,
+    loading: loading,
+    tool: function(t){
+      tool = t;
+      document.querySelectorAll('.lb-bar button[id^="an-"]').forEach(function(b){ b.classList.remove('on'); });
+      var btn = document.getElementById('an-' + t);
+      if (btn) btn.classList.add('on');
+    },
+    cycleSymbol: function(){
+      symIdx = (symIdx + 1) % symbols.length;
+      this.tool('symbol');
+      document.getElementById('an-symbol').textContent = symbols[symIdx] + ' Symbol';
+    },
+    color: function(c){ color = c; },
+    undo: function(){ strokes.pop(); redraw(); },
+    download: function(){
+      if (exportBlocked) { alert('This image could not be loaded for editing — open its original link and save from there.'); return; }
+      var a = document.createElement('a');
+      try {
+        a.href = canvas.toDataURL('image/jpeg', 0.9);
+      } catch (e) {
+        alert('Could not export this image. Right-click the image → Save image instead.');
+        return;
+      }
+      a.download = 'annotated-' + Date.now() + '.jpg';
+      a.click();
+    }
+  };
+})();
 </script>
 </body>
 </html>

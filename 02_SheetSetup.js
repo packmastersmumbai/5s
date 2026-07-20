@@ -74,7 +74,8 @@ function getSheetDefinitions_() {
         "criterion_id", "criterion_label", "score_given",
         "auditor_email", "root_cause", "corrective_action", "preventive_action",
         "responsible_person", "target_date", "status", "closure_date",
-        "verified_by", "verification_remarks", "is_repeat_nc", "repeat_count"
+        "verified_by", "verification_remarks", "is_repeat_nc", "repeat_count",
+        "photo_url", "photo_file_id"
       ]
     },
     // NOTE: Red tags live in the V2 'RedTagRegister' sheet (19-col RT_COL schema),

@@ -1234,7 +1234,9 @@ function getNcDetail(ncId) {
       verifiedBy:           String(r[NC_COL.VERIFIED_BY]),
       verificationRemarks:  String(r[NC_COL.VERIFICATION_REMARKS]),
       isRepeat:             String(r[NC_COL.IS_REPEAT]).toLowerCase() === 'true',
-      recurrenceCount:      Number(r[NC_COL.RECURRENCE_COUNT]) || 0
+      recurrenceCount:      Number(r[NC_COL.RECURRENCE_COUNT]) || 0,
+      photoUrls:            String(r[NC_COL.PHOTO_URL] || '').split(',').filter(Boolean),
+      photoFileIds:         String(r[NC_COL.PHOTO_FILE_ID] || '').split(',').filter(Boolean)
     };
   }
   return null;
@@ -1244,6 +1246,30 @@ function getNcDetail(ncId) {
 // PUBLIC RECORD — read-only single record for the login-free record view
 // (Telegram links open this; edits still require sign-in.)
 // ============================================================================
+/** Fetches a Drive-hosted photo (by fileId, extracted from our own thumbnail
+ *  URL format) and returns it as a data: URL. Used by the public RecordView
+ *  page's photo lightbox — drive.google.com/thumbnail does not send CORS
+ *  headers, so a canvas can load the <img> but cannot read it back
+ *  (toDataURL throws "tainted canvas"). Routing through Apps Script avoids
+ *  that entirely: the annotator draws from a same-origin data: URL. */
+function getPhotoAsDataUrl(fileId) {
+  return v2SafeExecute_(function() {
+    fileId = String(fileId || '').trim();
+    if (!fileId) return null;
+    var file = DriveApp.getFileById(fileId);
+    var blob = file.getBlob();
+    var mime = blob.getContentType() || 'image/jpeg';
+    var b64 = Utilities.base64Encode(blob.getBytes());
+    return 'data:' + mime + ';base64,' + b64;
+  }, 'getPhotoAsDataUrl', null);
+}
+
+/** Extracts the Drive fileId from our own "https://drive.google.com/thumbnail?id=XXX&sz=..." format. */
+function _extractDriveFileId_(url) {
+  var m = String(url || '').match(/[?&]id=([^&]+)/);
+  return m ? m[1] : '';
+}
+
 function getPublicRecord(type, id) {
   type = String(type || '').toLowerCase();
   id = String(id || '').trim();
@@ -1256,6 +1282,8 @@ function getPublicRecord(type, id) {
     if (!d) return null;
     return { type: 'NCR', id: d.id, title: d.description, status: d.status,
       zone: (d.zoneId + (d.zoneName ? ' — ' + d.zoneName : '')),
+      photoUrls: d.photoUrls || [],
+      photoFileIds: (d.photoFileIds && d.photoFileIds.length) ? d.photoFileIds : (d.photoUrls || []).map(_extractDriveFileId_),
       fields: [
         { l: 'Pillar', v: d.pillar }, { l: 'Responsible', v: d.responsible },
         { l: 'Target date', v: fmtD(d.targetDate) }, { l: 'Root cause', v: d.rootCause },
@@ -1272,6 +1300,8 @@ function getPublicRecord(type, id) {
       var taskZoneName = String(t[TASK_COL.ZONE_NAME] || '');
       return { type: 'Task', id: id, title: String(t[TASK_COL.TITLE] || ''), status: String(t[TASK_COL.STATUS] || ''),
         zone: String(t[TASK_COL.ZONE_ID] || '') + (taskZoneName ? ' — ' + taskZoneName : ''),
+        photoUrls: String(t[TASK_COL.PHOTO_URL] || '').split(',').filter(Boolean),
+        photoFileIds: String(t[TASK_COL.PHOTO_URL] || '').split(',').filter(Boolean).map(_extractDriveFileId_),
         fields: [
           { l: 'Description', v: String(t[TASK_COL.DESCRIPTION] || '') }, { l: 'Priority', v: String(t[TASK_COL.PRIORITY] || '') },
           { l: 'Assigned to', v: String(t[TASK_COL.ASSIGNED_TO] || '') }, { l: 'Due', v: fmtD(t[TASK_COL.DUE_DATE]) },
@@ -1288,6 +1318,8 @@ function getPublicRecord(type, id) {
       var g = rd[r2];
       return { type: 'Red Tag', id: id, title: String(g[RT_COL.ITEM_DESC] || ''), status: String(g[RT_COL.STATUS] || ''),
         zone: String(g[RT_COL.ZONE_ID] || ''),
+        photoUrls: String(g[RT_COL.PHOTO_URL] || '').split(',').filter(Boolean),
+        photoFileIds: String(g[RT_COL.PHOTO_FILE_ID] || '').split(',').filter(Boolean),
         fields: [
           { l: 'Category', v: String(g[RT_COL.ITEM_CATEGORY] || '') }, { l: 'Proposed action', v: String(g[RT_COL.PROPOSED_ACTION] || '') },
           { l: 'Owner', v: String(g[RT_COL.OWNER] || '') }, { l: 'Deadline', v: fmtD(g[RT_COL.DEADLINE]) },
@@ -1297,6 +1329,63 @@ function getPublicRecord(type, id) {
     return null;
   }
   return null;
+}
+
+/**
+ * Quick action from the public (unauthenticated) RecordView page — a Telegram
+ * link visitor has no PIN session, so this never runs the normal auth-gated
+ * update path. Scope is deliberately narrow:
+ *   - task:   real status advance (Start / Done)
+ *   - rt:     real phase advance (Evaluate / Dispose / Close)
+ *   - nc/ncr: acknowledge only — appends a timestamped remark, NEVER changes
+ *             status (closing an NC needs RCA + 4-eyes, not safe to skip
+ *             from an anonymous link)
+ * The visitor's typed name is stamped into the remark/verification field so
+ * there's a trail of who acted without a real login.
+ */
+function publicRecordAction(type, id, action, actorName) {
+  return v2SafeExecute_(function() {
+    type = String(type || '').toLowerCase();
+    id = String(id || '').trim();
+    action = String(action || '').trim();
+    actorName = String(actorName || '').trim().substring(0, 60);
+    if (!id || !actorName) return { success: false, message: 'Name is required.' };
+    var tag = actorName + ' (via public link, no login)';
+
+    if (type === 'task') {
+      var validTask = { 'IN_PROGRESS': 1, 'DONE': 1 };
+      if (!validTask[action]) return { success: false, message: 'Invalid task action.' };
+      return updateTaskStatus(id, action, 'Updated by ' + tag);
+    }
+    if (type === 'rt' || type === 'redtag') {
+      var rs = v2GetSpreadsheet_().getSheetByName('RedTagRegister');
+      if (!rs) return { success: false, message: 'RedTagRegister sheet not found.' };
+      var rd = rs.getDataRange().getValues(), rawStatus = '';
+      for (var r = 1; r < rd.length; r++) {
+        if (String(rd[r][RT_COL.TAG_ID]).trim() === id) { rawStatus = String(rd[r][RT_COL.STATUS] || '').trim().toUpperCase(); break; }
+      }
+      var nextPhase = { IDENTIFIED: 'EVALUATED', EVALUATED: 'DISPOSED', DISPOSED: 'CLOSED' }[rawStatus];
+      if (!nextPhase || nextPhase !== action) return { success: false, message: 'Invalid red tag phase transition.' };
+      return updateRedTagStatus(id, action, '', 'Advanced by ' + tag);
+    }
+    if (type === 'nc' || type === 'ncr' || type === 'capa') {
+      if (action !== 'ACKNOWLEDGE') return { success: false, message: 'NC records can only be acknowledged from a public link — sign in to change status.' };
+      var ss = v2GetSpreadsheet_(), sh = ss.getSheetByName('NC_CAPA');
+      if (!sh) return { success: false, message: 'NC_CAPA sheet not found.' };
+      var data = sh.getDataRange().getValues();
+      for (var r2 = 1; r2 < data.length; r2++) {
+        if (String(data[r2][NC_COL.NC_ID]).trim() !== id) continue;
+        var existing = String(data[r2][NC_COL.VERIFICATION_REMARKS] || '');
+        var stamp = Utilities.formatDate(new Date(), 'Asia/Kolkata', 'yyyy-MM-dd HH:mm');
+        var note = '[' + stamp + '] Acknowledged by ' + tag;
+        var updates = {}; updates[NC_COL.VERIFICATION_REMARKS] = existing ? (existing + '\n' + note) : note;
+        v2BatchUpdateRow_(sh, r2 + 1, updates, data[r2]);
+        return { success: true, message: 'Acknowledged.' };
+      }
+      return { success: false, message: 'NC not found: ' + id };
+    }
+    return { success: false, message: 'Unknown record type.' };
+  }, 'publicRecordAction:' + type + ':' + id, { success: false, message: 'Server error.' });
 }
 
 // ============================================================================

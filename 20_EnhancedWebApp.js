@@ -203,25 +203,33 @@ function serveV2Page_(templateFile, params) {
 
     var output = template.evaluate();
 
-    // Normalize retired aliases so nav highlights the correct item
-    var navAction = (action === "sqcdp" || action === "sqcdpboard" || action === "charts") ? "insights"
-                  : (action === "redtag" || action === "redtagboard" || action === "raiseredtag" || action === "kanban") ? "actionlist"
-                  : action;
+    // RecordView is a standalone, unauthenticated single-record page opened
+    // from Telegram links — it has no session/zone context to navigate with,
+    // and doesn't include CommonStyles, so the app chrome would render as
+    // unstyled raw links. Skip nav injection for it entirely.
+    var noChrome = (templateFile === "RecordView");
+    var finalContent = output.getContent();
+    if (!noChrome) {
+      // Normalize retired aliases so nav highlights the correct item
+      var navAction = (action === "sqcdp" || action === "sqcdpboard" || action === "charts") ? "insights"
+                    : (action === "redtag" || action === "redtagboard" || action === "raiseredtag" || action === "kanban") ? "actionlist"
+                    : action;
 
-    var bottomNavHtml = buildBottomNav_(
-      deployUrl,
-      navAction,
-      params && params.token ? params.token : "",
-      params && params.zone ? params.zone : ""
-    );
-    var sidebarHtml = buildSidebar_(
-      deployUrl,
-      navAction,
-      params && params.token ? params.token : "",
-      params && params.zone ? params.zone : "",
-      zoneConfigObj
-    );
-    var finalContent = output.getContent().replace('</body>', sidebarHtml + bottomNavHtml + '\n</body>');
+      var bottomNavHtml = buildBottomNav_(
+        deployUrl,
+        navAction,
+        params && params.token ? params.token : "",
+        params && params.zone ? params.zone : ""
+      );
+      var sidebarHtml = buildSidebar_(
+        deployUrl,
+        navAction,
+        params && params.token ? params.token : "",
+        params && params.zone ? params.zone : "",
+        zoneConfigObj
+      );
+      finalContent = finalContent.replace('</body>', sidebarHtml + bottomNavHtml + '\n</body>');
+    }
     return HtmlService.createHtmlOutput(finalContent)
       .setTitle("PackMasters 5S — " + templateFile)
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)

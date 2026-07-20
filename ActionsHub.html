@@ -127,15 +127,47 @@ body {
 .ah-status-tab:hover { color: var(--text-primary); }
 .ah-status-tab.active { color: var(--text-primary); border-bottom-color: var(--text-primary); }
 
-/* ── FILTER ROW ─────────────────────────── */
-.ah-filter-row {
+/* ── FILTER TOGGLE (header button) ─────── */
+.ah-filter-toggle {
   display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 11px;
+  border-radius: 7px;
+  border: 1.5px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 30px;
+  transition: all .15s;
+}
+.ah-filter-toggle:hover { border-color: var(--pm-primary); color: var(--pm-primary); }
+.ah-filter-toggle.on    { border-color: var(--pm-primary); color: var(--pm-primary); background: var(--pm-primary-soft); }
+.ah-filter-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 15px; height: 15px; padding: 0 4px;
+  border-radius: 8px; background: var(--pm-primary); color: #fff;
+  font-size: 9px; font-weight: 700;
+}
+
+/* ── FILTER ROW (collapsed by default; toggled via .open) ── */
+.ah-filter-row {
+  display: none;
   gap: 8px;
   padding: 10px 16px;
   background: var(--bg-card);
   border-bottom: 1px solid var(--border);
   flex-wrap: wrap;
   align-items: center;
+  animation: ahFilterDrop .16s ease;
+}
+.ah-filter-row.open { display: flex; }
+@keyframes ahFilterDrop {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 /* Priority chips */
@@ -764,14 +796,55 @@ body {
 .ah-sum-chip.nc   { background: var(--score-red-bg);   color: var(--score-red); }
 .ah-sum-chip.task { background: var(--score-green-bg); color: var(--score-green); }
 .ah-sum-chip.rt   { background: var(--score-amber-bg); color: var(--score-amber); }
+
+/* ── AUDIT EVIDENCE THUMBNAILS + HOVER PREVIEW ── */
+.ah-au-photos { display: flex; gap: 6px; flex-shrink: 0; }
+.ah-au-thumb-wrap { position: relative; }
+.ah-au-thumb {
+  width: 56px; height: 56px; object-fit: cover; border-radius: 8px;
+  border: 1px solid var(--border); cursor: zoom-in; display: block;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.ah-au-thumb:hover { transform: scale(2.4); z-index: 60; position: relative; box-shadow: var(--shadow-lg); }
+@media (hover: none) { .ah-au-thumb:hover { transform: none; } } /* no hover-zoom on touch — tap opens lightbox instead */
+
+/* ── PHOTO LIGHTBOX ── */
+.ah-lightbox {
+  display: none; position: fixed; inset: 0; z-index: 500;
+  background: rgba(10,10,16,.94); align-items: center; justify-content: center;
+  animation: ahLbFade .12s ease;
+}
+.ah-lightbox.open { display: flex; }
+@keyframes ahLbFade { from { opacity: 0; } to { opacity: 1; } }
+.ah-lightbox img { max-width: 92vw; max-height: 86vh; object-fit: contain; border-radius: 4px; }
+.ah-lb-close {
+  position: absolute; top: 14px; right: 16px; width: 38px; height: 38px;
+  border-radius: 50%; border: none; background: rgba(255,255,255,.14); color: #fff;
+  font-size: 20px; cursor: pointer; line-height: 1;
+}
+.ah-lb-nav {
+  position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px;
+  border-radius: 50%; border: none; background: rgba(255,255,255,.14); color: #fff;
+  font-size: 16px; cursor: pointer;
+}
+.ah-lb-nav.prev { left: 14px; } .ah-lb-nav.next { right: 14px; }
+.ah-lb-count {
+  position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%);
+  font-family: var(--font-mono); font-size: 12px; color: rgba(255,255,255,.75);
+  background: rgba(0,0,0,.35); padding: 3px 10px; border-radius: 12px;
+}
 </style>
 </head>
 <body>
 
 <div class="ah-header">
   <h1>Actions</h1>
-  <div style="display:flex;align-items:center;gap:10px">
+  <div style="display:flex;align-items:center;gap:8px">
     <div id="ahRefreshBadge" style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted)"></div>
+    <button class="ah-filter-toggle" id="ahFilterToggle" onclick="toggleFilterRow()" title="Filters">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+      Filters<span class="ah-filter-count" id="ahFilterCount" style="display:none">0</span>
+    </button>
     <button class="ah-create-btn" onclick="openCreateModal()">+ Create</button>
   </div>
 </div>
@@ -999,8 +1072,10 @@ function setTypeTab(btn) {
   var isSummary = (t === 'SUMMARY');
   var st = document.getElementById('ahStatusTabs');
   var fr = document.querySelector('.ah-filter-row');
+  var ft = document.getElementById('ahFilterToggle');
   if (st) st.style.display = (isAudits || isSummary) ? 'none' : '';
   if (fr) fr.style.display = (isAudits || isSummary) ? 'none' : '';
+  if (ft) ft.style.display = (isAudits || isSummary) ? 'none' : '';
   if (isAudits) { renderAuditsView(); return; }
   if (isSummary) { renderSummaryView(); return; }
   _filters.type = t === 'ALL' ? '' : t;
@@ -1068,7 +1143,46 @@ function renderAuditsView() {
     .getRecentAudits(50);
 }
 
+/* ── Photo lightbox: each criterion's photo array is registered as a
+   "gallery" so prev/next navigates within that criterion's own photos. ── */
+var _ahGalleries = [];
+var _ahLbState = { gallery: -1, idx: 0 };
+function _ahRegisterGallery(urls) { return _ahGalleries.push(urls) - 1; }
+function openAhLightbox(galleryIdx, photoIdx) {
+  _ahLbState = { gallery: galleryIdx, idx: photoIdx };
+  _ahRenderLightbox();
+  document.getElementById('ahLightbox').classList.add('open');
+}
+function _ahRenderLightbox() {
+  var urls = _ahGalleries[_ahLbState.gallery] || [];
+  if (!urls.length) return;
+  document.getElementById('ahLbImg').src = urls[_ahLbState.idx];
+  document.getElementById('ahLbCount').textContent = (_ahLbState.idx + 1) + ' / ' + urls.length;
+  var multi = urls.length > 1;
+  document.getElementById('ahLbPrev').style.display = multi ? '' : 'none';
+  document.getElementById('ahLbNext').style.display = multi ? '' : 'none';
+}
+function ahLbStep(ev, dir) {
+  if (ev) ev.stopPropagation();
+  var urls = _ahGalleries[_ahLbState.gallery] || [];
+  if (!urls.length) return;
+  _ahLbState.idx = (_ahLbState.idx + dir + urls.length) % urls.length;
+  _ahRenderLightbox();
+}
+function closeAhLightbox(ev) {
+  if (ev && ev.target !== ev.currentTarget && !ev.target.classList.contains('ah-lb-close')) return;
+  document.getElementById('ahLightbox').classList.remove('open');
+}
+document.addEventListener('keydown', function(e) {
+  var lb = document.getElementById('ahLightbox');
+  if (!lb || !lb.classList.contains('open')) return;
+  if (e.key === 'Escape') closeAhLightbox();
+  else if (e.key === 'ArrowLeft') ahLbStep(null, -1);
+  else if (e.key === 'ArrowRight') ahLbStep(null, 1);
+});
+
 function openAuditDetail(submissionId) {
+  _ahGalleries = []; // reset gallery registry for this audit's photos
   document.getElementById('recordDetailBody').innerHTML = '<div class="ah-loading">Loading…</div>';
   document.getElementById('rdModalTitle').textContent = 'Filled Audit';
   document.getElementById('rdBackdrop').classList.add('open');
@@ -1083,14 +1197,11 @@ function openAuditDetail(submissionId) {
         var sc = (it.score === null || it.score === undefined) ? '—' : it.score;
         var scls = it.score <= 1 ? 'r' : it.score <= 2 ? 'a' : 'g';
         var urls = (it.photoUrls && it.photoUrls.length) ? it.photoUrls : (it.photoUrl ? [it.photoUrl] : []);
-        var fileIds = (it.photoFileIds && it.photoFileIds.length) ? it.photoFileIds : (it.photoFileId ? [it.photoFileId] : []);
+        var galleryIdx = urls.length ? _ahRegisterGallery(urls) : -1;
         var photo = urls.length
-          ? '<div style="display:flex;gap:4px">' + urls.map(function(u, pi) {
-              return '<img src="' + escHtml(u) + '" title="Hover to enlarge · click to open"' +
-                ' onclick="window.open(\'https://drive.google.com/file/d/' + escHtml(fileIds[pi] || '') + '/view\',\'_blank\')"' +
-                ' onmouseover="this.style.transform=\'scale(4)\';this.style.zIndex=\'50\';this.style.position=\'relative\'"' +
-                ' onmouseout="this.style.transform=\'\';this.style.zIndex=\'\';this.style.position=\'\'"' +
-                ' style="width:64px;height:64px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:zoom-in;transition:transform .15s ease;transform-origin:right center">';
+          ? '<div class="ah-au-photos">' + urls.map(function(u, pi) {
+              return '<img class="ah-au-thumb" src="' + escHtml(u) + '" title="Click to enlarge"' +
+                ' onclick="openAhLightbox(' + galleryIdx + ',' + pi + ')">';
             }).join('') + '</div>'
           : '';
         var titleLine = escHtml(it.criterionId) +
@@ -1140,12 +1251,33 @@ function setPriChip(btn) {
   document.querySelectorAll('.ah-chip').forEach(function(b) { b.classList.remove('active'); });
   btn.classList.add('active');
   _filters.priority = btn.getAttribute('data-pri');
+  updateFilterCount_();
   fetchAndRender();
 }
 
 function setZone(val) {
   _filters.zoneId = val;
+  updateFilterCount_();
   fetchAndRender();
+}
+
+/* ── collapsible priority/zone filter row ── */
+function toggleFilterRow() {
+  var row = document.querySelector('.ah-filter-row');
+  var btn = document.getElementById('ahFilterToggle');
+  if (!row || !btn) return;
+  var open = row.classList.toggle('open');
+  btn.classList.toggle('on', open);
+}
+function updateFilterCount_() {
+  var n = (_filters.priority ? 1 : 0) + (_filters.zoneId ? 1 : 0);
+  var badge = document.getElementById('ahFilterCount');
+  var btn = document.getElementById('ahFilterToggle');
+  var row = document.querySelector('.ah-filter-row');
+  if (!badge || !btn) return;
+  badge.textContent = n;
+  badge.style.display = n > 0 ? '' : 'none';
+  btn.classList.toggle('on', n > 0 || (row && row.classList.contains('open')));
 }
 
 /* ── zone dropdown population ── */
@@ -1856,6 +1988,15 @@ renderCards = function(items) {
 loadZones();
 fetchAndRender();
 </script>
+
+<!-- ── PHOTO LIGHTBOX (audit evidence) ── -->
+<div id="ahLightbox" class="ah-lightbox" onclick="closeAhLightbox(event)">
+  <button class="ah-lb-close" onclick="closeAhLightbox(event)" title="Close">&times;</button>
+  <button class="ah-lb-nav prev" id="ahLbPrev" onclick="ahLbStep(event,-1)" title="Previous">&#10094;</button>
+  <img id="ahLbImg" alt="Audit evidence">
+  <button class="ah-lb-nav next" id="ahLbNext" onclick="ahLbStep(event,1)" title="Next">&#10095;</button>
+  <div class="ah-lb-count" id="ahLbCount"></div>
+</div>
 
 <?!= include("CommonStyles") ?>
 </body>

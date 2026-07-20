@@ -341,12 +341,23 @@ body {
 .ah-btn.phase  { background: var(--score-amber-bg);  color: var(--score-amber);  border: 1px solid var(--score-amber); }
 
 /* ── COMPACT TABLE (Actions list) ───────── */
-.ah-table-wrap { max-width: 1100px; margin: 12px auto; padding: 0 12px 100px; overflow-x: auto; }
-.ah-table { width: 100%; border-collapse: collapse; font-size: 12px; background: var(--bg-card);
+.ah-table-wrap { max-width: 1440px; margin: 12px auto; padding: 0 16px 100px; overflow-x: auto; }
+.ah-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12.5px; background: var(--bg-card);
   border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; }
 .ah-table thead th { font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: .5px;
-  text-transform: uppercase; color: var(--text-muted); text-align: left; padding: 8px 10px;
+  text-transform: uppercase; color: var(--text-muted); text-align: left; padding: 10px 12px;
   background: var(--bg-card-2); border-bottom: 1px solid var(--border); white-space: nowrap; }
+/* Fixed-width columns so Title can't starve every other column of space —
+   percentages sum to 100% across the visible (non hide-sm) set. */
+.ah-table col.c-type   { width: 8%; }
+.ah-table col.c-title  { width: 30%; }
+.ah-table col.c-zone   { width: 15%; }
+.ah-table col.c-owner  { width: 12%; }
+.ah-table col.c-due    { width: 9%; }
+.ah-table col.c-age    { width: 6%; }
+.ah-table col.c-pri    { width: 8%; }
+.ah-table col.c-status { width: 8%; }
+.ah-table col.c-acts   { width: 132px; }
 .ah-tr { border-bottom: 1px solid var(--border-light); border-left: 3px solid transparent; }
 .ah-tr:last-child { border-bottom: none; }
 .ah-tr:hover { background: var(--bg-card-2); }
@@ -354,12 +365,15 @@ body {
 .ah-tr.HIGH     { border-left-color: var(--score-amber); }
 .ah-tr.MEDIUM   { border-left-color: #F59E0B; }
 .ah-tr.LOW      { border-left-color: var(--text-muted); }
-.ah-td { padding: 7px 10px; vertical-align: middle; }
-.ah-td.title { cursor: pointer; font-weight: 600; color: var(--pm-primary); max-width: 320px;
-  min-width: 160px; line-height: 1.25; }
+.ah-td { padding: 9px 12px; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; }
+.ah-td.title {
+  cursor: pointer; font-weight: 600; color: var(--pm-primary); line-height: 1.3;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  white-space: normal;
+}
 .ah-td.title:hover { text-decoration: underline; text-underline-offset: 2px; }
-.ah-td.title .ovd { color: var(--score-red); font-weight: 700; margin-left: 5px; font-size: 10px; }
-.ah-td.muted { color: var(--text-muted); white-space: nowrap; }
+.ah-td.title .ovd { color: var(--score-red); font-weight: 700; margin-left: 5px; font-size: 10px; white-space: nowrap; }
+.ah-td.muted { color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ah-td.acts { white-space: nowrap; text-align: right; }
 /* compact icon buttons */
 .ah-ibtn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px;
@@ -371,7 +385,10 @@ body {
 .ah-ibtn.start { color: var(--pm-primary); border-color: var(--pm-primary); }
 .ah-ibtn.done, .ah-ibtn.close, .ah-ibtn.phase { color: var(--score-green); border-color: var(--score-green); }
 .ah-ibtn.del:hover { color: var(--score-red); border-color: var(--score-red); }
-@media (max-width: 640px) { .ah-td.hide-sm { display: none; } .ah-table thead th.hide-sm { display: none; } }
+@media (max-width: 900px) {
+  .ah-td.hide-sm { display: none; } .ah-table thead th.hide-sm { display: none; }
+  .ah-table col.c-title { width: 60%; }
+}
 
 /* ── LOADING / EMPTY ────────────────────── */
 .ah-loading {
@@ -1354,7 +1371,10 @@ function renderCards(items) {
     return;
   }
 
-  var html = '<div class="ah-table-wrap"><table class="ah-table"><thead><tr>' +
+  var html = '<div class="ah-table-wrap"><table class="ah-table">' +
+    '<colgroup><col class="c-type"><col class="c-title"><col class="c-zone"><col class="c-owner">' +
+    '<col class="c-due"><col class="c-age"><col class="c-pri"><col class="c-status"><col class="c-acts"></colgroup>' +
+    '<thead><tr>' +
     '<th>Type</th><th>Title</th><th class="hide-sm">Zone</th><th class="hide-sm">Owner</th>' +
     '<th class="hide-sm">Due</th><th class="hide-sm">Age</th><th>Pri</th><th>Status</th><th></th>' +
     '</tr></thead><tbody>';
@@ -1508,12 +1528,21 @@ function submitEdit() {
     .withFailureHandler(function(e) { alert('Edit failed: ' + e.message); })
     [fn](id, updates);
 }
+/* Any status-changing action (Start/Done/Advance/Close/Delete) can be
+   triggered either from a table row or from inside a now-stale open detail
+   modal — close whichever is open so the refreshed table is what's visible.
+   No-op (safe) when called from a table row with nothing open. */
+function closeAllDetailModals_() {
+  closeInlineDetail();
+  closeNcDetail();
+}
+
 function doDelete(type, id, btn) {
   if (!confirm('Delete this ' + typeName(type) + '? (soft-delete — recoverable)')) return;
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
   var fn = type === 'NC' ? 'deleteCAPA' : type === 'TASK' ? 'deleteTask' : 'deleteRedTag';
   google.script.run
-    .withSuccessHandler(function(r) { fetchAndRender(); })
+    .withSuccessHandler(function(r) { closeAllDetailModals_(); fetchAndRender(); })
     .withFailureHandler(function(e) { alert('Delete failed: ' + e.message); if (btn) { btn.disabled = false; btn.textContent = '🗑 Delete'; } })
     [fn](id);
 }
@@ -1590,6 +1619,8 @@ function renderNcDetail(d) {
   html += row('Repeat?',           d.isRepeat ? 'Yes' : 'No');
   html += row('Recurrence Count',  d.recurrenceCount);
   html += '</dl>';
+  var ncAction = { type: 'NC', id: d.id, title: d.description, status: d.status, zone: d.zoneName || d.zoneId };
+  html += '<div class="ah-card__actions" style="border-top:1px solid var(--border-light);margin-top:4px;padding:12px 0 0">' + buildActionBtns(ncAction) + '</div>';
   html += '<div id="acShare" style="display:flex;gap:8px;margin-top:12px"><span style="font-size:12px;color:var(--text-muted)">Preparing report…</span></div>';
   body.innerHTML = html;
   actionShareLinks_('NC', d.id, 'acShare');
@@ -1651,6 +1682,7 @@ function openInlineDetail(type, id) {
     h += row2('Title',       item.title);
     h += row2('Description', item.description);
     h += '</dl>';
+    h += '<div class="ah-card__actions" style="border-top:1px solid var(--border-light);margin-top:4px;padding:12px 0 0">' + buildActionBtns(item) + '</div>';
     h += '<div id="acShareInline" style="display:flex;gap:8px;margin-top:12px"><span style="font-size:12px;color:var(--text-muted)">Preparing report…</span></div>';
     body.innerHTML = h;
     actionShareLinks_(type, id, 'acShareInline');
@@ -1735,7 +1767,7 @@ function doNcClose(id, btn) {
       enableBtn(btn, '✓ Close');
       if (result && result.success) {
         showToast('NC closed.', 'success');
-        fetchAndRender();
+        closeAllDetailModals_(); fetchAndRender();
       } else {
         showToast((result && result.message) || 'Failed to close NC.', 'error');
       }
@@ -1756,7 +1788,7 @@ function doTaskStatus(id, newStatus, btn) {
       enableBtn(btn, origText);
       if (result && result.success) {
         showToast('Task updated.', 'success');
-        fetchAndRender();
+        closeAllDetailModals_(); fetchAndRender();
       } else {
         showToast((result && result.message) || 'Failed to update task.', 'error');
       }
@@ -1778,7 +1810,7 @@ function doRedTagPhase(id, toPhase, btn) {
       enableBtn(btn, origText);
       if (result && result.success) {
         showToast('Red Tag advanced.', 'success');
-        fetchAndRender();
+        closeAllDetailModals_(); fetchAndRender();
       } else {
         showToast((result && result.message) || 'Failed to advance Red Tag.', 'error');
       }

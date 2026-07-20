@@ -323,15 +323,17 @@ body {
 }
 
 .ah-btn {
-  padding: 5px 14px;
+  padding: 5px 12px;
   border-radius: 6px;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
   cursor: pointer;
   font-family: var(--font-mono);
   letter-spacing: .3px;
   transition: opacity .15s, transform .1s;
-  min-height: 30px;
+  min-height: 28px;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .ah-btn:active:not(:disabled) { transform: scale(.94); }
 .ah-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
@@ -440,7 +442,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 18px 12px;
+  padding: 12px 16px 10px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
@@ -465,28 +467,27 @@ body {
 
 .rd-modal__body {
   overflow-y: auto;
-  padding: 16px 18px 20px;
+  padding: 12px 16px 14px;
   flex: 1;
 }
 
 .rd-dl {
   display: grid;
-  grid-template-columns: 130px 1fr;
-  gap: 6px 10px;
+  grid-template-columns: 108px 1fr;
+  gap: 3px 10px;
   font-size: 12px;
 }
 .rd-dt {
   font-family: var(--font-mono);
   color: var(--text-muted);
-  font-size: 10px;
-  letter-spacing: .5px;
+  font-size: 9.5px;
+  letter-spacing: .4px;
   text-transform: uppercase;
-  padding-top: 2px;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 .rd-dd {
   color: var(--text-primary);
-  line-height: 1.5;
+  line-height: 1.4;
   word-break: break-word;
 }
 .rd-dd.empty { color: var(--text-muted); font-style: italic; }
@@ -494,7 +495,7 @@ body {
   grid-column: 1 / -1;
   border: none;
   border-top: 1px solid var(--border);
-  margin: 4px 0;
+  margin: 2px 0;
 }
 
 /* ── RCA START MODAL ────────────────────── */
@@ -1620,8 +1621,8 @@ function renderNcDetail(d) {
   html += row('Recurrence Count',  d.recurrenceCount);
   html += '</dl>';
   var ncAction = { type: 'NC', id: d.id, title: d.description, status: d.status, zone: d.zoneName || d.zoneId };
-  html += '<div class="ah-card__actions" style="border-top:1px solid var(--border-light);margin-top:4px;padding:12px 0 0">' + buildActionBtns(ncAction) + '</div>';
-  html += '<div id="acShare" style="display:flex;gap:8px;margin-top:12px"><span style="font-size:12px;color:var(--text-muted)">Preparing report…</span></div>';
+  html += '<div class="ah-card__actions" style="border-top:1px solid var(--border-light);margin-top:2px;padding:10px 0 0">' + buildActionBtns(ncAction) + '</div>';
+  html += '<div id="acShare" style="display:flex;gap:6px;margin-top:8px"><span style="font-size:11px;color:var(--text-muted);opacity:.7">Preparing report…</span></div>';
   body.innerHTML = html;
   actionShareLinks_('NC', d.id, 'acShare');
 }
@@ -1682,8 +1683,8 @@ function openInlineDetail(type, id) {
     h += row2('Title',       item.title);
     h += row2('Description', item.description);
     h += '</dl>';
-    h += '<div class="ah-card__actions" style="border-top:1px solid var(--border-light);margin-top:4px;padding:12px 0 0">' + buildActionBtns(item) + '</div>';
-    h += '<div id="acShareInline" style="display:flex;gap:8px;margin-top:12px"><span style="font-size:12px;color:var(--text-muted)">Preparing report…</span></div>';
+    h += '<div class="ah-card__actions" style="border-top:1px solid var(--border-light);margin-top:2px;padding:10px 0 0">' + buildActionBtns(item) + '</div>';
+    h += '<div id="acShareInline" style="display:flex;gap:6px;margin-top:8px"><span style="font-size:11px;color:var(--text-muted);opacity:.7">Preparing report…</span></div>';
     body.innerHTML = h;
     actionShareLinks_(type, id, 'acShareInline');
   }

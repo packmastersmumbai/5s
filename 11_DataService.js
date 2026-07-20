@@ -1270,10 +1270,29 @@ function _extractDriveFileId_(url) {
   return m ? m[1] : '';
 }
 
+/** Short TTL — a Telegram link gets bursts of views right after a broadcast;
+ *  this avoids a full sheet scan per viewer without risking stale data for
+ *  more than a few seconds. publicRecordAction() clears it on write. */
+function _publicRecordCacheKey_(type, id) { return 'pm5s_pubrec_' + type + '_' + id; }
+
 function getPublicRecord(type, id) {
   type = String(type || '').toLowerCase();
   id = String(id || '').trim();
   if (!id) return null;
+  var cache = CacheService.getScriptCache();
+  var cacheKey = _publicRecordCacheKey_(type, id);
+  try {
+    var cached = cache.get(cacheKey);
+    if (cached !== null) return cached === '__NULL__' ? null : JSON.parse(cached);
+  } catch (e) {}
+  var result = _getPublicRecordUncached_(type, id);
+  // Cache misses too (short TTL) — an expired/typo'd link would otherwise
+  // re-run a full 3-sheet scan on every hit with nothing to show for it.
+  try { cache.put(cacheKey, result ? JSON.stringify(result) : '__NULL__', 20); } catch (e) {}
+  return result;
+}
+
+function _getPublicRecordUncached_(type, id) {
   var fmtD = function(v){ if (!v) return ''; try { return Utilities.formatDate(new Date(v), 'Asia/Kolkata', 'yyyy-MM-dd'); } catch(e){ return String(v); } };
   var ss = v2GetSpreadsheet_();
 
@@ -1351,6 +1370,9 @@ function publicRecordAction(type, id, action, actorName) {
     actorName = String(actorName || '').trim().substring(0, 60);
     if (!id || !actorName) return { success: false, message: 'Name is required.' };
     var tag = actorName + ' (via public link, no login)';
+    // Any successful branch below mutates the record — always drop the
+    // short-lived getPublicRecord cache so the page reflects it immediately.
+    try { CacheService.getScriptCache().remove(_publicRecordCacheKey_(type, id)); } catch (e) {}
 
     if (type === 'task') {
       var validTask = { 'IN_PROGRESS': 1, 'DONE': 1 };

@@ -140,6 +140,18 @@ function handleV2Route_(params) {
 
 function serveV2Page_(templateFile, params) {
   try {
+    // RecordView is a standalone, unauthenticated single-record page opened
+    // from Telegram links, hit repeatedly by anonymous visitors with no
+    // session. It only ever needs deployUrl — none of the zone/checklist/
+    // home/floormap config below applies (no zone context to navigate with,
+    // no CommonStyles include for the nav chrome to render against). Skip
+    // straight to a minimal render: this avoids reading+parsing ZONE_CONFIG
+    // (~195KB of JSON) and CHECKLIST_SCHEMA from PropertiesService on every
+    // single load, which was the dominant cost on this page.
+    if (templateFile === "RecordView") {
+      return serveRecordViewFast_(params);
+    }
+
     var template = HtmlService.createTemplateFromFile(templateFile);
     template.params = params || {};
 
@@ -203,33 +215,25 @@ function serveV2Page_(templateFile, params) {
 
     var output = template.evaluate();
 
-    // RecordView is a standalone, unauthenticated single-record page opened
-    // from Telegram links — it has no session/zone context to navigate with,
-    // and doesn't include CommonStyles, so the app chrome would render as
-    // unstyled raw links. Skip nav injection for it entirely.
-    var noChrome = (templateFile === "RecordView");
-    var finalContent = output.getContent();
-    if (!noChrome) {
-      // Normalize retired aliases so nav highlights the correct item
-      var navAction = (action === "sqcdp" || action === "sqcdpboard" || action === "charts") ? "insights"
-                    : (action === "redtag" || action === "redtagboard" || action === "raiseredtag" || action === "kanban") ? "actionlist"
-                    : action;
+    // Normalize retired aliases so nav highlights the correct item
+    var navAction = (action === "sqcdp" || action === "sqcdpboard" || action === "charts") ? "insights"
+                  : (action === "redtag" || action === "redtagboard" || action === "raiseredtag" || action === "kanban") ? "actionlist"
+                  : action;
 
-      var bottomNavHtml = buildBottomNav_(
-        deployUrl,
-        navAction,
-        params && params.token ? params.token : "",
-        params && params.zone ? params.zone : ""
-      );
-      var sidebarHtml = buildSidebar_(
-        deployUrl,
-        navAction,
-        params && params.token ? params.token : "",
-        params && params.zone ? params.zone : "",
-        zoneConfigObj
-      );
-      finalContent = finalContent.replace('</body>', sidebarHtml + bottomNavHtml + '\n</body>');
-    }
+    var bottomNavHtml = buildBottomNav_(
+      deployUrl,
+      navAction,
+      params && params.token ? params.token : "",
+      params && params.zone ? params.zone : ""
+    );
+    var sidebarHtml = buildSidebar_(
+      deployUrl,
+      navAction,
+      params && params.token ? params.token : "",
+      params && params.zone ? params.zone : "",
+      zoneConfigObj
+    );
+    var finalContent = output.getContent().replace('</body>', sidebarHtml + bottomNavHtml + '\n</body>');
     return HtmlService.createHtmlOutput(finalContent)
       .setTitle("PackMasters 5S — " + templateFile)
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
@@ -238,6 +242,21 @@ function serveV2Page_(templateFile, params) {
     Logger.log("Error serving v2 page " + templateFile + ": " + e.message);
     return serveErrorPage_("Page Error", "Could not load " + templateFile + ": " + e.message);
   }
+}
+
+/** Minimal, fast render path for RecordView — see serveV2Page_ comment. */
+function serveRecordViewFast_(params) {
+  var template = HtmlService.createTemplateFromFile("RecordView");
+  template.params = params || {};
+  template.deployUrl = (function() {
+    try { var u = ScriptApp.getService().getUrl(); if (u) return u; } catch(e) {}
+    var deployId = PropertiesService.getScriptProperties().getProperty("DEPLOY_ID") || "";
+    return (deployId && deployId !== "NOT_SET") ? "https://script.google.com/macros/s/" + deployId + "/exec" : "#";
+  })();
+  return HtmlService.createHtmlOutput(template.evaluate().getContent())
+    .setTitle("PackMasters 5S — Record")
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+    .addMetaTag("viewport", "width=device-width, initial-scale=1");
 }
 
 // ============================================================================

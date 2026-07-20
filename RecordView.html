@@ -15,25 +15,38 @@
     --r: 14px; --shadow: 0 2px 14px rgba(16,24,40,.06);
   }
   * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
   body {
     margin: 0; font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
-    background: var(--bg); color: var(--ink); padding: 14px 14px 40px;
+    background: var(--bg); color: var(--ink);
+    padding: clamp(10px, 3vw, 24px) clamp(10px, 3vw, 24px) 40px;
   }
   .wrap { max-width: 620px; margin: 0 auto; }
+  @media (min-width: 720px) { .wrap { max-width: 640px; } }
+  @media (min-width: 1100px) { .wrap { max-width: 680px; } }
   .card {
     background: var(--card); border: 1px solid var(--line); border-radius: var(--r);
-    padding: 18px 18px 20px; box-shadow: var(--shadow);
+    padding: clamp(14px, 4vw, 22px) clamp(14px, 4vw, 22px) clamp(16px, 4vw, 24px);
+    box-shadow: var(--shadow);
   }
-  .loading, .err {
-    color: var(--ink2); font-size: 14px; padding: 40px 0; text-align: center;
+  .err { color: var(--red); font-size: 14px; padding: 40px 0; text-align: center; }
+
+  /* Skeleton — mirrors the loaded card's shape so the layout doesn't jump
+     and it reads as "already arriving" rather than a blank wait. */
+  @keyframes shimmer { 0% { background-position: -200px 0; } 100% { background-position: 200px 0; } }
+  .sk {
+    background: linear-gradient(90deg, var(--line-lt) 25%, var(--line) 37%, var(--line-lt) 63%);
+    background-size: 400px 100%; animation: shimmer 1.3s ease-in-out infinite;
+    border-radius: 6px;
   }
-  .loading::before {
-    content: ''; display: block; width: 26px; height: 26px; margin: 0 auto 12px;
-    border: 3px solid var(--line); border-top-color: var(--accent); border-radius: 50%;
-    animation: spin .8s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .err { color: var(--red); }
+  .sk-row { display: flex; gap: 10px; margin-bottom: 10px; }
+  .sk-badge { width: 60px; height: 22px; border-radius: 20px; }
+  .sk-status { width: 50px; height: 20px; border-radius: 20px; margin-left: auto; }
+  .sk-id { width: 45%; height: 12px; margin-bottom: 12px; }
+  .sk-title { width: 85%; height: 20px; margin-bottom: 4px; }
+  .sk-title2 { width: 55%; height: 20px; margin-bottom: 18px; }
+  .sk-field { width: 100%; height: 14px; margin-bottom: 14px; }
+  .sk-field:nth-child(odd) { width: 70%; }
 
   .hd { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
   .badge { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
@@ -57,13 +70,16 @@
     font-size: 12px; font-weight: 700; color: var(--ink2); text-transform: uppercase;
     letter-spacing: .04em; margin: 18px 0 8px;
   }
-  .gal { display: flex; gap: 8px; flex-wrap: wrap; }
+  .gal { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
+  @media (min-width: 500px) { .gal { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); } }
   .gal-thumb {
-    width: 84px; height: 84px; border-radius: 10px; object-fit: cover;
+    width: 100%; aspect-ratio: 1; border-radius: 10px; object-fit: cover;
     border: 1px solid var(--line); cursor: zoom-in;
     transition: transform .15s ease, box-shadow .15s ease;
+    background: var(--line-lt); /* visible placeholder while the image itself loads */
   }
   .gal-thumb:hover { transform: scale(1.06); box-shadow: 0 4px 16px rgba(16,24,40,.15); }
+  @media (hover: none) { .gal-thumb:hover { transform: none; box-shadow: none; } }
 
   .signin {
     display: block; margin-top: 12px; text-align: center; background: var(--card);
@@ -130,7 +146,15 @@
 </head>
 <body>
 <div class="wrap">
-  <div id="rec" class="card"><div class="loading">Loading record…</div></div>
+  <div id="rec" class="card">
+    <div class="sk-row"><div class="sk sk-badge"></div><div class="sk sk-status"></div></div>
+    <div class="sk sk-id"></div>
+    <div class="sk sk-title"></div>
+    <div class="sk sk-title2"></div>
+    <div class="sk sk-field"></div>
+    <div class="sk sk-field"></div>
+    <div class="sk sk-field"></div>
+  </div>
   <div class="foot">PackMasters 5S · read-only</div>
 </div>
 
@@ -180,7 +204,7 @@ function render(rec){
   _lbUrls = photos; _lbFileIds = fileIds;
   var gallery = photos.length
     ? '<div class="gal-hd">Photos (' + photos.length + ')</div><div class="gal">' +
-      photos.map(function(u, i){ return '<img class="gal-thumb" src="' + esc(u) + '" onclick="openLb(' + i + ')" alt="Evidence ' + (i+1) + '">'; }).join('') +
+      photos.map(function(u, i){ return '<img class="gal-thumb" src="' + esc(u) + '" onclick="openLb(' + i + ')" alt="Evidence ' + (i+1) + '" loading="lazy" decoding="async">'; }).join('') +
       '</div>'
     : '';
 

@@ -498,6 +498,32 @@ body {
   margin: 2px 0;
 }
 
+/* ── COMPACT ICON DETAIL ─────────────────── */
+.rc-hero {
+  display: flex; align-items: center; gap: 8px;
+  padding: 2px 0 8px;
+}
+.rc-hero .rc-emoji { font-size: 20px; line-height: 1; }
+.rc-hero .rc-id {
+  font-family: var(--font-mono); font-size: 12px; font-weight: 700;
+  color: var(--text-primary); letter-spacing: .3px;
+}
+.rc-hero .rc-badges { margin-left: auto; display: flex; gap: 5px; }
+.rc-title { font-size: 14px; font-weight: 700; color: var(--text-primary); line-height: 1.3; margin: 2px 0 8px; }
+.rc-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 6px 12px; margin-bottom: 10px;
+}
+.rc-cell {
+  display: flex; align-items: baseline; gap: 6px;
+  font-size: 12.5px; color: var(--text-primary); min-width: 0;
+}
+.rc-cell .rc-ic { flex-shrink: 0; font-size: 12px; width: 15px; text-align: center; color: var(--text-muted); }
+.rc-cell .rc-v { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rc-cell.wide { grid-column: 1 / -1; }
+.rc-cell.wide .rc-v { white-space: normal; }
+.rc-desc { font-size: 12.5px; color: var(--text-secondary); line-height: 1.4; margin-bottom: 8px; }
+
 /* ── RCA START MODAL ────────────────────── */
 .rca-modal {
   position: fixed;
@@ -1662,27 +1688,26 @@ function openInlineDetail(type, id) {
   var body = document.getElementById('inlineDetailBody');
   if (!item) { body.innerHTML = '<div class="ah-loading">Detail not available.</div>'; }
   else {
-    function row2(label, val) {
-      var display = (val !== null && val !== undefined && val !== '')
-        ? escHtml(String(val))
-        : '<span class="rd-dd empty">—</span>';
-      return '<dt class="rd-dt">' + label + '</dt><dd class="rd-dd">' + display + '</dd>';
+    function cell(icon, val, wide) {
+      if (val === null || val === undefined || val === '') return '';
+      return '<div class="rc-cell' + (wide ? ' wide' : '') + '"><span class="rc-ic">' + icon +
+        '</span><span class="rc-v">' + escHtml(String(val)) + '</span></div>';
     }
-    var h = '<dl class="rd-dl">';
-    h += row2('ID',          item.id);
-    h += row2('Type',        typeName(item.type));
-    h += row2('Status',      statusLabel(item.status));
-    h += row2('Raw Status',  item.rawStatus);
-    h += row2('Priority',    item.priority);
-    h += row2('Zone',        item.zone);
-    h += row2('Owner',       item.owner);
-    h += row2('Due Date',    item.dueDate);
-    h += row2('Created',     item.createdDate);
-    h += row2('Age (days)',  item.ageDays);
-    h += '<hr class="rd-divider">';
-    h += row2('Title',       item.title);
-    h += row2('Description', item.description);
-    h += '</dl>';
+    var emoji = item.type === 'RED_TAG' ? '&#128308;' : '&#128203;'; /* 🔴 / 📋 */
+    var badges = '';
+    if (item.status) badges += '<span class="status-lbl ' + escHtml(item.status) + '">' + escHtml(statusLabel(item.status)) + '</span>';
+    if (item.priority) badges += '<span class="pri-badge ' + escHtml(item.priority) + '">' + escHtml(item.priority) + '</span>';
+    var h = '<div class="rc-hero"><span class="rc-emoji">' + emoji + '</span>' +
+      '<span class="rc-id">' + escHtml(item.id) + '</span>' +
+      '<span class="rc-badges">' + badges + '</span></div>';
+    if (item.title) h += '<div class="rc-title">' + escHtml(item.title) + '</div>';
+    h += '<div class="rc-grid">';
+    h += cell('&#128205;', item.zone);        /* 📍 */
+    h += cell('&#128100;', item.owner);       /* 👤 */
+    h += cell('&#128197;', item.dueDate && ('Due ' + item.dueDate)); /* 📅 */
+    h += cell('&#128336;', item.ageDays != null && (item.ageDays + 'd old')); /* 🕐 */
+    h += '</div>';
+    if (item.description) h += '<div class="rc-desc">' + escHtml(item.description) + '</div>';
     h += '<div class="ah-card__actions" style="border-top:1px solid var(--border-light);margin-top:2px;padding:10px 0 0">' + buildActionBtns(item) + '</div>';
     h += '<div id="acShareInline" style="display:flex;gap:6px;margin-top:8px"><span style="font-size:11px;color:var(--text-muted);opacity:.7">Preparing report…</span></div>';
     body.innerHTML = h;

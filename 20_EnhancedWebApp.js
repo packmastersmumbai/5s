@@ -171,7 +171,9 @@ function serveV2Page_(templateFile, params) {
       checklistSchema: props.getProperty("CHECKLIST_SCHEMA") || "{}",
       deployId: deployId,
       deployUrl: deployUrl,
-      companyName: props.getProperty("COMPANY_NAME") || "PackMasters"
+      companyName: props.getProperty("COMPANY_NAME") || "PackMasters",
+      auditor: (params && params.currentUserName) || "",
+      auditorUsername: (params && params.currentUser) || ""
     };
 
     var action = (params && params.action) ? String(params.action).toLowerCase() : "";

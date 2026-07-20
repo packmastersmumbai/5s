@@ -727,6 +727,43 @@ body {
   flex-direction: column;
 }
 .id-modal.open { display: flex; }
+
+/* ── SUMMARY TAB (by user / by zone) ── */
+.ah-sum-section { margin-bottom: 18px; }
+.ah-sum-section h3 {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  margin: 0 0 8px;
+}
+.ah-sum-row {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.ah-sum-row__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ah-sum-row__name { font-weight: 600; font-size: 14px; }
+.ah-sum-row__total { font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); }
+.ah-sum-row__chips, .ah-sum-row__types { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.ah-sum-chip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: var(--bg-card-2);
+  color: var(--text-secondary);
+}
+.ah-sum-chip.r { background: #fdecec; color: #c0392b; }
+.ah-sum-chip.a { background: #fef5e7; color: #b9770a; }
+.ah-sum-chip.g { background: #eafaf1; color: #1e8e50; }
+.ah-sum-chip.nc { background: #fdecec; color: #c0392b; }
+.ah-sum-chip.task { background: #eafaf1; color: #1e8e50; }
+.ah-sum-chip.rt { background: #fef5e7; color: #b9770a; }
 </style>
 </head>
 <body>
@@ -746,6 +783,7 @@ body {
   <button class="ah-type-tab"        data-type="TASK"    onclick="setTypeTab(this)">Tasks   <span class="tab-badge" id="cntTASK">0</span></button>
   <button class="ah-type-tab"        data-type="RED_TAG" onclick="setTypeTab(this)">Red Tags<span class="tab-badge" id="cntRED_TAG">0</span></button>
   <button class="ah-type-tab"        data-type="AUDITS"  onclick="setTypeTab(this)">Audits</button>
+  <button class="ah-type-tab"        data-type="SUMMARY" onclick="setTypeTab(this)">Summary</button>
 </div>
 
 <!-- STATUS TABS -->
@@ -958,13 +996,48 @@ function setTypeTab(btn) {
   btn.classList.add('active');
   var t = btn.getAttribute('data-type');
   var isAudits = (t === 'AUDITS');
+  var isSummary = (t === 'SUMMARY');
   var st = document.getElementById('ahStatusTabs');
   var fr = document.querySelector('.ah-filter-row');
-  if (st) st.style.display = isAudits ? 'none' : '';
-  if (fr) fr.style.display = isAudits ? 'none' : '';
+  if (st) st.style.display = (isAudits || isSummary) ? 'none' : '';
+  if (fr) fr.style.display = (isAudits || isSummary) ? 'none' : '';
   if (isAudits) { renderAuditsView(); return; }
+  if (isSummary) { renderSummaryView(); return; }
   _filters.type = t === 'ALL' ? '' : t;
   fetchAndRender();
+}
+
+/* ── Summary view: open NC/Task/RedTag counts by user and by zone ── */
+function renderSummaryView() {
+  document.getElementById('ahContent').innerHTML = '<div class="ah-loading">Loading summary…</div>';
+  google.script.run
+    .withSuccessHandler(function(res) {
+      var byUser = (res && res.byUser) || [];
+      var byZone = (res && res.byZone) || [];
+      function typeChip(n, cls, label) {
+        return n > 0 ? '<span class="ah-sum-chip ' + cls + '">' + label + ' ' + n + '</span>' : '';
+      }
+      function row(b) {
+        return '<div class="ah-sum-row">' +
+          '<div class="ah-sum-row__head"><span class="ah-sum-row__name">' + escHtml(b.label) + '</span>' +
+          '<span class="ah-sum-row__total">' + b.total + ' total</span></div>' +
+          '<div class="ah-sum-row__chips">' +
+            typeChip(b.open, 'r', 'Open') + typeChip(b.inProgress, 'a', 'In-progress') + typeChip(b.closed, 'g', 'Closed') +
+          '</div>' +
+          '<div class="ah-sum-row__types">' +
+            typeChip(b.byType.NC, 'nc', 'NC') + typeChip(b.byType.TASK, 'task', 'Task') + typeChip(b.byType.RED_TAG, 'rt', 'Red Tag') +
+          '</div></div>';
+      }
+      var html = '<div class="ah-sum-section"><h3>By User</h3>' +
+        (byUser.length ? byUser.map(row).join('') : '<div class="ah-empty">No actions yet.</div>') + '</div>' +
+        '<div class="ah-sum-section"><h3>By Zone</h3>' +
+        (byZone.length ? byZone.map(row).join('') : '<div class="ah-empty">No actions yet.</div>') + '</div>';
+      document.getElementById('ahContent').innerHTML = html;
+    })
+    .withFailureHandler(function(e) {
+      document.getElementById('ahContent').innerHTML = '<div class="ah-empty">Error: ' + escHtml(e.message) + '</div>';
+    })
+    .getActionsSummary({});
 }
 
 /* ── Audits view (per-criterion filled audits with photos) ── */
@@ -1009,12 +1082,16 @@ function openAuditDetail(submissionId) {
       h += d.items.map(function(it) {
         var sc = (it.score === null || it.score === undefined) ? '—' : it.score;
         var scls = it.score <= 1 ? 'r' : it.score <= 2 ? 'a' : 'g';
-        var photo = it.photoUrl
-          ? '<img src="' + escHtml(it.photoUrl) + '" title="Hover to enlarge · click to open"' +
-            ' onclick="window.open(\'https://drive.google.com/file/d/' + escHtml(it.photoFileId) + '/view\',\'_blank\')"' +
-            ' onmouseover="this.style.transform=\'scale(4)\';this.style.zIndex=\'50\';this.style.position=\'relative\'"' +
-            ' onmouseout="this.style.transform=\'\';this.style.zIndex=\'\';this.style.position=\'\'"' +
-            ' style="width:64px;height:64px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:zoom-in;transition:transform .15s ease;transform-origin:right center">'
+        var urls = (it.photoUrls && it.photoUrls.length) ? it.photoUrls : (it.photoUrl ? [it.photoUrl] : []);
+        var fileIds = (it.photoFileIds && it.photoFileIds.length) ? it.photoFileIds : (it.photoFileId ? [it.photoFileId] : []);
+        var photo = urls.length
+          ? '<div style="display:flex;gap:4px">' + urls.map(function(u, pi) {
+              return '<img src="' + escHtml(u) + '" title="Hover to enlarge · click to open"' +
+                ' onclick="window.open(\'https://drive.google.com/file/d/' + escHtml(fileIds[pi] || '') + '/view\',\'_blank\')"' +
+                ' onmouseover="this.style.transform=\'scale(4)\';this.style.zIndex=\'50\';this.style.position=\'relative\'"' +
+                ' onmouseout="this.style.transform=\'\';this.style.zIndex=\'\';this.style.position=\'\'"' +
+                ' style="width:64px;height:64px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:zoom-in;transition:transform .15s ease;transform-origin:right center">';
+            }).join('') + '</div>'
           : '';
         var titleLine = escHtml(it.criterionId) +
           (it.label ? ' · ' + escHtml(it.label) : '') +

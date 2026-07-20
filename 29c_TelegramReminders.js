@@ -31,10 +31,11 @@ function tg5sBroadcast_(text, buttons) {
 function _tg5sCard_(opts) {
   var esc = (typeof TelegramLib !== 'undefined' && TelegramLib.esc)
     ? TelegramLib.esc : function (s) { return String(s == null ? '' : s); };
-  var id = opts.id ? esc(opts.id) : '';
-  if (id && opts.link) id = '<a href="' + esc(opts.link) + '">' + id + '</a>';
-  var head = (opts.icon || '🔔') + ' <b>' + esc(opts.kind || '') + '</b>' +
-    (id ? ' ' + id : '') +
+  // Full record ID is omitted here (long, low-signal in a chat feed) — the
+  // "Open record" inline button carries it. Icon links to the record instead.
+  var icon = opts.icon || '🔔';
+  if (opts.link) icon = '<a href="' + esc(opts.link) + '">' + icon + '</a>';
+  var head = icon + ' <b>' + esc(opts.kind || '') + '</b>' +
     ' · ' + esc(opts.zoneId || '') + (opts.zoneName ? ' ' + esc(opts.zoneName) : '');
   var line2 = (opts.facts || []).filter(Boolean).join(' · ');
   if (opts.action) line2 += (line2 ? ' · ' : '') + '→ ' + esc(opts.action);

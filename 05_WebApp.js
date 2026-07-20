@@ -129,10 +129,12 @@ function doGet(e) {
       // ✅ VALID SESSION → Inject auth context
       params.token = token;
       params.currentUser = session.username;
+      params.currentUserName = session.name || session.username;
       params.currentRole = session.role;
     } else if (isWorkerAction) {
       // Worker bypass — inject minimal context
       params.currentUser = "worker";
+      params.currentUserName = "Worker";
       params.currentRole = "WORKER";
     }
 

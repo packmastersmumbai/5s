@@ -95,12 +95,14 @@ function validatePin(userId, pin) {
       sheet.getRange(i + 1, 10, 1, 2).setValues([[0, '']]); // failed_attempts, locked_until
 
       var username = String(row[0]);
+      var fullName = String(row[3] || username);
       var role = String(row[4] || 'VIEWER').toUpperCase();
       var token = Utilities.getUuid();
 
       var props = PropertiesService.getScriptProperties();
       props.setProperty("SESSION_" + token, JSON.stringify({
         username: username,
+        name: fullName,
         role: role,
         loginTime: nowDate.getTime(),
         expiryTime: nowDate.getTime() + (PIN_SESSION_HOURS * 60 * 60 * 1000)
@@ -115,7 +117,7 @@ function validatePin(userId, pin) {
 
       return {
         success: true, token: token, userId: username,
-        name: String(row[3] || username), role: role
+        name: fullName, role: role
       };
     }
     return { error: 'user_not_found' };

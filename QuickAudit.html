@@ -536,9 +536,10 @@ function escHtml(s) {
 
 var scores = {}, totalCriteria = 0, timerStart = null, timerInterval = null;
 var QA_DEPLOY_URL = '<?= (typeof deployUrl !== "undefined" && deployUrl) ? deployUrl : "" ?>';
-var criterionPhotos = {};    /* criterionId -> watermarked dataURL (optional per-parameter photo) */
-var criterionPhotosRaw = {}; /* criterionId -> raw pre-watermark dataURL (for annotation) */
+var criterionPhotos = {};    /* criterionId -> array of watermarked dataURLs (up to QA_MAX_PHOTOS) */
+var criterionPhotosRaw = {}; /* criterionId -> array of raw pre-watermark dataURLs (for annotation) */
 var _activeCrit = null;     /* {idx, cid} while a per-criterion camera capture is in flight */
+var QA_MAX_PHOTOS = 3;
 
 var _ZONE_ID = '<?= (typeof params !== "undefined" && params && params.zone) ? String(params.zone).replace(/['"<>&]/g,"") : "" ?>';
 var _SELECTED_ZONE = '';
@@ -671,8 +672,8 @@ function renderAudit(cfg) {
 
     html += '</div>'; /* end qa-main */
 
-    /* Photo thumbnail column (appears after capture; tap to enlarge) */
-    html += '<div class="qa-thumb" id="thumb-' + idx + '" style="display:none" onclick="openViewer_(\'' + cid + '\')" title="View photo"><img id="thumbimg-' + idx + '" alt="Evidence"></div>';
+    /* Photo thumbnail strip (appears after capture; up to QA_MAX_PHOTOS, tap to enlarge) */
+    html += '<div class="qa-thumb" id="thumb-' + idx + '" style="display:none"></div>';
 
     html += '</div>'; /* end qa-card */
   });
@@ -795,7 +796,15 @@ function toggleRemark(idx) {
 
 function captureFor_(idx, cid) {
   if (!getZoneId()) { alert('No zone selected'); return; }
+  var have = (criterionPhotos[cid] || []).length;
+  if (have >= QA_MAX_PHOTOS) { if (typeof pmToast === 'function') pmToast('Max ' + QA_MAX_PHOTOS + ' photos per item', 'info'); return; }
   openCriterionCamera_(idx, cid);   // → file input → applyWatermark_ stores + auto-annotates
+}
+
+function removePhoto_(idx, cid, photoIdx) {
+  if (criterionPhotos[cid]) criterionPhotos[cid].splice(photoIdx, 1);
+  if (criterionPhotosRaw[cid]) criterionPhotosRaw[cid].splice(photoIdx, 1);
+  showThumb_(idx, cid);
 }
 
 var TYPE_META = { NC: { btn: 'ac-ncr-', label: 'NCR' }, REDTAG: { btn: 'ac-rt-', label: 'Red Tag' }, TASK: { btn: 'ac-task-', label: 'Task' } };
@@ -898,13 +907,15 @@ function submitCardCreate(idx) {
       google.script.run
         .withSuccessHandler(function(r){ if (r && r.success) { okIds.push('Task ' + r.taskId); mark('TASK', true); } else { errors.push('Task failed'); mark('TASK', false); } next(); })
         .withFailureHandler(function(e){ errors.push('Task: ' + e.message); mark('TASK', false); next(); })
-        .createTask({ title: taskTitle, zoneId: zone, description: link_(''), priority: 'MEDIUM', assignedTo: '', dueDate: '',
+        .createTask({ title: taskTitle, zoneId: zone, description: link_('Raised from QuickAudit — ' + c.labelEn), priority: 'MEDIUM',
+                      assignedTo: (_CFG && _CFG.auditor) || '', dueDate: '',
                       source: 'AUDIT', sourceRefId: linkRef || c.criterionId || '', createdBy: (_CFG && _CFG.auditor) || '' });
     } else {
       google.script.run
         .withSuccessHandler(function(r){ var ok = r && (r.ok || r.success); if (ok) { okIds.push('Red Tag ' + r.tagNo); mark('REDTAG', true); } else { errors.push('Red Tag failed'); mark('REDTAG', false); } next(); })
         .withFailureHandler(function(e){ errors.push('Red Tag: ' + e.message); mark('REDTAG', false); next(); })
-        .raiseRedTag({ zone: zone, item: rtItem, quantity: 1, category: 'Other', reason: link_('Flagged during audit'), action: '', taggedBy: (_CFG && _CFG.auditor) || '' });
+        .raiseRedTag({ zone: zone, item: rtItem, quantity: 1, category: 'Other', reason: link_('Flagged during audit'), action: '',
+                       owner: (_CFG && _CFG.auditor) || '', taggedBy: (_CFG && _CFG.auditor) || '' });
     }
   }
   function done_() {
@@ -914,16 +925,35 @@ function submitCardCreate(idx) {
   run(0);
 }
 
-/* Photo thumbnail + full-screen viewer */
-function showThumb_(idx, url) {
-  var t = document.getElementById('thumb-' + idx), im = document.getElementById('thumbimg-' + idx);
-  if (im) im.src = url;
-  if (t) t.style.display = 'block';
+/* Photo thumbnail strip (up to QA_MAX_PHOTOS) + full-screen viewer */
+function showThumb_(idx, cid) {
+  var t = document.getElementById('thumb-' + idx);
+  if (!t) return;
+  var photos = criterionPhotos[cid] || [];
+  var camBtn = document.getElementById('ac-cam-' + idx);
+  if (!photos.length) {
+    t.style.display = 'none'; t.innerHTML = '';
+    if (camBtn) { camBtn.classList.remove('done'); var badge = camBtn.querySelector('.qa-cam-count'); if (badge) badge.remove(); }
+    return;
+  }
+  t.style.display = 'flex';
+  t.innerHTML = photos.map(function(url, i) {
+    return '<div class="qa-thumb-item" onclick="event.stopPropagation();openViewer_(\'' + cid + '\',' + i + ')">' +
+      '<img src="' + url + '" alt="Evidence ' + (i+1) + '">' +
+      '<button class="qa-thumb-x" onclick="event.stopPropagation();removePhoto_(' + idx + ',\'' + cid + '\',' + i + ')" title="Remove">&times;</button>' +
+      '</div>';
+  }).join('');
+  if (camBtn) {
+    camBtn.classList.add('done');
+    var badge = camBtn.querySelector('.qa-cam-count');
+    if (!badge) { badge = document.createElement('span'); badge.className = 'qa-cam-count'; camBtn.appendChild(badge); }
+    badge.textContent = photos.length;
+  }
 }
-function openViewer_(cid) {
-  var url = criterionPhotos[cid];
-  if (!url) return;
-  document.getElementById('viewerImg').src = url;
+function openViewer_(cid, photoIdx) {
+  var photos = criterionPhotos[cid];
+  if (!photos || !photos.length) return;
+  document.getElementById('viewerImg').src = photos[photoIdx || 0];
   document.getElementById('photoViewer').style.display = 'flex';
 }
 function closeViewer_() { document.getElementById('photoViewer').style.display = 'none'; }
@@ -946,10 +976,11 @@ function submitAudit() {
     var v = ta.value.trim();
     if (v) criteriaRemarks[ta.getAttribute('data-cid')] = v;
   });
-  /* Per-criterion line items: score + optional remark + optional photo */
+  /* Per-criterion line items: score + optional remark + up to QA_MAX_PHOTOS photos */
   var lineItems = Object.keys(scores).map(function(cid) {
     var li = { criterionId: cid, score: scores[cid], remark: criteriaRemarks[cid] || '' };
-    if (criterionPhotos[cid]) li.photo_b64 = criterionPhotos[cid].split(',')[1];
+    var photos = criterionPhotos[cid];
+    if (photos && photos.length) li.photos_b64 = photos.map(function(p) { return p.split(',')[1]; });
     return li;
   });
   var payload = { zoneId: getZoneId(), zone: getZoneId(), scores: scores, remarks: criteriaRemarks, photo_b64: photoB64, lineItems: lineItems,
@@ -1141,15 +1172,16 @@ function applyWatermark_(dataUrl) {
     var watermarked = c.toDataURL('image/jpeg', 0.88);
     if (_activeCrit) {
       var ac = _activeCrit; _activeCrit = null;
-      criterionPhotos[ac.cid] = watermarked;
-      criterionPhotosRaw[ac.cid] = dataUrl;
-      var camBtn = document.getElementById('ac-cam-' + ac.idx);
-      if (camBtn) camBtn.classList.add('done');
-      showThumb_(ac.idx, watermarked);
+      if (!criterionPhotos[ac.cid]) criterionPhotos[ac.cid] = [];
+      if (!criterionPhotosRaw[ac.cid]) criterionPhotosRaw[ac.cid] = [];
+      var slot = criterionPhotos[ac.cid].length;
+      criterionPhotos[ac.cid].push(watermarked);
+      criterionPhotosRaw[ac.cid].push(dataUrl);
+      showThumb_(ac.idx, ac.cid);
       /* Capture flows straight into annotate (same-document canvas) */
       openAnnotatorFor_(dataUrl, qaStamp_(), function(annotated) {
-        criterionPhotos[ac.cid] = annotated;
-        showThumb_(ac.idx, annotated);
+        criterionPhotos[ac.cid][slot] = annotated;
+        showThumb_(ac.idx, ac.cid);
       });
       return;
     }
@@ -1345,8 +1377,12 @@ window.PM_TOUR_STEPS = [
   .qa-create-btn { margin-top:8px; width:100%; height:32px; border:none; border-radius:7px; background:#2563eb; color:#fff; font-size:13px; font-weight:600; cursor:pointer; }
   .qa-create-btn:disabled { opacity:.6; cursor:default; }
   .qa-remark-row { margin-top:8px; }
-  .qa-thumb { width:54px; flex-shrink:0; align-self:stretch; overflow:hidden; border-left:1px solid #eef; cursor:pointer; }
-  .qa-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+  .qa-thumb { display:flex; flex-shrink:0; align-self:stretch; overflow-x:auto; border-left:1px solid #eef; gap:2px; }
+  .qa-thumb-item { position:relative; width:54px; flex-shrink:0; cursor:pointer; }
+  .qa-thumb-item img { width:100%; height:100%; object-fit:cover; display:block; }
+  .qa-thumb-x { position:absolute; top:2px; right:2px; width:16px; height:16px; line-height:14px; padding:0; border:none; border-radius:50%; background:rgba(0,0,0,.6); color:#fff; font-size:12px; cursor:pointer; }
+  .qa-cam-count { position:absolute; top:-4px; right:-4px; min-width:14px; height:14px; padding:0 3px; border-radius:7px; background:#2563eb; color:#fff; font-size:9px; font-weight:700; line-height:14px; text-align:center; }
+  .qa-ic { position:relative; }
   .qa-wdgll-btn { margin-top:8px; }
   #annotatorOverlay { display:none; }
   .pma-bar { flex:0 0 auto; display:flex; gap:6px; padding:10px; background:#1a1a1a; flex-wrap:wrap; align-items:center; }

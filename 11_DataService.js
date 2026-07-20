@@ -1269,8 +1269,9 @@ function getPublicRecord(type, id) {
     for (var r = 1; r < td.length; r++) {
       if (String(td[r][TASK_COL.TASK_ID]).trim() !== id) continue;
       var t = td[r];
+      var taskZoneName = String(t[TASK_COL.ZONE_NAME] || '');
       return { type: 'Task', id: id, title: String(t[TASK_COL.TITLE] || ''), status: String(t[TASK_COL.STATUS] || ''),
-        zone: String(t[TASK_COL.ZONE_ID] || ''),
+        zone: String(t[TASK_COL.ZONE_ID] || '') + (taskZoneName ? ' — ' + taskZoneName : ''),
         fields: [
           { l: 'Description', v: String(t[TASK_COL.DESCRIPTION] || '') }, { l: 'Priority', v: String(t[TASK_COL.PRIORITY] || '') },
           { l: 'Assigned to', v: String(t[TASK_COL.ASSIGNED_TO] || '') }, { l: 'Due', v: fmtD(t[TASK_COL.DUE_DATE]) },
@@ -1509,6 +1510,53 @@ function getUnifiedActionList(filters) {
   return { items: filtered, counts: counts };
 }
 
+/**
+ * NC + Task + Red Tag counts grouped by owner (user) and by zone.
+ * Built on the same pool as getUnifiedActionList so the numbers always match
+ * the Actions list. Excludes CLOSED items from "open" counts but reports both.
+ *
+ * @param {Object} [filters] — same shape as getUnifiedActionList (zoneId optional)
+ * @returns {{ byUser: Array, byZone: Array }}
+ *   byUser: [{ owner, total, open, inProgress, closed, byType:{NC,TASK,RED_TAG} }]
+ *   byZone: [{ zoneId, zoneName, total, open, inProgress, closed, byType:{...} }]
+ */
+function getActionsSummary(filters) {
+  return v2SafeExecute_(function() {
+    var pool = getUnifiedActionList(filters || {}).items;
+    var users = {}, zones = {};
+
+    function bucket(map, key, label, zoneId) {
+      if (!key) key = "Unassigned";
+      if (!map[key]) {
+        map[key] = { key: key, label: label, zoneId: zoneId || "",
+          total: 0, open: 0, inProgress: 0, closed: 0,
+          byType: { NC: 0, TASK: 0, RED_TAG: 0 } };
+      }
+      return map[key];
+    }
+
+    for (var i = 0; i < pool.length; i++) {
+      var it = pool[i];
+      var u = bucket(users, it.owner || "Unassigned", it.owner || "Unassigned");
+      var z = bucket(zones, it.zoneId || "—", (it.zoneId || "—") + (it.zone ? " — " + it.zone : ""), it.zoneId);
+      [u, z].forEach(function(b) {
+        b.total++;
+        if (it.status === "CLOSED") b.closed++;
+        else if (it.status === "IN_PROGRESS") b.inProgress++;
+        else b.open++;
+        if (b.byType[it.type] !== undefined) b.byType[it.type]++;
+      });
+    }
+
+    function toSortedArray(map) {
+      return Object.keys(map).map(function(k) { return map[k]; })
+        .sort(function(a, b) { return (b.open + b.inProgress) - (a.open + a.inProgress) || b.total - a.total; });
+    }
+
+    return { byUser: toSortedArray(users), byZone: toSortedArray(zones) };
+  }, "getActionsSummary", { byUser: [], byZone: [] });
+}
+
 // ============================================================================
 // AUDIT DETAIL VIEW — per-criterion scores/remarks/photos (AuditLineItems sheet)
 // ============================================================================
@@ -1533,7 +1581,7 @@ function getRecentAudits(limit) {
       g.count++;
       var sc = parseInt(r[7], 10);
       if (!isNaN(sc)) { g.scoreSum += sc; g.maxSum += 4; }
-      if (r[9]) g.photos++;
+      if (r[9]) g.photos += String(r[9]).split(",").filter(Boolean).length;
     }
     var list = Object.keys(groups).map(function (k) {
       var g = groups[k];
@@ -1569,9 +1617,12 @@ function getAuditDetail(submissionId) {
       if (!header) header = { submissionId: String(r[0]), zoneId: String(r[1]),
         zoneName: String(r[2]), timestamp: r[3] ? new Date(r[3]).toISOString() : "", auditor: String(r[4]) };
       var cid = String(r[5]);
+      var photoUrls = String(r[9] || "").split(",").filter(Boolean);
+      var photoFileIds = String(r[10] || "").split(",").filter(Boolean);
       items.push({ criterionId: cid, label: labelMap[cid] || "", pillar: String(r[6]),
         score: r[7] === "" ? null : parseInt(r[7], 10), remark: String(r[8] || ""),
-        photoUrl: String(r[9] || ""), photoFileId: String(r[10] || "") });
+        photoUrl: photoUrls[0] || "", photoFileId: photoFileIds[0] || "",
+        photoUrls: photoUrls, photoFileIds: photoFileIds });
     }
     if (!header) return { found: false };
     return { found: true, header: header, items: items };

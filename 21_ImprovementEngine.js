@@ -693,17 +693,20 @@ function writeAuditLineItems_(ss, submissionId, zoneId, now, user, lineItems, sc
   var rows = items.map(function (li) {
     var cid = String(li.criterionId);
     var pillar = cid.indexOf("-") >= 0 ? cid.split("-")[0] : cid;
-    var photoUrl = "", photoFileId = "";
-    if (li.photo_b64) {
+    // photos_b64 (array, up to 3) supersedes the legacy single photo_b64.
+    var photoInputs = Array.isArray(li.photos_b64) ? li.photos_b64 : (li.photo_b64 ? [li.photo_b64] : []);
+    var photoUrls = [], photoFileIds = [];
+    photoInputs.forEach(function (b64, pIdx) {
+      if (!b64) return;
       try {
-        var name = zoneId + "_" + stamp + "_" + cid + "_" + slug + ".jpg";
-        var res = uploadPhotoToDrive(li.photo_b64, name, zoneId);
-        if (res && res.thumbnailUrl) { photoUrl = res.thumbnailUrl; photoFileId = res.fileId || ""; }
-      } catch (e) { Logger.log("line photo skipped (" + cid + "): " + e.message); }
-    }
+        var name = zoneId + "_" + stamp + "_" + cid + "_" + slug + (pIdx ? "_" + (pIdx + 1) : "") + ".jpg";
+        var res = uploadPhotoToDrive(b64, name, zoneId);
+        if (res && res.thumbnailUrl) { photoUrls.push(res.thumbnailUrl); photoFileIds.push(res.fileId || ""); }
+      } catch (e) { Logger.log("line photo skipped (" + cid + " #" + pIdx + "): " + e.message); }
+    });
     return [submissionId, zoneId, zoneName, now, user, cid, pillar,
             (li.score !== undefined && li.score !== "") ? parseInt(li.score, 10) : "",
-            li.remark || "", photoUrl, photoFileId, fillS, cAt];
+            li.remark || "", photoUrls.join(","), photoFileIds.join(","), fillS, cAt];
   });
 
   if (rows.length) sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, AUDIT_LINEITEMS_HEADERS.length).setValues(rows);

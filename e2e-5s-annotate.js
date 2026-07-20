@@ -65,8 +65,8 @@ function writeTestImage() {
         const s = await frame.evaluate(() => {
           const ov = document.getElementById('annotatorOverlay');
           const t = document.getElementById('thumb-0');
-          const im = document.getElementById('thumbimg-0');
-          return { closed: !ov || ov.style.display === 'none', thumb: t && t.style.display !== 'none' && /^data:/.test(im.getAttribute('src') || '') };
+          const im = t && t.querySelector('.qa-thumb-item img');
+          return { closed: !ov || ov.style.display === 'none', thumb: t && t.style.display !== 'none' && im && /^data:/.test(im.getAttribute('src') || '') };
         });
         if (s.closed && s.thumb) return true;
         await page.waitForTimeout(300);

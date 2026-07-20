@@ -536,8 +536,10 @@ function escHtml(s) {
 
 var scores = {}, totalCriteria = 0, timerStart = null, timerInterval = null;
 var QA_DEPLOY_URL = '<?= (typeof deployUrl !== "undefined" && deployUrl) ? deployUrl : "" ?>';
-var criterionPhotos = {};    /* criterionId -> array of watermarked dataURLs (up to QA_MAX_PHOTOS) */
-var criterionPhotosRaw = {}; /* criterionId -> array of raw pre-watermark dataURLs (for annotation) */
+var criterionPhotos = {};       /* criterionId -> array of watermarked dataURLs (up to QA_MAX_PHOTOS) */
+var criterionPhotosRaw = {};    /* criterionId -> array of raw pre-watermark dataURLs (for annotation) */
+var criterionPhotoTokens = {};  /* criterionId -> array of stable per-photo tokens, parallel to criterionPhotos */
+var _qaPhotoTokenSeq = 0;
 var _activeCrit = null;     /* {idx, cid} while a per-criterion camera capture is in flight */
 var QA_MAX_PHOTOS = 3;
 
@@ -804,6 +806,7 @@ function captureFor_(idx, cid) {
 function removePhoto_(idx, cid, photoIdx) {
   if (criterionPhotos[cid]) criterionPhotos[cid].splice(photoIdx, 1);
   if (criterionPhotosRaw[cid]) criterionPhotosRaw[cid].splice(photoIdx, 1);
+  if (criterionPhotoTokens[cid]) criterionPhotoTokens[cid].splice(photoIdx, 1);
   showThumb_(idx, cid);
 }
 
@@ -940,7 +943,7 @@ function showThumb_(idx, cid) {
   t.innerHTML = photos.map(function(url, i) {
     return '<div class="qa-thumb-item" onclick="event.stopPropagation();openViewer_(\'' + cid + '\',' + i + ')">' +
       '<img src="' + url + '" alt="Evidence ' + (i+1) + '">' +
-      '<button class="qa-thumb-x" onclick="event.stopPropagation();removePhoto_(' + idx + ',\'' + cid + '\',' + i + ')" title="Remove">&times;</button>' +
+      '<button class="qa-thumb-x" onclick="event.stopPropagation();removePhoto_(' + idx + ',\'' + cid + '\',' + i + ')" title="Remove"><span class="qa-thumb-x-dot">&times;</span></button>' +
       '</div>';
   }).join('');
   if (camBtn) {
@@ -1174,13 +1177,20 @@ function applyWatermark_(dataUrl) {
       var ac = _activeCrit; _activeCrit = null;
       if (!criterionPhotos[ac.cid]) criterionPhotos[ac.cid] = [];
       if (!criterionPhotosRaw[ac.cid]) criterionPhotosRaw[ac.cid] = [];
-      var slot = criterionPhotos[ac.cid].length;
+      if (!criterionPhotoTokens[ac.cid]) criterionPhotoTokens[ac.cid] = [];
+      // Stable per-photo token (not a raw array index) — removePhoto_ can
+      // splice the array out from under a still-pending annotate callback;
+      // matching by token instead of index keeps the write on the right photo.
+      var token = 'p' + (_qaPhotoTokenSeq++);
       criterionPhotos[ac.cid].push(watermarked);
       criterionPhotosRaw[ac.cid].push(dataUrl);
+      criterionPhotoTokens[ac.cid].push(token);
       showThumb_(ac.idx, ac.cid);
       /* Capture flows straight into annotate (same-document canvas) */
       openAnnotatorFor_(dataUrl, qaStamp_(), function(annotated) {
-        criterionPhotos[ac.cid][slot] = annotated;
+        var pos = (criterionPhotoTokens[ac.cid] || []).indexOf(token);
+        if (pos === -1) return; // photo was removed before annotation finished
+        criterionPhotos[ac.cid][pos] = annotated;
         showThumb_(ac.idx, ac.cid);
       });
       return;
@@ -1380,9 +1390,20 @@ window.PM_TOUR_STEPS = [
   .qa-thumb { display:flex; flex-shrink:0; align-self:stretch; overflow-x:auto; border-left:1px solid #eef; gap:2px; }
   .qa-thumb-item { position:relative; width:54px; flex-shrink:0; cursor:pointer; }
   .qa-thumb-item img { width:100%; height:100%; object-fit:cover; display:block; }
-  .qa-thumb-x { position:absolute; top:2px; right:2px; width:16px; height:16px; line-height:14px; padding:0; border:none; border-radius:50%; background:rgba(0,0,0,.6); color:#fff; font-size:12px; cursor:pointer; }
+  /* Visual badge stays small (16px circle); the tap target is widened to the
+     app's 30px minimum (matches .qa-ic) via padding so it's reliably tappable
+     on a phone with a gloved/dirty hand. */
+  .qa-thumb-x {
+    position:absolute; top:0; right:0; width:26px; height:26px; padding:0;
+    display:flex; align-items:center; justify-content:center; box-sizing:border-box;
+    border:none; background:transparent; cursor:pointer;
+  }
+  .qa-thumb-x-dot {
+    width:16px; height:16px; border-radius:50%; background:rgba(0,0,0,.6);
+    color:#fff; font-size:12px; line-height:16px; text-align:center;
+  }
   .qa-cam-count { position:absolute; top:-4px; right:-4px; min-width:14px; height:14px; padding:0 3px; border-radius:7px; background:#2563eb; color:#fff; font-size:9px; font-weight:700; line-height:14px; text-align:center; }
-  .qa-ic { position:relative; }
+  [id^="ac-cam-"] { position:relative; }
   .qa-wdgll-btn { margin-top:8px; }
   #annotatorOverlay { display:none; }
   .pma-bar { flex:0 0 auto; display:flex; gap:6px; padding:10px; background:#1a1a1a; flex-wrap:wrap; align-items:center; }

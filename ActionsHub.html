@@ -185,6 +185,17 @@ body {
 }
 .ah-sec-bd { margin-top: 6px; }
 .ah-sec.collapsed .ah-sec-bd { display: none; }
+
+/* ── inline detail expander ── */
+.ah-tr.expanded { background: var(--pm-primary-soft); }
+.ah-tr.expanded .title { font-weight: 700; }
+.ah-detail-row > .ah-detail-cell { padding: 0; background: var(--bg-card-2); border-bottom: 1px solid var(--border); }
+.ah-detail-box {
+  padding: 12px 14px;
+  border-left: 3px solid var(--pm-primary);
+  animation: ahDetailIn .16s ease;
+}
+@keyframes ahDetailIn { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
 @keyframes ahFilterDrop {
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -1427,6 +1438,9 @@ function renderCards(items) {
     return;
   }
 
+  /* Any open inline expander is discarded by this re-render */
+  _openRow = null;
+
   /* Group into collapsible sections by record type */
   var groups = { NC: [], TASK: [], RED_TAG: [] };
   items.forEach(function(a) { (groups[a.type] = groups[a.type] || []).push(a); });
@@ -1463,7 +1477,7 @@ function buildTable_(rows) {
     var priClass = escHtml(a.priority || '');
     var openArgs = escHtml(JSON.stringify(a.type)) + ',' + escHtml(JSON.stringify(a.id));
     html += '<tr class="ah-tr ' + priClass + '">';
-    html += '<td class="ah-td title" onclick="openDetail(' + openArgs + ')" title="' + escHtml(a.title) + '">' +
+    html += '<td class="ah-td title" onclick="toggleRowDetail(' + openArgs + ',this)" title="' + escHtml(a.title) + '">' +
       escHtml(a.title) + (a.isOverdue && a.status !== 'CLOSED' ? '<span class="ovd">&#9888; overdue</span>' : '') + '</td>';
     html += '<td class="ah-td muted hide-sm">' + escHtml(a.zone || '') + '</td>';
     html += '<td class="ah-td muted hide-sm">' + escHtml(a.owner || '—') + '</td>';
@@ -1640,7 +1654,48 @@ function nextRedTagPhase(raw) {
   return null;
 }
 
-/* ── open detail ── */
+/* ── inline row expander ──────────────────────────────────────────────────
+   Clicking a row title expands its detail directly beneath the row instead of
+   opening a modal, so the record stays in the context of its section. One row
+   open at a time; clicking the same row again collapses it. */
+var _openRow = null;
+
+function toggleRowDetail(type, id, el) {
+  var tr = el && el.closest ? el.closest('tr') : null;
+  if (!tr) { openDetail(type, id); return; }   // fall back to the modal
+
+  /* collapse any currently-open expander (including this one → toggle off) */
+  var existing = tr.parentNode.querySelector('tr.ah-detail-row');
+  var wasThis = existing && existing.previousElementSibling === tr;
+  if (existing) existing.parentNode.removeChild(existing);
+  document.querySelectorAll('.ah-tr.expanded').forEach(function(r) { r.classList.remove('expanded'); });
+  if (wasThis) { _openRow = null; return; }
+
+  var cols = tr.children.length;
+  var det = document.createElement('tr');
+  det.className = 'ah-detail-row';
+  det.innerHTML = '<td class="ah-detail-cell" colspan="' + cols + '">' +
+    '<div class="ah-detail-box" id="ahDetailBox">' +
+    '<div class="ah-loading" style="padding:14px 0">Loading…</div></div></td>';
+  tr.parentNode.insertBefore(det, tr.nextSibling);
+  tr.classList.add('expanded');
+  _openRow = id;
+
+  if (type === 'NC') {
+    google.script.run
+      .withSuccessHandler(function(d) { renderNcDetail(d, 'ahDetailBox'); })
+      .withFailureHandler(function(e) {
+        var b = document.getElementById('ahDetailBox');
+        if (b) b.innerHTML = '<div class="ah-loading" style="color:var(--score-red)">' + escHtml(e.message) + '</div>';
+      })
+      .getNcDetail(id);
+  } else {
+    var box = document.getElementById('ahDetailBox');
+    if (box) box.innerHTML = buildTaskDetailBody_(findItem_(id));
+  }
+}
+
+/* ── open detail (modal — kept for non-table callers) ── */
 function openDetail(type, id) {
   if (type === 'NC') {
     openNcDetail(id);
@@ -1671,8 +1726,11 @@ function closeNcDetail() {
   document.getElementById('rdBackdrop').classList.remove('open');
 }
 
-function renderNcDetail(d) {
-  var body = document.getElementById('recordDetailBody');
+/* Renders into the modal body (default) or any element id passed as targetId,
+   so the inline expander and the modal share one renderer. */
+function renderNcDetail(d, targetId) {
+  var body = document.getElementById(targetId || 'recordDetailBody');
+  if (!body) return;
   if (!d) { body.innerHTML = '<div class="ah-loading">Record not found.</div>'; return; }
   function cell(icon, val, wide) {
     if (val === null || val === undefined || val === '') return '';
@@ -1720,43 +1778,45 @@ function renderNcDetail(d) {
 }
 
 /* ── Inline detail (TASK / RED_TAG) ── */
-function openInlineDetail(type, id) {
-  /* find item from current DOM data via re-fetch is too heavy;
-     instead we stored items in _lastItems */
-  var item = null;
-  if (window._lastItems) {
-    for (var i = 0; i < window._lastItems.length; i++) {
-      if (_lastItems[i].id === id) { item = _lastItems[i]; break; }
-    }
+/* Detail body for a TASK / RED_TAG row. Shared by the inline expander and the
+   modal so both render identically. */
+function buildTaskDetailBody_(item) {
+  if (!item) return '<div class="ah-loading">Detail not available.</div>';
+  function cell(icon, val, wide) {
+    if (val === null || val === undefined || val === '') return '';
+    return '<div class="rc-cell' + (wide ? ' wide' : '') + '"><span class="rc-ic">' + icon +
+      '</span><span class="rc-v">' + escHtml(String(val)) + '</span></div>';
   }
+  var emoji = item.type === 'RED_TAG' ? '&#128308;' : '&#128203;'; /* 🔴 / 📋 */
+  var badges = '';
+  if (item.status) badges += '<span class="status-lbl ' + escHtml(item.status) + '">' + escHtml(statusLabel(item.status)) + '</span>';
+  if (item.priority) badges += '<span class="pri-badge ' + escHtml(item.priority) + '">' + escHtml(item.priority) + '</span>';
+  var h = '<div class="rc-hero"><span class="rc-emoji">' + emoji + '</span>' +
+    '<span class="rc-id">' + escHtml(item.id) + '</span>' +
+    '<span class="rc-badges">' + badges + '</span></div>';
+  if (item.title) h += '<div class="rc-title">' + escHtml(item.title) + '</div>';
+  h += '<div class="rc-grid">';
+  h += cell('&#128205;', item.zone);        /* 📍 */
+  h += cell('&#128100;', item.owner);       /* 👤 */
+  h += cell('&#128197;', item.dueDate && ('Due ' + item.dueDate)); /* 📅 */
+  h += cell('&#128336;', item.ageDays != null && (item.ageDays + 'd old')); /* 🕐 */
+  h += '</div>';
+  if (item.description) h += '<div class="rc-desc">' + escHtml(item.description) + '</div>';
+  h += '<div class="ah-card__actions" style="border-top:1px solid var(--border-light);margin-top:2px;padding:10px 0 0">' + buildActionBtns(item) + '</div>';
+  return h;
+}
+
+function findItem_(id) {
+  if (!window._lastItems) return null;
+  for (var i = 0; i < _lastItems.length; i++) if (_lastItems[i].id === id) return _lastItems[i];
+  return null;
+}
+
+function openInlineDetail(type, id) {
+  var item = findItem_(id);
   var title = type === 'TASK' ? 'Task Detail' : 'Red Tag Detail';
   document.getElementById('idModalTitle').textContent = title;
-  var body = document.getElementById('inlineDetailBody');
-  if (!item) { body.innerHTML = '<div class="ah-loading">Detail not available.</div>'; }
-  else {
-    function cell(icon, val, wide) {
-      if (val === null || val === undefined || val === '') return '';
-      return '<div class="rc-cell' + (wide ? ' wide' : '') + '"><span class="rc-ic">' + icon +
-        '</span><span class="rc-v">' + escHtml(String(val)) + '</span></div>';
-    }
-    var emoji = item.type === 'RED_TAG' ? '&#128308;' : '&#128203;'; /* 🔴 / 📋 */
-    var badges = '';
-    if (item.status) badges += '<span class="status-lbl ' + escHtml(item.status) + '">' + escHtml(statusLabel(item.status)) + '</span>';
-    if (item.priority) badges += '<span class="pri-badge ' + escHtml(item.priority) + '">' + escHtml(item.priority) + '</span>';
-    var h = '<div class="rc-hero"><span class="rc-emoji">' + emoji + '</span>' +
-      '<span class="rc-id">' + escHtml(item.id) + '</span>' +
-      '<span class="rc-badges">' + badges + '</span></div>';
-    if (item.title) h += '<div class="rc-title">' + escHtml(item.title) + '</div>';
-    h += '<div class="rc-grid">';
-    h += cell('&#128205;', item.zone);        /* 📍 */
-    h += cell('&#128100;', item.owner);       /* 👤 */
-    h += cell('&#128197;', item.dueDate && ('Due ' + item.dueDate)); /* 📅 */
-    h += cell('&#128336;', item.ageDays != null && (item.ageDays + 'd old')); /* 🕐 */
-    h += '</div>';
-    if (item.description) h += '<div class="rc-desc">' + escHtml(item.description) + '</div>';
-    h += '<div class="ah-card__actions" style="border-top:1px solid var(--border-light);margin-top:2px;padding:10px 0 0">' + buildActionBtns(item) + '</div>';
-    body.innerHTML = h;
-  }
+  document.getElementById('inlineDetailBody').innerHTML = buildTaskDetailBody_(item);
   document.getElementById('inlineDetailModal').classList.add('open');
   document.getElementById('idBackdrop').classList.add('open');
 }

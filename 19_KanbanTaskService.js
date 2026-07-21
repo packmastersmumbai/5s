@@ -178,17 +178,22 @@ function createTask(taskData) {
         desc: (d.description || "") + " · 5S task " + taskId + " · zone " + d.zoneId });
     }
     if (typeof tg5sBroadcast_ === "function") {
+      var tOwner = _tg5sWho_(d.assignedTo);
+      var tBy = _tg5sWho_(taskData.createdBy);
       tg5sBroadcast_(_tg5sCard_({
         icon: "🗒️", kind: "Task", id: taskId, link: _tg5sDeep_('?v2=1&action=record&type=task&id=' + taskId),
         zoneId: d.zoneId, zoneName: v2GetZoneName_(d.zoneId),
         facts: [
           "📌 " + TelegramLib.esc(d.title),
-          "👤 " + TelegramLib.esc(d.assignedTo || "Unassigned") + " · ⚡ " + TelegramLib.esc(d.priority || "medium") +
+          "👤 " + TelegramLib.esc(tOwner || "Unassigned") + " · ⚡ " + TelegramLib.esc(d.priority || "medium") +
             " · 📅 " + Utilities.formatDate(dueObj, TZ, "dd-MMM")
         ],
         action: "complete & mark done",
-        by: taskData.createdBy || "5S"
-      }), [{ text: "🗒️ Open record", url: _tg5sDeep_('?v2=1&action=record&type=task&id=' + taskId) }]);
+        // Only show a separate "raised by" when it differs from the owner —
+        // otherwise the same name appeared twice on one card.
+        by: (tBy && tBy !== tOwner) ? tBy : ""
+      }), [{ text: "🗒️ Open record", url: _tg5sDeep_('?v2=1&action=record&type=task&id=' + taskId) }],
+        taskPhotoUrls.join(","));
     }
     return { success: true, taskId: taskId, message: "Task created." };
   }, "createTask", { success: false, taskId: "", message: "Server error." });
@@ -329,7 +334,10 @@ function createRedTag(tagData) {
     row[RT_COL.ZONE_NAME] = v2GetZoneName_(d.zoneId); row[RT_COL.ITEM_DESC] = d.itemDescription;
     row[RT_COL.ITEM_CATEGORY] = d.itemCategory; row[RT_COL.EST_VALUE] = d.estimatedValue;
     row[RT_COL.PROPOSED_ACTION] = d.proposedAction; row[RT_COL.PHOTO_URL] = d.photoUrl || "";
-    row[RT_COL.PHOTO_FILE_ID] = ""; row[RT_COL.TAGGED_BY] = v2GetCurrentUser_();
+    // Prefer the name the client captured: anonymous web-app users have no
+    // Session identity, so v2GetCurrentUser_() alone always writes "system".
+    row[RT_COL.PHOTO_FILE_ID] = "";
+    row[RT_COL.TAGGED_BY] = (tagData && tagData.createdBy) || v2GetCurrentUser_();
     row[RT_COL.OWNER] = d.owner || ""; row[RT_COL.DEADLINE] = deadline;
     row[RT_COL.DISPOSITION] = ""; row[RT_COL.DISPOSED_DATE] = ""; row[RT_COL.DISPOSED_BY] = "";
     row[RT_COL.REVIEW_NOTES] = ""; row[RT_COL.STATUS] = STATUS.IDENTIFIED; row[RT_COL.REMARKS] = d.remarks || "";
@@ -345,16 +353,20 @@ function createRedTag(tagData) {
         desc: (d.proposedAction || "") + " · 5S red tag " + tagId + " · zone " + d.zoneId, photo: true });
     }
     if (typeof tg5sBroadcast_ === "function") {
+      var rOwner = _tg5sWho_(d.owner);
+      var rBy = _tg5sWho_((tagData && tagData.createdBy) || v2GetCurrentUser_());
       tg5sBroadcast_(_tg5sCard_({
         icon: "🏷️", kind: "Red Tag", id: tagId, link: _tg5sDeep_('?v2=1&action=record&type=rt&id=' + tagId),
         zoneId: d.zoneId, zoneName: v2GetZoneName_(d.zoneId),
         facts: [
           "📦 " + TelegramLib.esc(d.itemDescription) + (d.itemCategory ? " · " + TelegramLib.esc(d.itemCategory) : ""),
-          (d.owner ? "👤 " + TelegramLib.esc(d.owner) + " · " : "") + "🎯 " + TelegramLib.esc(d.proposedAction || "review & dispose")
+          (rOwner ? "👤 " + TelegramLib.esc(rOwner) + " · " : "") + "🎯 " + TelegramLib.esc(d.proposedAction || "review & dispose"),
+          (deadline ? "📅 due " + v2FormatDate_(deadline) : "")
         ],
         action: "review & dispose (48h)",
-        by: (tagData && tagData.createdBy) || v2GetCurrentUser_()
-      }), [{ text: "🏷️ Open record", url: _tg5sDeep_('?v2=1&action=record&type=rt&id=' + tagId) }]);
+        by: (rBy && rBy !== rOwner) ? rBy : ""
+      }), [{ text: "🏷️ Open record", url: _tg5sDeep_('?v2=1&action=record&type=rt&id=' + tagId) }],
+        d.photoUrl || "");
     }
     return { success: true, tagId: tagId, message: "Red Tag created." };
   }, "createRedTag", { success: false, tagId: "", message: "Server error." });

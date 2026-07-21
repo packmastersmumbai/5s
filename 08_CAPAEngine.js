@@ -159,16 +159,21 @@ function createCAPA(zoneId, description, type, pillar, sqcdpDim, responsiblePers
     });
   }
   if (typeof tg5sBroadcast_ === "function") {
+    var ncResp = _tg5sWho_(responsiblePerson);
+    var ncBy = _tg5sWho_(createdBy);
     tg5sBroadcast_(_tg5sCard_({
       icon: "🔴", kind: "NC", id: ncId, link: _tg5sDeep_('?v2=1&action=record&type=nc&id=' + ncId),
       zoneId: zoneId, zoneName: (zoneConfig.name || ""),
       facts: [
         "⚠ " + TelegramLib.esc(description || ""),
-        "🎯 " + TelegramLib.esc(pillar || "—") + (responsiblePerson ? " · 👤 " + TelegramLib.esc(responsiblePerson) : "")
+        "🎯 " + TelegramLib.esc(pillar || "—") +
+          (ncResp ? " · 👤 " + TelegramLib.esc(ncResp) : "") +
+          (targetDateStr ? " · 📅 due " + TelegramLib.esc(targetDateStr) : "")
       ],
       action: "investigate & close (CAPA)",
-      by: createdBy || "5S"
-    }), [{ text: "📋 Open record", url: _tg5sDeep_('?v2=1&action=record&type=nc&id=' + ncId) }]);
+      by: (ncBy && ncBy !== ncResp) ? ncBy : ""
+    }), [{ text: "📋 Open record", url: _tg5sDeep_('?v2=1&action=record&type=nc&id=' + ncId) }],
+      ncPhotoUrls.join(","));
   }
   return ncId;
 }

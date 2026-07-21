@@ -91,6 +91,32 @@ var TelegramLib = (function () {
     return postMessage(tok, to, text, buttons);
   }
 
+  // ── Public: broadcast a photo with an HTML caption ────────
+  // photoUrl must be publicly fetchable by Telegram. Falls back to a plain text
+  // message (so the notification still lands) if the photo cannot be sent.
+  function sendPhoto(photoUrl, caption, buttons) {
+    var tok = token(), to = chatId();
+    if (!tok || !to) { Logger.log('TelegramLib: not configured (token/chatId)'); return false; }
+    if (!photoUrl) return send(caption, buttons);
+    var markup = null;
+    if (buttons && buttons.length) {
+      var row = buttons.filter(function (b) { return b && b.text && b.url; })
+        .map(function (b) { return { text: String(b.text), url: String(b.url) }; });
+      if (row.length) markup = { inline_keyboard: [row] };
+    }
+    var payload = { chat_id: to, photo: String(photoUrl), caption: String(caption || ''), parse_mode: 'HTML' };
+    if (markup) payload.reply_markup = markup;
+    try {
+      var resp = UrlFetchApp.fetch(API + tok + '/sendPhoto', {
+        method: 'post', contentType: 'application/json',
+        payload: JSON.stringify(payload), muteHttpExceptions: true
+      });
+      if (resp.getResponseCode() === 200) return true;
+      Logger.log('TelegramLib sendPhoto failed: ' + resp.getContentText());
+    } catch (e) { Logger.log('TelegramLib sendPhoto error: ' + e.message); }
+    return send(caption, buttons);   // never lose the notification
+  }
+
   // ── Public: reply to a specific chat (command sender) ─────
   function reply(to, text, buttons) {
     var tok = token();
@@ -177,7 +203,7 @@ var TelegramLib = (function () {
   }
 
   return {
-    send: send, reply: reply, poll: poll,
+    send: send, sendPhoto: sendPhoto, reply: reply, poll: poll,
     enable: enable, disable: disable,
     esc: esc, route: route
   };

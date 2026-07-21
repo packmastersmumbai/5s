@@ -14,13 +14,37 @@
 // ── Safe channel broadcast (event-driven "after each action") ───────────────
 // Gated by ScriptProperty TELEGRAM_ACTIONS_ENABLED ("false" mutes without a
 // redeploy; default ON). Never throws — a Telegram outage must never block a save.
-function tg5sBroadcast_(text, buttons) {
+function tg5sBroadcast_(text, buttons, photoUrl) {
   try {
     if (typeof TelegramLib === 'undefined') return;
     var flag = PropertiesService.getScriptProperties().getProperty('TELEGRAM_ACTIONS_ENABLED');
     if (flag === 'false') return;
-    TelegramLib.send(text, buttons);
+    // With evidence, send the photo itself and carry the card as its caption —
+    // sendPhoto falls back to a text message if Telegram cannot fetch the image.
+    if (photoUrl && TelegramLib.sendPhoto) TelegramLib.sendPhoto(_tg5sFirstPhoto_(photoUrl), text, buttons);
+    else TelegramLib.send(text, buttons);
   } catch (e) { Logger.log('tg5sBroadcast_ skipped: ' + e.message); }
+}
+
+// Normalise a user field for display. Anonymous web-app users have no Session
+// identity, so records can carry "system"/"worker"/an email — none of which is
+// a useful name in a chat feed. Returns "" so the caller can omit the field.
+function _tg5sWho_(name) {
+  var s = String(name == null ? '' : name).trim();
+  if (!s) return '';
+  var low = s.toLowerCase();
+  if (low === 'system' || low === 'worker' || low === 'auditor' || low === 'unknown') return '';
+  if (s.indexOf('@') > -1) s = s.split('@')[0];   // email → local part
+  return s;
+}
+
+// Photo columns store comma-joined Drive URLs; Telegram takes one. Prefer a
+// direct-download form, which Telegram fetches more reliably than /thumbnail.
+function _tg5sFirstPhoto_(photoUrls) {
+  var first = String(photoUrls || '').split(',')[0].trim();
+  if (!first) return '';
+  var m = first.match(/[?&]id=([A-Za-z0-9_-]+)/) || first.match(/\/d\/([A-Za-z0-9_-]+)/);
+  return m ? ('https://drive.google.com/uc?export=download&id=' + m[1]) : first;
 }
 
 // Compact 2-line broadcast card with a tappable record link:

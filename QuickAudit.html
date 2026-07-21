@@ -1028,6 +1028,8 @@ function submitCardCreate(idx) {
   document.getElementById('create-' + idx).style.display = 'none';
   toast_('Creating ' + types.map(function(t){ return TYPE_META[t].label; }).join(' + ') + '…', 'info');
 
+  /* Resolve the auditor once per Create so the name prompt appears at most once. */
+  var who = qaWho_();
   var linkRef = '', errors = [], okIds = [];
   function link_(t){ return linkRef ? (t + ' [Linked NC ' + linkRef + ']') : t; }
   function mark(t, ok){ var b = document.getElementById(TYPE_META[t].btn + idx); if (b) { b.classList.remove('pending'); b.classList.toggle('done', ok); } }
@@ -1040,21 +1042,21 @@ function submitCardCreate(idx) {
       google.script.run
         .withSuccessHandler(function(r){ if (r) { linkRef = String(r); okIds.push('NCR ' + r); mark('NC', true); } else { errors.push('NCR failed'); mark('NC', false); } next(); })
         .withFailureHandler(function(e){ errors.push('NCR: ' + e.message); mark('NC', false); next(); })
-        .createCAPA(zone, ncDesc, 'NC', c.pillar, SQCDP_MAP[c.pillar] || '', ncResp, (_CFG && _CFG.auditor) || '', ncTarget, ncPhotos);
+        .createCAPA(zone, ncDesc, 'NC', c.pillar, SQCDP_MAP[c.pillar] || '', ncResp, who, ncTarget, ncPhotos);
     } else if (type === 'TASK') {
       google.script.run
         .withSuccessHandler(function(r){ if (r && r.success) { okIds.push('Task ' + r.taskId); mark('TASK', true); } else { errors.push('Task failed'); mark('TASK', false); } next(); })
         .withFailureHandler(function(e){ errors.push('Task: ' + e.message); mark('TASK', false); next(); })
         .createTask({ title: taskTitle, zoneId: zone, description: link_('Raised from QuickAudit — ' + c.labelEn), priority: 'MEDIUM',
-                      assignedTo: (_CFG && _CFG.auditor) || '', dueDate: '',
-                      source: 'AUDIT', sourceRefId: linkRef || c.criterionId || '', createdBy: (_CFG && _CFG.auditor) || '',
+                      assignedTo: who, dueDate: '',
+                      source: 'AUDIT', sourceRefId: linkRef || c.criterionId || '', createdBy: who,
                       photosB64: recPhotosB64_(idx, 'TASK') });
     } else {
       google.script.run
         .withSuccessHandler(function(r){ var ok = r && (r.ok || r.success); if (ok) { okIds.push('Red Tag ' + r.tagNo); mark('REDTAG', true); } else { errors.push('Red Tag failed'); mark('REDTAG', false); } next(); })
         .withFailureHandler(function(e){ errors.push('Red Tag: ' + e.message); mark('REDTAG', false); next(); })
         .raiseRedTag({ zone: zone, item: rtItem, quantity: 1, category: 'Other', reason: link_('Flagged during audit'), action: '',
-                       owner: (_CFG && _CFG.auditor) || '', taggedBy: (_CFG && _CFG.auditor) || '',
+                       owner: who, taggedBy: who, createdBy: who,
                        photosB64: recPhotosB64_(idx, 'REDTAG') });
     }
   }
@@ -1506,11 +1508,44 @@ var PMAnnot = (function() {
 
 function openAnnotatorFor_(dataUrl, stamp, cb) { PMAnnot.open(dataUrl, stamp, cb); }
 
+/* ── Auditor identity ───────────────────────────────────────────────────────
+   Floor workers reach QuickAudit by QR with no login, so the server has no
+   Session identity and v2GetCurrentUser_() returns "system" — which is what
+   every record and Telegram card was showing. Resolve the real name here:
+     1. a logged-in session name injected by the server (manager/auditor), else
+     2. a name remembered on this device, else
+     3. ask once and remember it.
+   ------------------------------------------------------------------------- */
+var QA_NAME_KEY = 'pm5s_auditor_name';
+
+function qaAuditorName_(promptIfMissing) {
+  /* server-injected session name wins (real login) */
+  var s = (typeof currentUser_ !== 'undefined' && currentUser_) ? String(currentUser_).trim() : '';
+  if (!s && _CFG && _CFG.auditor) {
+    var c = String(_CFG.auditor).trim();
+    if (c && c.toLowerCase() !== 'system' && c.toLowerCase() !== 'worker') s = c;
+  }
+  if (s) return s;
+
+  var saved = '';
+  try { saved = (localStorage.getItem(QA_NAME_KEY) || '').trim(); } catch (e) {}
+  if (saved) return saved;
+
+  if (!promptIfMissing) return '';
+  var entered = '';
+  try { entered = (window.prompt('Your name (recorded on this audit):') || '').trim(); } catch (e) {}
+  if (entered) { try { localStorage.setItem(QA_NAME_KEY, entered); } catch (e) {} return entered; }
+  return '';
+}
+
+/* Name used on every record this session; asked for once, then remembered. */
+function qaWho_() { return qaAuditorName_(true) || 'Auditor'; }
+
 function qaStamp_() {
   var now = new Date();
   return {
     zone: getZoneId() || 'Unknown Zone',
-    auditor: (typeof currentUser_ !== 'undefined' && currentUser_) ? currentUser_ : 'Auditor',
+    auditor: qaAuditorName_(false) || 'Auditor',
     date: now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' +
           String(now.getDate()).padStart(2,'0') + ' ' +
           String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0'),

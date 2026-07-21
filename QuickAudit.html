@@ -734,6 +734,8 @@ function renderAudit(cfg) {
   html += '    <button type="button" id="pma-draw" class="on" onclick="PMAnnot.tool(\'draw\')">✎ Pen</button>';
   html += '    <button type="button" id="pma-arrow" onclick="PMAnnot.tool(\'arrow\')">➜ Arrow</button>';
   html += '    <button type="button" id="pma-circle" onclick="PMAnnot.tool(\'circle\')">◯ Circle</button>';
+  html += '    <button type="button" id="pma-text" onclick="PMAnnot.tool(\'text\')">T Text</button>';
+  html += '    <button type="button" id="pma-undo" onclick="PMAnnot.undo()" title="Undo last">↶ Undo</button>';
   html += '    <select id="pmaColor" onchange="PMAnnot.color(this.value)">';
   html += '      <option value="#e74c3c">Red</option><option value="#f39c12">Yellow</option><option value="#27ae60">Green</option><option value="#2980b9">Blue</option><option value="#ffffff">White</option>';
   html += '    </select>';
@@ -946,6 +948,7 @@ function cfVal_(idx, f) {
    Separate from the criterion photo pool: a record can carry its own evidence,
    and attaching is always optional — nothing here gates Create. */
 var recPhotos = {};                       /* "idx:TYPE" -> [dataURL, …] */
+var recPhotoTokens = {};                  /* "idx:TYPE" -> [token, …], parallel to recPhotos */
 var REC_MAX_PHOTOS = 3;
 function recKey_(idx, t) { return idx + ':' + t; }
 
@@ -984,6 +987,7 @@ function renderRecPhotos_(idx, t) {
 function removeRecPhoto_(idx, t, i) {
   var k = recKey_(idx, t);
   if (recPhotos[k]) recPhotos[k].splice(i, 1);
+  if (recPhotoTokens[k]) recPhotoTokens[k].splice(i, 1);   // keep tokens aligned
   renderRecPhotos_(idx, t);
 }
 
@@ -1307,7 +1311,20 @@ function applyWatermark_(dataUrl) {
       var rk = recKey_(rp.idx, rp.type);
       if (!recPhotos[rk]) recPhotos[rk] = [];
       recPhotos[rk].push(watermarked);
+      /* Match by stable token, not index: removeRecPhoto_ can splice the array
+         while an annotate callback is still pending. */
+      var rtok = 'r' + (_qaPhotoTokenSeq++);
+      if (!recPhotoTokens[rk]) recPhotoTokens[rk] = [];
+      recPhotoTokens[rk].push(rtok);
       renderRecPhotos_(rp.idx, rp.type);
+      /* Same flow as criterion photos: capture drops straight into the annotator
+         so the evidence can be marked up (arrows/circles/text) to explain itself. */
+      openAnnotatorFor_(dataUrl, qaStamp_(), function(annotated) {
+        var pos2 = (recPhotoTokens[rk] || []).indexOf(rtok);
+        if (pos2 === -1) return; // photo removed before annotation finished
+        recPhotos[rk][pos2] = annotated;
+        renderRecPhotos_(rp.idx, rp.type);
+      });
       return;
     }
     if (_activeCrit) {
@@ -1385,6 +1402,17 @@ var PMAnnot = (function() {
       ctx.lineTo(s.ex - h * Math.cos(a - 0.4), s.ey - h * Math.sin(a - 0.4));
       ctx.lineTo(s.ex - h * Math.cos(a + 0.4), s.ey - h * Math.sin(a + 0.4));
       ctx.closePath(); ctx.fill();
+    } else if (s.type === 'text') {
+      /* Scale with the image so text stays legible on large photos, and back it
+         with a dark plate so light-coloured labels remain readable on any photo. */
+      var tf = s.fontPx || 24;
+      ctx.font = 'bold ' + tf + 'px Arial';
+      ctx.textBaseline = 'top';
+      var tw = ctx.measureText(s.text).width, pad = Math.round(tf * 0.28);
+      ctx.fillStyle = 'rgba(0,0,0,.55)';
+      ctx.fillRect(s.sx - pad, s.sy - pad, tw + pad * 2, tf + pad * 2);
+      ctx.fillStyle = s.color;
+      ctx.fillText(s.text, s.sx, s.sy);
     }
   }
 
@@ -1401,7 +1429,18 @@ var PMAnnot = (function() {
     var t = ev.touches && ev.touches[0] ? ev.touches[0] : ev;
     return { x: (t.clientX - r.left) * (canvas.width / r.width), y: (t.clientY - r.top) * (canvas.height / r.height) };
   }
-  function down(ev) { ev.preventDefault(); var p = pos(ev);
+  function down(ev) {
+    ev.preventDefault(); var p = pos(ev);
+    /* Text is placed by a single tap, not a drag — prompt, then commit at that point. */
+    if (tool === 'text') {
+      var t = window.prompt('Label text:');
+      if (t && t.trim()) {
+        strokes.push({ type: 'text', color: color, text: t.trim(), sx: p.x, sy: p.y,
+                       fontPx: Math.max(18, Math.round((baseImg ? baseImg.width : 800) * 0.035)) });
+        redraw();
+      }
+      return;
+    }
     cur = (tool === 'draw') ? { type: 'draw', color: color, lineW: lineW, pts: [p] }
                             : { type: tool, color: color, lineW: lineW, sx: p.x, sy: p.y, ex: p.x, ey: p.y }; }
   function move(ev) { if (!cur) return; ev.preventDefault(); var p = pos(ev);
@@ -1432,7 +1471,8 @@ var PMAnnot = (function() {
 
   return {
     open: open,
-    tool: function(t) { tool = t; ['draw', 'arrow', 'circle'].forEach(function(x) { var b = el('pma-' + x); if (b) b.classList.toggle('on', x === t); }); },
+    tool: function(t) { tool = t; ['draw', 'arrow', 'circle', 'text'].forEach(function(x) { var b = el('pma-' + x); if (b) b.classList.toggle('on', x === t); }); },
+    undo: function() { strokes.pop(); redraw(); },
     color: function(c) { color = c; },
     undo: function() { strokes.pop(); redraw(); },
     /* Resolve the overlay from the DOM every time: #annotatorOverlay lives inside

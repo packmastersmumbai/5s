@@ -247,26 +247,31 @@
           preview.src = ev.target.result;
           preview.classList.add('visible');
 
-          document.getElementById('photoStatus').textContent = 'Uploading...';
+          document.getElementById('photoStatus').textContent = 'Compressing...';
 
-          // Upload to Drive
-          var base64 = ev.target.result.split(',')[1];
-          var fileName = zone.id + '_daily_' + new Date().toISOString().slice(0,10) + '_' + Date.now() + '.jpg';
+          // Downscale + compress before upload — camera originals are 2-5 MB,
+          // which can exceed the GAS payload/runtime limits and fail silently.
+          pmCompressImage(ev.target.result, function(compressed) {
+            document.getElementById('photoStatus').textContent = 'Uploading...';
+            var base64 = compressed.split(',')[1];
+            var fileName = zone.id + '_daily_' + new Date().toISOString().slice(0,10) + '_' + Date.now() + '.jpg';
 
-          google.script.run
-            .withSuccessHandler(function(result) {
-              if (result.error) {
-                document.getElementById('photoStatus').textContent = 'Upload failed: ' + result.error;
-              } else {
-                photoUrl = result.url;
-                photoFileId = result.fileId;
-                document.getElementById('photoStatus').textContent = 'Photo uploaded';
-              }
-            })
-            .withFailureHandler(function(err) {
-              document.getElementById('photoStatus').textContent = 'Upload failed';
-            })
-            .uploadPhotoToDrive(base64, fileName, zone.id);
+            google.script.run
+              .withSuccessHandler(function(result) {
+                if (result.error) {
+                  document.getElementById('photoStatus').textContent = 'Upload failed: ' + result.error;
+                } else {
+                  photoUrl = result.url;
+                  photoFileId = result.fileId;
+                  document.getElementById('photoStatus').textContent =
+                    'Photo uploaded (' + pmDataUrlKB(compressed) + ' KB)';
+                }
+              })
+              .withFailureHandler(function(err) {
+                document.getElementById('photoStatus').textContent = 'Upload failed';
+              })
+              .uploadPhotoToDrive(base64, fileName, zone.id);
+          });
         };
         reader.readAsDataURL(file);
       });

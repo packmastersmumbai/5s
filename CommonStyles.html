@@ -1627,6 +1627,56 @@ try {
 } catch(e) { /* silently ignore */ }
 </script>
 
+<!-- Shared image compression -->
+<script>
+/* ============================================================
+   pmCompressImage — single source of truth for photo compression.
+
+   Every photo in this app is displayed through Drive's thumbnail URL
+   (…/thumbnail?id=…&sz=w400), so nothing is ever rendered wider than
+   400px. 1024px long edge keeps ~2.5x headroom for the hover-zoom and
+   full-screen viewer while landing in the 5-50 KB target band.
+
+   Encode ONCE at PM_IMG_QUALITY — re-encoding an already-compressed
+   JPEG adds artefacts for no size saving.
+   ============================================================ */
+var PM_IMG_MAX_EDGE = 1024;
+var PM_IMG_QUALITY  = 0.7;
+
+/**
+ * Downscale + JPEG-compress a data URL.
+ * @param {string} dataUrl  source image (data:image/...)
+ * @param {function(string)} cb  receives the compressed data URL
+ * @param {number} [maxEdge]  long-edge cap (default PM_IMG_MAX_EDGE)
+ * @param {number} [quality]  JPEG quality 0-1 (default PM_IMG_QUALITY)
+ * @param {number} [extraH]  extra canvas height to reserve (watermark strip)
+ */
+function pmCompressImage(dataUrl, cb, maxEdge, quality, extraH) {
+  maxEdge = maxEdge || PM_IMG_MAX_EDGE;
+  quality = (quality == null) ? PM_IMG_QUALITY : quality;
+  var img = new Image();
+  img.onload = function() {
+    var scale = Math.min(1, maxEdge / Math.max(img.width, img.height));  // never upscale
+    var w = Math.max(1, Math.round(img.width * scale));
+    var h = Math.max(1, Math.round(img.height * scale));
+    var c = document.createElement('canvas');
+    c.width = w; c.height = h + (extraH || 0);
+    var x = c.getContext('2d');
+    x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+    x.drawImage(img, 0, 0, w, h);
+    cb(c.toDataURL('image/jpeg', quality), c, w, h);
+  };
+  img.onerror = function() { cb(dataUrl); };   // fall back to the original
+  img.src = dataUrl;
+}
+
+/** Approximate decoded byte size of a data URL, in KB. */
+function pmDataUrlKB(dataUrl) {
+  var i = String(dataUrl).indexOf(',');
+  return Math.round((String(dataUrl).length - i - 1) * 0.75 / 1024);
+}
+</script>
+
 <!-- Plan G: OfflineQueueService (IndexedDB) -->
 <script>
 /* ============================================================

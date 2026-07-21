@@ -572,6 +572,12 @@ var criterionPhotos = {};       /* criterionId -> array of watermarked dataURLs 
 var criterionPhotosRaw = {};    /* criterionId -> array of raw pre-watermark dataURLs (for annotation) */
 var criterionPhotoTokens = {};  /* criterionId -> array of stable per-photo tokens, parallel to criterionPhotos */
 var _qaPhotoTokenSeq = 0;
+/* Image compression budget. Mirrors pmCompressImage in CommonStyles.html, which
+   this page does not include. Every photo is displayed via Drive's w400
+   thumbnail, so 1024px long edge is ~2.5x more than any view renders while
+   keeping files in the 5-50 KB band. Keep the two in sync. */
+var PM_IMG_MAX_EDGE = 1024;
+var PM_IMG_QUALITY  = 0.7;
 var _activeCrit = null;     /* {idx, cid} while a per-criterion camera capture is in flight */
 var _recPending = null;     /* {idx, type} while a per-record (NC/Task/RedTag) capture is in flight */
 var QA_MAX_PHOTOS = 3;
@@ -1280,11 +1286,18 @@ function resetCriterion_(idx, cid) {
 function applyWatermark_(dataUrl) {
   var img = new Image();
   img.onload = function() {
-    var stripH = Math.max(28, Math.round(img.height * 0.045));
+    /* Downscale to PM_IMG_MAX_EDGE first: camera originals are ~4000px / 2-5 MB,
+       far beyond the w400 thumbnail every view actually renders, and large enough
+       to hit the GAS payload limit and fail the upload silently. */
+    var scale = Math.min(1, PM_IMG_MAX_EDGE / Math.max(img.width, img.height));
+    var iw = Math.max(1, Math.round(img.width * scale));
+    var ih = Math.max(1, Math.round(img.height * scale));
+    var stripH = Math.max(28, Math.round(ih * 0.045));
     var c = document.createElement('canvas');
-    c.width = img.width; c.height = img.height + stripH;
+    c.width = iw; c.height = ih + stripH;
     var ctx = c.getContext('2d');
-    ctx.drawImage(img, 0, 0);
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, iw, ih);
     var zone    = getZoneId() || 'Unknown Zone';
     var auditor = (typeof currentUser_ !== 'undefined' && currentUser_) ? currentUser_ : 'Auditor';
     var now     = new Date();
@@ -1294,16 +1307,16 @@ function applyWatermark_(dataUrl) {
     var zoom    = (window.devicePixelRatio || 1).toFixed(1);
     var fontSize = Math.max(12, Math.round(stripH * 0.52));
     ctx.fillStyle = '#1a1a2e';
-    ctx.fillRect(0, img.height, c.width, stripH);
+    ctx.fillRect(0, ih, c.width, stripH);
     ctx.font = 'bold ' + fontSize + 'px Arial';
     ctx.textBaseline = 'middle';
-    var midY = img.height + stripH / 2;
+    var midY = ih + stripH / 2;
     ctx.fillStyle = '#ffffff';
     ctx.fillText(zone + '  |  ' + auditor, 10, midY);
     var right = dateStr + '  |  zoom ' + zoom + 'x';
     ctx.fillStyle = '#a0aec0';
     ctx.fillText(right, c.width - ctx.measureText(right).width - 10, midY);
-    var watermarked = c.toDataURL('image/jpeg', 0.88);
+    var watermarked = c.toDataURL('image/jpeg', PM_IMG_QUALITY);
     /* Record-level evidence (NC / Task / Red Tag) — checked before the criterion
        pool so an "Add photo" on a create form doesn't land on the criterion. */
     if (_recPending) {
@@ -1482,7 +1495,11 @@ var PMAnnot = (function() {
     cancel: function() { var o = el('annotatorOverlay'); if (o) o.style.display = 'none'; },
     save: function() {
       var o = el('annotatorOverlay'); if (o) o.style.display = 'none';
-      var d = canvas.toDataURL('image/jpeg', 0.85); if (onSave) onSave(d);
+      /* Canvas is already downscaled (source is the watermarked image). Encode at
+         a slightly higher quality than the first pass so the unavoidable second
+         encode does not compound artefacts — size is already bounded by the
+         1024px cap applied upstream. */
+      var d = canvas.toDataURL('image/jpeg', 0.78); if (onSave) onSave(d);
     }
   };
 })();

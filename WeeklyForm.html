@@ -315,26 +315,32 @@
           (function(file) {
             var reader = new FileReader();
             reader.onload = function(ev) {
-              var base64 = ev.target.result.split(',')[1];
               var fn = zone.id + '_audit_' + Date.now() + '_' + i + '.jpg';
               var statusEl = document.createElement('div');
               statusEl.className = 'text-xs text-muted';
-              statusEl.textContent = 'Uploading ' + file.name + '...';
+              statusEl.textContent = 'Compressing ' + file.name + '...';
               document.getElementById('photoList').appendChild(statusEl);
 
-              google.script.run
-                .withSuccessHandler(function(result) {
-                  if (result.error) {
-                    statusEl.textContent = file.name + ': ' + result.error;
-                  } else {
-                    photoUrls.push(result.url);
-                    statusEl.innerHTML = '<a href="' + result.url + '" target="_blank" style="color:var(--pm-primary)">' + file.name + '</a>';
-                  }
-                })
-                .withFailureHandler(function() {
-                  statusEl.textContent = file.name + ': upload failed';
-                })
-                .uploadPhotoToDrive(base64, fn, zone.id);
+              // Downscale + compress first — raw camera files are 2-5 MB each and
+              // several at once can blow the GAS payload limit.
+              pmCompressImage(ev.target.result, function(compressed) {
+                statusEl.textContent = 'Uploading ' + file.name + '...';
+                var base64 = compressed.split(',')[1];
+                google.script.run
+                  .withSuccessHandler(function(result) {
+                    if (result.error) {
+                      statusEl.textContent = file.name + ': ' + result.error;
+                    } else {
+                      photoUrls.push(result.url);
+                      statusEl.innerHTML = '<a href="' + result.url + '" target="_blank" style="color:var(--pm-primary)">' +
+                        file.name + '</a> <span style="opacity:.6">(' + pmDataUrlKB(compressed) + ' KB)</span>';
+                    }
+                  })
+                  .withFailureHandler(function() {
+                    statusEl.textContent = file.name + ': upload failed';
+                  })
+                  .uploadPhotoToDrive(base64, fn, zone.id);
+              });
             };
             reader.readAsDataURL(file);
           })(files[i]);

@@ -65,6 +65,10 @@ var lineWidth = 5;
 var isDrawing = false;
 var startX, startY;
 var baseImage = null;
+/* Image compression budget — mirrors pmCompressImage in CommonStyles.html, which
+   this standalone page does not include. Keep the values in sync. */
+var PM_IMG_MAX_EDGE = 1024;
+var PM_IMG_QUALITY  = 0.7;
 var annotations = []; // Stack for undo
 var stampData = {};
 
@@ -73,17 +77,37 @@ function loadImage(dataUrl, stamp) {
   stampData = stamp || {};
   var img = new Image();
   img.onload = function() {
-    baseImage = img;
+    /* Downscale before this becomes baseImage: redraw() and the watermark strip
+       both key off baseImage's dimensions, so resizing here keeps strokes and
+       the strip aligned while capping the encoded size. */
+    var scale = Math.min(1, PM_IMG_MAX_EDGE / Math.max(img.width, img.height));
+    if (scale < 1) {
+      var tw = Math.max(1, Math.round(img.width * scale));
+      var th = Math.max(1, Math.round(img.height * scale));
+      var tc = document.createElement('canvas');
+      tc.width = tw; tc.height = th;
+      var tx = tc.getContext('2d');
+      tx.imageSmoothingEnabled = true; tx.imageSmoothingQuality = 'high';
+      tx.drawImage(img, 0, 0, tw, th);
+      var small = new Image();
+      small.onload = function() { _mountBase(small); };
+      small.src = tc.toDataURL('image/jpeg', 0.92);   // intermediate: final encode happens on save
+      return;
+    }
+    _mountBase(img);
+  };
+  function _mountBase(im) {
+    baseImage = im;
     // Add strip height to canvas so watermark doesn't overlap image
-    var stripH = Math.max(28, Math.round(img.height * 0.045));
-    canvas.width = img.width;
-    canvas.height = img.height + stripH;
+    var stripH = Math.max(28, Math.round(im.height * 0.045));
+    canvas.width = im.width;
+    canvas.height = im.height + stripH;
     redraw();
     if (stamp) {
       document.getElementById("stampInfo").textContent =
         (stamp.zone || "") + " | " + (stamp.date || "") + " | " + (stamp.auditor || "");
     }
-  };
+  }
   img.src = dataUrl;
 }
 
@@ -274,7 +298,7 @@ function cancel() {
 }
 
 function saveAnnotation() {
-  var dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+  var dataUrl = canvas.toDataURL("image/jpeg", PM_IMG_QUALITY);
   if (_postHost({ pm5sAnnotDone: true, dataUrl: dataUrl })) return;
   // Standalone fallback: upload directly
   google.script.run.withFailureHandler(function(e){console.error(e);var se=document.querySelector("[id$=Status]");if(se)se.innerHTML="<span style=color:#e74c3c>Error: "+escHtml(e.message)+"</span>";}).withSuccessHandler(function() {

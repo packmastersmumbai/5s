@@ -450,6 +450,24 @@ body {
 }
 /* the locked bar is still tappable (scrolls to the first unscored card) */
 .qa-foot-inner:has(.qa-submit:disabled) { cursor: pointer; }
+/* optional per-record evidence attach */
+.qa-rp { margin-top: 6px; }
+.qa-rp-add {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: none; border: 1px dashed var(--line2); color: var(--ink-3);
+  border-radius: 7px; padding: 5px 9px; font-size: 11px; font-weight: 600;
+  cursor: pointer; font-family: inherit;
+}
+.qa-rp-add:hover { border-color: var(--p1); color: var(--p1); }
+.qa-rp-opt { font-weight: 400; opacity: .65; }
+.qa-rp-strip { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+.qa-rp-item { position: relative; width: 52px; height: 52px; }
+.qa-rp-item img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); }
+.qa-rp-x {
+  position: absolute; top: -5px; right: -5px; width: 17px; height: 17px; padding: 0;
+  border-radius: 50%; border: none; background: #dc2626; color: #fff;
+  font-size: 12px; line-height: 17px; cursor: pointer;
+}
 .qa-flash { animation: qaFlash 1.2s ease; }
 @keyframes qaFlash {
   0%, 100% { box-shadow: 0 0 0 0 transparent; }
@@ -555,6 +573,7 @@ var criterionPhotosRaw = {};    /* criterionId -> array of raw pre-watermark dat
 var criterionPhotoTokens = {};  /* criterionId -> array of stable per-photo tokens, parallel to criterionPhotos */
 var _qaPhotoTokenSeq = 0;
 var _activeCrit = null;     /* {idx, cid} while a per-criterion camera capture is in flight */
+var _recPending = null;     /* {idx, type} while a per-record (NC/Task/RedTag) capture is in flight */
 var QA_MAX_PHOTOS = 3;
 
 var _ZONE_ID = '<?= (typeof params !== "undefined" && params && params.zone) ? String(params.zone).replace(/['"<>&]/g,"") : "" ?>';
@@ -604,6 +623,12 @@ function renderAudit(cfg) {
     return;
   }
   _CFG = cfg;
+
+  /* The success screen hides the footer/progress bar with an inline style. That
+     style survives an in-app return to QuickAudit (no page reload), so a second
+     audit would render with no visible Submit button — restore them here. */
+  var foot = document.querySelector('.qa-foot'); if (foot) foot.style.display = '';
+  var prog = document.querySelector('.qa-prog'); if (prog) prog.style.display = '';
 
   document.getElementById('auditInfo').textContent =
     cfg.zoneName + ' · ' + cfg.dateDisplay + ' · ' + cfg.auditor;
@@ -890,17 +915,21 @@ function updateCreateArea_(idx) {
     h += '<div class="qa-cf-grp"><span class="qa-cf-lbl nc">NCR</span>';
     h += '<input class="qa-cf" data-f="nc_desc" type="text" placeholder="Non-conformance description">';
     h += '<div class="qa-cf-row"><input class="qa-cf" data-f="nc_resp" type="text" placeholder="Responsible person">';
-    h += '<input class="qa-cf qa-cf-date" data-f="nc_target" type="date" title="Target date"></div></div>';
+    h += '<input class="qa-cf qa-cf-date" data-f="nc_target" type="date" title="Target date"></div>';
+    h += recPhotoCtrl_(idx, 'NC') + '</div>';
   }
   if (types.indexOf('TASK') >= 0) {
     h += '<div class="qa-cf-grp"><span class="qa-cf-lbl task">Task</span>';
-    h += '<input class="qa-cf" data-f="task_title" type="text" placeholder="Task title"></div>';
+    h += '<input class="qa-cf" data-f="task_title" type="text" placeholder="Task title">';
+    h += recPhotoCtrl_(idx, 'TASK') + '</div>';
   }
   if (types.indexOf('REDTAG') >= 0) {
     h += '<div class="qa-cf-grp"><span class="qa-cf-lbl rt">Red Tag</span>';
-    h += '<input class="qa-cf" data-f="rt_item" type="text" placeholder="Item to tag"></div>';
+    h += '<input class="qa-cf" data-f="rt_item" type="text" placeholder="Item to tag">';
+    h += recPhotoCtrl_(idx, 'REDTAG') + '</div>';
   }
   fields.innerHTML = h;
+  ['NC','TASK','REDTAG'].forEach(function(t){ if (types.indexOf(t) >= 0) renderRecPhotos_(idx, t); });
 
   fields.querySelectorAll('[data-f]').forEach(function(el){ var k = el.getAttribute('data-f'); if (prev[k] !== undefined) el.value = prev[k]; });
   var d = fields.querySelector('[data-f="nc_desc"]');   if (d && !d.value)  d.value = 'Non-conformance: ' + label;
@@ -911,6 +940,56 @@ function updateCreateArea_(idx) {
 function cfVal_(idx, f) {
   var e = document.querySelector('#createfields-' + idx + ' [data-f="' + f + '"]');
   return e ? (e.value || '').trim() : '';
+}
+
+/* ── Optional per-record evidence photos (NC / Task / Red Tag) ──────────────
+   Separate from the criterion photo pool: a record can carry its own evidence,
+   and attaching is always optional — nothing here gates Create. */
+var recPhotos = {};                       /* "idx:TYPE" -> [dataURL, …] */
+var REC_MAX_PHOTOS = 3;
+function recKey_(idx, t) { return idx + ':' + t; }
+
+function recPhotoCtrl_(idx, t) {
+  var k = recKey_(idx, t);
+  return '<div class="qa-rp" id="rp-' + k.replace(':','-') + '">' +
+    '<button type="button" class="qa-rp-add" onclick="addRecPhoto_(' + idx + ',\'' + t + '\')">' +
+    '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>' +
+    ' Add photo <span class="qa-rp-opt">(optional)</span></button>' +
+    '<div class="qa-rp-strip"></div></div>';
+}
+
+function addRecPhoto_(idx, t) {
+  var k = recKey_(idx, t);
+  if ((recPhotos[k] || []).length >= REC_MAX_PHOTOS) { toast_('Up to ' + REC_MAX_PHOTOS + ' photos', 'info'); return; }
+  var inp = document.getElementById('photoInputRaw');
+  if (!inp) return;
+  _recPending = { idx: idx, type: t };
+  inp.value = '';
+  inp.click();
+}
+
+function renderRecPhotos_(idx, t) {
+  var k = recKey_(idx, t);
+  var box = document.getElementById('rp-' + k.replace(':','-'));
+  if (!box) return;
+  var strip = box.querySelector('.qa-rp-strip');
+  var arr = recPhotos[k] || [];
+  strip.innerHTML = arr.map(function(url, i) {
+    return '<div class="qa-rp-item"><img src="' + url + '" alt="Evidence ' + (i+1) + '">' +
+      '<button type="button" class="qa-rp-x" onclick="removeRecPhoto_(' + idx + ',\'' + t + '\',' + i + ')" title="Remove">&times;</button></div>';
+  }).join('');
+}
+
+function removeRecPhoto_(idx, t, i) {
+  var k = recKey_(idx, t);
+  if (recPhotos[k]) recPhotos[k].splice(i, 1);
+  renderRecPhotos_(idx, t);
+}
+
+/* base64 payloads for the server (strip the data: prefix, same as NC photos) */
+function recPhotosB64_(idx, t) {
+  return (recPhotos[recKey_(idx, t)] || []).map(function(p) { return p.split(',')[1]; });
 }
 
 function toast_(msg, kind) {
@@ -945,7 +1024,9 @@ function submitCardCreate(idx) {
   function run(i){ if (i >= types.length) { done_(); return; } one(types[i], function(){ run(i + 1); }); }
   function one(type, next) {
     if (type === 'NC') {
-      var ncPhotos = (criterionPhotos[c.criterionId] || []).map(function(p) { return p.split(',')[1]; });
+      /* criterion evidence + any photos attached to the NC form itself */
+      var ncPhotos = (criterionPhotos[c.criterionId] || []).map(function(p) { return p.split(',')[1]; })
+        .concat(recPhotosB64_(idx, 'NC'));
       google.script.run
         .withSuccessHandler(function(r){ if (r) { linkRef = String(r); okIds.push('NCR ' + r); mark('NC', true); } else { errors.push('NCR failed'); mark('NC', false); } next(); })
         .withFailureHandler(function(e){ errors.push('NCR: ' + e.message); mark('NC', false); next(); })
@@ -956,13 +1037,15 @@ function submitCardCreate(idx) {
         .withFailureHandler(function(e){ errors.push('Task: ' + e.message); mark('TASK', false); next(); })
         .createTask({ title: taskTitle, zoneId: zone, description: link_('Raised from QuickAudit — ' + c.labelEn), priority: 'MEDIUM',
                       assignedTo: (_CFG && _CFG.auditor) || '', dueDate: '',
-                      source: 'AUDIT', sourceRefId: linkRef || c.criterionId || '', createdBy: (_CFG && _CFG.auditor) || '' });
+                      source: 'AUDIT', sourceRefId: linkRef || c.criterionId || '', createdBy: (_CFG && _CFG.auditor) || '',
+                      photosB64: recPhotosB64_(idx, 'TASK') });
     } else {
       google.script.run
         .withSuccessHandler(function(r){ var ok = r && (r.ok || r.success); if (ok) { okIds.push('Red Tag ' + r.tagNo); mark('REDTAG', true); } else { errors.push('Red Tag failed'); mark('REDTAG', false); } next(); })
         .withFailureHandler(function(e){ errors.push('Red Tag: ' + e.message); mark('REDTAG', false); next(); })
         .raiseRedTag({ zone: zone, item: rtItem, quantity: 1, category: 'Other', reason: link_('Flagged during audit'), action: '',
-                       owner: (_CFG && _CFG.auditor) || '', taggedBy: (_CFG && _CFG.auditor) || '' });
+                       owner: (_CFG && _CFG.auditor) || '', taggedBy: (_CFG && _CFG.auditor) || '',
+                       photosB64: recPhotosB64_(idx, 'REDTAG') });
     }
   }
   function done_() {
@@ -1217,6 +1300,16 @@ function applyWatermark_(dataUrl) {
     ctx.fillStyle = '#a0aec0';
     ctx.fillText(right, c.width - ctx.measureText(right).width - 10, midY);
     var watermarked = c.toDataURL('image/jpeg', 0.88);
+    /* Record-level evidence (NC / Task / Red Tag) — checked before the criterion
+       pool so an "Add photo" on a create form doesn't land on the criterion. */
+    if (_recPending) {
+      var rp = _recPending; _recPending = null;
+      var rk = recKey_(rp.idx, rp.type);
+      if (!recPhotos[rk]) recPhotos[rk] = [];
+      recPhotos[rk].push(watermarked);
+      renderRecPhotos_(rp.idx, rp.type);
+      return;
+    }
     if (_activeCrit) {
       var ac = _activeCrit; _activeCrit = null;
       if (!criterionPhotos[ac.cid]) criterionPhotos[ac.cid] = [];

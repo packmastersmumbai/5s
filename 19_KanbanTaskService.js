@@ -126,6 +126,9 @@ function createTask(taskData) {
       source: { required: false, type: "string", maxLen: 50, defaultVal: "MANUAL" },
       sourceRefId: { required: false, type: "string", maxLen: 50 }
     });
+    // Optional evidence photos (array of base64) — validated separately because
+    // v2ValidateInput_ handles scalars only.
+    var taskPhotos = Array.isArray(taskData && taskData.photosB64) ? taskData.photosB64 : [];
     if (!v.valid) return { success: false, taskId: "", message: v.errors.join("; ") };
     var d = v.data, ss = v2GetSpreadsheet_();
     var sheet = ss.getSheetByName("TaskBoard");
@@ -150,7 +153,19 @@ function createTask(taskData) {
     row[TASK_COL.ASSIGNED_TO] = d.assignedTo || ""; row[TASK_COL.DUE_DATE] = dueObj;
     row[TASK_COL.STATUS] = STATUS.BACKLOG; row[TASK_COL.UPDATED] = now;
     row[TASK_COL.CLOSED_DATE] = ""; row[TASK_COL.CLOSED_BY] = "";
-    row[TASK_COL.REMARKS] = ""; row[TASK_COL.PHOTO_URL] = "";
+    row[TASK_COL.REMARKS] = "";
+    // Optional evidence: upload each photo and store the URLs comma-separated,
+    // matching the AuditLineItems convention. A failed upload never blocks task creation.
+    var taskPhotoUrls = [];
+    taskPhotos.forEach(function (b64, pIdx) {
+      if (!b64) return;
+      try {
+        var pname = taskId + (pIdx ? "_" + (pIdx + 1) : "") + ".jpg";
+        var pres = uploadPhotoToDrive(b64, pname, d.zoneId);
+        if (pres && pres.thumbnailUrl) taskPhotoUrls.push(pres.thumbnailUrl);
+      } catch (e) { Logger.log("Task photo skipped (" + taskId + " #" + pIdx + "): " + e.message); }
+    });
+    row[TASK_COL.PHOTO_URL] = taskPhotoUrls.join(",");
     sheet.appendRow(row);
     // ✅ CACHE INVALIDATION: Clear dependent caches
     if (typeof invalidateTaskCache_ === "function") invalidateTaskCache_(d.zoneId);
@@ -301,7 +316,8 @@ function createRedTag(tagData) {
       itemCategory: { required: false, type: "string", maxLen: 50, defaultVal: "Other" },
       estimatedValue: { required: false, type: "number", defaultVal: 0 },
       proposedAction: { required: false, type: "string", maxLen: 50, defaultVal: "Discard" },
-      owner: { required: false, type: "string", maxLen: 100 }, photoUrl: { required: false, type: "string", maxLen: 500 },
+      // photoUrl may hold several comma-joined Drive URLs (~200 chars each)
+      owner: { required: false, type: "string", maxLen: 100 }, photoUrl: { required: false, type: "string", maxLen: 2000 },
       remarks: { required: false, type: "string", maxLen: 500 }
     });
     if (!v.valid) return { success: false, tagId: "", message: v.errors.join("; ") };

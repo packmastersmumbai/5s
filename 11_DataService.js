@@ -1179,14 +1179,29 @@ function raiseRedTag(formData) {
   if (formData.quantity && Number(formData.quantity) > 1) {
     remarks = ('Qty: ' + formData.quantity + (remarks ? ' — ' + remarks : '')).trim();
   }
+  // Optional evidence photos (array of base64). Uploaded here so createRedTag
+  // keeps taking a plain URL; an upload failure never blocks the red tag.
+  var zoneId = String(formData.zone || '');
+  var rtPhotoUrls = [];
+  if (Array.isArray(formData.photosB64)) {
+    formData.photosB64.forEach(function (b64, pIdx) {
+      if (!b64) return;
+      try {
+        var pname = 'RT_' + zoneId + '_' + Date.now() + (pIdx ? '_' + (pIdx + 1) : '') + '.jpg';
+        var pres = uploadPhotoToDrive(b64, pname, zoneId);
+        if (pres && pres.thumbnailUrl) rtPhotoUrls.push(pres.thumbnailUrl);
+      } catch (e) { Logger.log('Red tag photo skipped (#' + pIdx + '): ' + e.message); }
+    });
+  }
   var res = createRedTag({
-    zoneId: String(formData.zone || ''),
+    zoneId: zoneId,
     itemDescription: String(formData.item || ''),
     itemCategory: String(formData.category || 'Other'),
     proposedAction: String(formData.action || formData.reason || 'Discard'),
     estimatedValue: Number(formData.estValue) || 0,
     owner: String(formData.owner || formData.taggedBy || ''),
     remarks: remarks,
+    photoUrl: rtPhotoUrls.join(','),
     createdBy: String(formData.createdBy || formData.taggedBy || '')
   });
   return {

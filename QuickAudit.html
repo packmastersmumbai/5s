@@ -93,7 +93,9 @@ body {
 /* ── Content wrap ── */
 .qa-wrap {
   max-width: 560px; margin: 0 auto;
-  padding: 10px 10px 0;
+  /* bottom pad clears the fixed .qa-foot — without it the last criterion card
+     sits under the footer and can never be scored, so Submit never unlocks */
+  padding: 10px 10px calc(96px + env(safe-area-inset-bottom, 0px));
   display: flex; flex-direction: column; gap: 7px;
 }
 
@@ -123,13 +125,15 @@ body {
   border-color: var(--line2);
   box-shadow: 0 2px 16px oklch(16% 0.016 58 / .10);
 }
+/* A scored card is de-emphasised, not disabled. Only the score buttons are
+   locked (re-score goes through the picked chip); every other control —
+   remark, create, WDGLL, thumbnails — must stay clickable, otherwise a user
+   can never raise an NC/Task/Red Tag, which requires scoring first. */
 .qa-card.scored {
   opacity: 0.55;
-  pointer-events: none;
 }
-/* keep the scored row (and its reset button) clickable on a scored card */
-.qa-card.scored .qa-scored-row { pointer-events: auto; }
-.qa-card.scored .qa-s-reset { pointer-events: auto; }
+.qa-card.scored:hover, .qa-card.scored:focus-within { opacity: 1; }
+.qa-card.scored .qa-scores { pointer-events: none; }
 
 /* Pillar left border */
 .qa-card::before {
@@ -417,7 +421,9 @@ body {
 .qa-foot {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
   background: var(--card); border-top: 1px solid var(--line);
-  padding: 10px 14px 16px;
+  /* safe-area pad keeps the bar clear of the iOS home indicator / Safari toolbar,
+     which otherwise covers it and makes Submit look missing */
+  padding: 10px 14px calc(16px + env(safe-area-inset-bottom, 0px));
   box-shadow: 0 -3px 16px oklch(16% 0.016 58 / .07);
 }
 .qa-foot-inner {
@@ -441,6 +447,13 @@ body {
 .qa-submit:not(:disabled) { background: oklch(24% 0.018 56); }
 .qa-submit:disabled {
   background: var(--line); color: var(--ink-4); cursor: not-allowed;
+}
+/* the locked bar is still tappable (scrolls to the first unscored card) */
+.qa-foot-inner:has(.qa-submit:disabled) { cursor: pointer; }
+.qa-flash { animation: qaFlash 1.2s ease; }
+@keyframes qaFlash {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  30%      { box-shadow: 0 0 0 3px var(--p1); }
 }
 
 /* ── Zone picker ── */
@@ -522,7 +535,8 @@ body {
 </div>
 
 <div class="qa-foot">
-  <div class="qa-foot-inner">
+  <!-- click lands on the wrapper because a disabled button fires no events -->
+  <div class="qa-foot-inner" onclick="if(document.getElementById('submitBtn').disabled) jumpToUnscored_();">
     <span class="qa-score-ct" id="scoreSummary">0 / —</span>
     <button class="qa-submit" id="submitBtn" disabled onclick="submitAudit()">Complete Audit</button>
   </div>
@@ -687,7 +701,9 @@ function renderAudit(cfg) {
 
   html += '</div>'; /* end qa-wrap */
 
-  /* Annotator overlay (same-document canvas — no iframe) */
+  /* Annotator overlay (same-document canvas — no iframe).
+     Rebuilt with the cards, so it always starts hidden; PMAnnot re-resolves it
+     by id rather than caching the node. */
   html += '<div id="annotatorOverlay" style="display:none;position:fixed;inset:0;z-index:9999;background:#000;flex-direction:column">';
   html += '  <div class="pma-bar">';
   html += '    <button type="button" id="pma-draw" class="on" onclick="PMAnnot.tool(\'draw\')">✎ Pen</button>';
@@ -771,7 +787,34 @@ function setScore(criterionId, score, idx) {
     (totalCriteria > 0 ? (scored / totalCriteria * 100).toFixed(1) : 0) + '%';
   var ss = document.getElementById('scoreSummary');
   if (ss) ss.textContent = scored + ' / ' + totalCriteria;
-  document.getElementById('submitBtn').disabled = (scored < totalCriteria);
+  updateSubmitBtn_(scored);
+}
+
+/* Keep the submit button honest: when it is locked, say how many criteria are
+   still unscored rather than showing a dead "Complete Audit". */
+function updateSubmitBtn_(scored) {
+  var btn = document.getElementById('submitBtn');
+  if (!btn) return;
+  if (scored == null) scored = Object.keys(scores).length;
+  var left = totalCriteria - scored;
+  btn.disabled = (left > 0);
+  btn.textContent = (left > 0)
+    ? left + ' criteri' + (left === 1 ? 'on' : 'a') + ' left'
+    : 'Complete Audit';
+}
+
+/* Tapping the locked button scrolls to the first unscored card (the footer is
+   fixed, so a card below the fold is otherwise easy to miss entirely). */
+function jumpToUnscored_() {
+  var cards = document.querySelectorAll('.qa-card');
+  for (var i = 0; i < cards.length; i++) {
+    if (!cards[i].classList.contains('scored')) {
+      cards[i].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      cards[i].classList.add('qa-flash');
+      (function(c) { setTimeout(function() { c.classList.remove('qa-flash'); }, 1200); })(cards[i]);
+      return;
+    }
+  }
 }
 
 function toggleTooltip(idx) {
@@ -1129,7 +1172,7 @@ function resetCriterion_(idx, cid) {
   var pb = document.getElementById('progressBar');
   if (pb && totalCriteria) pb.style.width = (scored / totalCriteria * 100).toFixed(1) + '%';
   var ss = document.getElementById('scoreSummary'); if (ss) ss.textContent = scored + ' / ' + totalCriteria;
-  document.getElementById('submitBtn').disabled = (scored < totalCriteria);
+  updateSubmitBtn_(scored);
 }
 
 (function wirePhotoInput_() {
@@ -1299,8 +1342,15 @@ var PMAnnot = (function() {
     tool: function(t) { tool = t; ['draw', 'arrow', 'circle'].forEach(function(x) { var b = el('pma-' + x); if (b) b.classList.toggle('on', x === t); }); },
     color: function(c) { color = c; },
     undo: function() { strokes.pop(); redraw(); },
-    cancel: function() { overlay.style.display = 'none'; },
-    save: function() { overlay.style.display = 'none'; var d = canvas.toDataURL('image/jpeg', 0.85); if (onSave) onSave(d); }
+    /* Resolve the overlay from the DOM every time: #annotatorOverlay lives inside
+       the card markup, which render() rebuilds, so a cached reference can point at
+       a detached node — hiding that leaves the live overlay covering the page at
+       z-index 9999 and swallowing every click. */
+    cancel: function() { var o = el('annotatorOverlay'); if (o) o.style.display = 'none'; },
+    save: function() {
+      var o = el('annotatorOverlay'); if (o) o.style.display = 'none';
+      var d = canvas.toDataURL('image/jpeg', 0.85); if (onSave) onSave(d);
+    }
   };
 })();
 

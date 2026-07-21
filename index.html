@@ -9,15 +9,18 @@
 <style>
   :root { color-scheme: light; }
   html, body { margin: 0; padding: 0; height: 100vh; height: 100dvh; overflow: hidden; background: #faf7f2; font-family: system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
-  /* Crop the GAS sandbox banner (~42px desktop / 60px mobile) at the top of the iframe
-     document: negative-position the iframe and clip with overflow:hidden. */
+  /* Crop the GAS sandbox banner at the top of the iframe document: negative-position
+     the iframe and clip with overflow:hidden. Measured against the live /exec page —
+     45px desktop, 88px mobile. Under-cropping leaves a banner sliver that overlaps
+     the app's own sticky header (looks like the page top is cut off), so these values
+     round UP by a few px rather than down. */
   #wrap { position: fixed; inset: 0; overflow: hidden; background: #faf7f2; }
   #app {
     position: absolute; left: 0; right: 0;
-    top: -42px; width: 100%; height: calc(100% + 42px);
+    top: -48px; width: 100%; height: calc(100% + 48px);
     border: 0; display: block;
   }
-  @media (max-width: 640px) { #app { top: -60px; height: calc(100% + 60px); } }
+  @media (max-width: 640px) { #app { top: -92px; height: calc(100% + 92px); } }
   /* Splash — visual only; pointer-events:none so it never blocks a tap on the iframe. */
   #splash {
     position: fixed; inset: 0; z-index: 10; pointer-events: none;

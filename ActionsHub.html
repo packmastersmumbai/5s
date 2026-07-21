@@ -165,6 +165,26 @@ body {
   animation: ahFilterDrop .16s ease;
 }
 .ah-filter-row.open { display: flex; }
+.ah-filter-row.hidden { display: none !important; }
+
+/* ── collapsible type sections ── */
+.ah-sec { margin-bottom: 10px; }
+.ah-sec-hd {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  padding: 8px 12px; background: var(--bg-card-2); border: 1px solid var(--border);
+  border-radius: 8px; user-select: none;
+}
+.ah-sec-hd:hover { border-color: var(--pm-primary); }
+.ah-sec-caret { font-size: 11px; color: var(--text-muted); transition: transform .15s ease; }
+.ah-sec.collapsed .ah-sec-caret { transform: rotate(-90deg); }
+.ah-sec-em { font-size: 14px; line-height: 1; }
+.ah-sec-nm { font-weight: 700; font-size: 13px; color: var(--text-primary); }
+.ah-sec-ct {
+  margin-left: auto; font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  background: var(--pm-primary-soft); color: var(--pm-primary); padding: 2px 8px; border-radius: 10px;
+}
+.ah-sec-bd { margin-top: 6px; }
+.ah-sec.collapsed .ah-sec-bd { display: none; }
 @keyframes ahFilterDrop {
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -905,12 +925,9 @@ body {
   </div>
 </div>
 
-<!-- TYPE TABS -->
+<!-- VIEW TABS (record types are collapsible sections in the list itself) -->
 <div class="ah-type-tabs" id="ahTypeTabs">
-  <button class="ah-type-tab active" data-type="ALL"     onclick="setTypeTab(this)">All     <span class="tab-badge" id="cntAll">0</span></button>
-  <button class="ah-type-tab"        data-type="NC"      onclick="setTypeTab(this)">NCs     <span class="tab-badge" id="cntNC">0</span></button>
-  <button class="ah-type-tab"        data-type="TASK"    onclick="setTypeTab(this)">Tasks   <span class="tab-badge" id="cntTASK">0</span></button>
-  <button class="ah-type-tab"        data-type="RED_TAG" onclick="setTypeTab(this)">Red Tags<span class="tab-badge" id="cntRED_TAG">0</span></button>
+  <button class="ah-type-tab active" data-type="ALL"     onclick="setTypeTab(this)">Records <span class="tab-badge" id="cntAll">0</span></button>
   <button class="ah-type-tab"        data-type="AUDITS"  onclick="setTypeTab(this)">Audits</button>
   <button class="ah-type-tab"        data-type="SUMMARY" onclick="setTypeTab(this)">Summary</button>
 </div>
@@ -1130,7 +1147,9 @@ function setTypeTab(btn) {
   var fr = document.querySelector('.ah-filter-row');
   var ft = document.getElementById('ahFilterToggle');
   if (st) st.style.display = (isAudits || isSummary) ? 'none' : '';
-  if (fr) fr.style.display = (isAudits || isSummary) ? 'none' : '';
+  /* NOTE: never set inline display on .ah-filter-row — it would override the
+     .open class and permanently break the Filters toggle. Use a class instead. */
+  if (fr) fr.classList.toggle('hidden', isAudits || isSummary);
   if (ft) ft.style.display = (isAudits || isSummary) ? 'none' : '';
   if (isAudits) { renderAuditsView(); return; }
   if (isSummary) { renderSummaryView(); return; }
@@ -1383,23 +1402,21 @@ function fetchAndRender() {
 /* ── badge updates ── */
 function updateBadges(counts) {
   _lastCounts = counts;
-  var bt = counts.byType || {};
   var bs = counts.byStatus || {};
   var total = counts.total || 0;
 
-  document.getElementById('cntAll').textContent     = total;
-  document.getElementById('cntNC').textContent      = bt.NC      || 0;
-  document.getElementById('cntTASK').textContent    = bt.TASK    || 0;
-  document.getElementById('cntRED_TAG').textContent = bt.RED_TAG || 0;
+  /* per-type counts now live on the collapsible section headers, not tabs */
+  var setTxt = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+  setTxt('cntAll', total);
 
   // Status badges reflect the selected type tab (fall back to all-types totals)
   var ss = bs;
   if (_filters.type && counts.byTypeStatus && counts.byTypeStatus[_filters.type]) {
     ss = counts.byTypeStatus[_filters.type];
   }
-  document.getElementById('cntOPEN').textContent        = ss.OPEN        || 0;
-  document.getElementById('cntIN_PROGRESS').textContent = ss.IN_PROGRESS || 0;
-  document.getElementById('cntCLOSED').textContent      = ss.CLOSED      || 0;
+  setTxt('cntOPEN',        ss.OPEN        || 0);
+  setTxt('cntIN_PROGRESS', ss.IN_PROGRESS || 0);
+  setTxt('cntCLOSED',      ss.CLOSED      || 0);
 }
 
 /* ── render cards ── */
@@ -1410,19 +1427,42 @@ function renderCards(items) {
     return;
   }
 
+  /* Group into collapsible sections by record type */
+  var groups = { NC: [], TASK: [], RED_TAG: [] };
+  items.forEach(function(a) { (groups[a.type] = groups[a.type] || []).push(a); });
+
+  var order = ['NC', 'TASK', 'RED_TAG'];
+  var emoji = { NC: '&#128995;', TASK: '&#128203;', RED_TAG: '&#128308;' };
+  var html = '';
+  order.forEach(function(t) {
+    var rows = groups[t] || [];
+    if (!rows.length) return;
+    var collapsed = _collapsed[t] ? ' collapsed' : '';
+    html += '<div class="ah-sec' + collapsed + '" data-sec="' + t + '">' +
+      '<div class="ah-sec-hd" onclick="toggleSection(\'' + t + '\')">' +
+        '<span class="ah-sec-caret">&#9662;</span>' +
+        '<span class="ah-sec-em">' + emoji[t] + '</span>' +
+        '<span class="ah-sec-nm">' + escHtml(typeName(t)) + '</span>' +
+        '<span class="ah-sec-ct">' + rows.length + '</span>' +
+      '</div><div class="ah-sec-bd">' + buildTable_(rows) + '</div></div>';
+  });
+  document.getElementById('ahContent').innerHTML = html;
+}
+
+/* one table for a set of rows (no Type column — the section header carries it) */
+function buildTable_(rows) {
   var html = '<div class="ah-table-wrap"><table class="ah-table">' +
-    '<colgroup><col class="c-type"><col class="c-title"><col class="c-zone"><col class="c-owner">' +
+    '<colgroup><col class="c-title"><col class="c-zone"><col class="c-owner">' +
     '<col class="c-due"><col class="c-age"><col class="c-pri"><col class="c-status"><col class="c-acts"></colgroup>' +
     '<thead><tr>' +
-    '<th>Type</th><th>Title</th><th class="hide-sm">Zone</th><th class="hide-sm">Owner</th>' +
+    '<th>Title</th><th class="hide-sm">Zone</th><th class="hide-sm">Owner</th>' +
     '<th class="hide-sm">Due</th><th class="hide-sm">Age</th><th>Pri</th><th>Status</th><th></th>' +
     '</tr></thead><tbody>';
 
-  items.forEach(function(a) {
+  rows.forEach(function(a) {
     var priClass = escHtml(a.priority || '');
     var openArgs = escHtml(JSON.stringify(a.type)) + ',' + escHtml(JSON.stringify(a.id));
     html += '<tr class="ah-tr ' + priClass + '">';
-    html += '<td class="ah-td"><span class="type-badge ' + escHtml(a.type) + '">' + escHtml(typeName(a.type)) + '</span></td>';
     html += '<td class="ah-td title" onclick="openDetail(' + openArgs + ')" title="' + escHtml(a.title) + '">' +
       escHtml(a.title) + (a.isOverdue && a.status !== 'CLOSED' ? '<span class="ovd">&#9888; overdue</span>' : '') + '</td>';
     html += '<td class="ah-td muted hide-sm">' + escHtml(a.zone || '') + '</td>';
@@ -1434,8 +1474,15 @@ function renderCards(items) {
     html += '<td class="ah-td acts">' + buildActionIcons(a) + '</td>';
     html += '</tr>';
   });
-  html += '</tbody></table></div>';
-  document.getElementById('ahContent').innerHTML = html;
+  return html + '</tbody></table></div>';
+}
+
+/* collapse state persists across re-renders */
+var _collapsed = {};
+function toggleSection(t) {
+  _collapsed[t] = !_collapsed[t];
+  var el = document.querySelector('.ah-sec[data-sec="' + t + '"]');
+  if (el) el.classList.toggle('collapsed', !!_collapsed[t]);
 }
 
 /* compact icon action buttons per type/status (+ edit/delete) */

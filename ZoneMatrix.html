@@ -51,10 +51,12 @@
   .cell-empty { color: var(--text-muted); opacity: .5; }
 
   /* modal */
-  .ovl { display: none; position: fixed; inset: 0; background: rgba(15,18,30,.5); z-index: 100; align-items: flex-end; justify-content: center; }
+  .ovl { display: none; position: fixed; inset: 0; background: rgba(15,18,30,.5); z-index: 100; align-items: flex-end; justify-content: center; overflow-y: auto; }
   .ovl.on { display: flex; }
-  .sheet { background: var(--bg-card); width: 100%; max-width: 480px; border-radius: 16px 16px 0 0; padding: 16px 18px 24px; max-height: 80vh; overflow: auto; }
-  @media(min-width:520px){ .ovl{align-items:center} .sheet{border-radius:16px} }
+  /* max-height must leave room at the top or tall sheets crop their own header
+     out of reach; the overlay scrolls instead. */
+  .sheet { background: var(--bg-card); width: 100%; max-width: 480px; border-radius: 16px 16px 0 0; padding: 16px 18px 24px; max-height: calc(100vh - 40px); overflow-y: auto; margin-top: auto; -webkit-overflow-scrolling: touch; }
+  @media(min-width:520px){ .ovl{align-items:center} .sheet{border-radius:16px; margin: 20px auto} }
   .sheet h3 { font-size: 15px; font-weight: 800; color: var(--pm-primary); margin-bottom: 2px; }
   .sheet .sub { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); margin-bottom: 12px; }
   .kv { display: flex; gap: 8px; font-size: 13px; padding: 5px 0; border-bottom: 1px solid var(--border); }
@@ -62,6 +64,14 @@
   .nc-card { background: #fff6f5; border: 1px solid #fca5a5; border-radius: 10px; padding: 10px 12px; margin-top: 10px; }
   .nc-card .st { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #b71c1c; }
   .m-photo { width: 100%; border-radius: 10px; margin-top: 10px; max-height: 200px; object-fit: cover; }
+  .m-gal { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; margin-top: 10px; }
+  .m-gal img { width: 100%; height: 96px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); cursor: zoom-in; }
+  .task-card { background: #f5f8ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 10px 12px; margin-top: 10px; }
+  .task-card .st { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #1d4ed8; }
+  .rt-card { background: #fff8f0; border: 1px solid #fdba74; border-radius: 10px; padding: 10px 12px; margin-top: 10px; }
+  .rt-card .st { font-size: 10px; font-weight: 800; text-transform: uppercase; color: #c2410c; }
+  .m-sec { font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--text-muted); margin: 14px 0 2px; }
+  .m-none { font-size: 12px; color: var(--text-muted); padding: 6px 0; }
   .m-actions { margin-top: 14px; display: flex; gap: 8px; }
   .m-btn { flex: 1; text-align: center; padding: 11px; border-radius: 10px; font-weight: 700; font-size: 13px; text-decoration: none; }
   .m-btn.p { background: var(--pm-accent); color: #fff; } .m-btn.s { background: var(--bg-card-2); color: var(--text-primary); border: 1px solid var(--border); }
@@ -144,16 +154,44 @@
     h += '<div class="kv"><b>Score</b><span>'+(cell.score==null?'Not scored':(cell.score+' / 4'))+'</span></div>';
     if (cell.by) h += '<div class="kv"><b>Auditor</b><span>'+esc(cell.by)+'</span></div>';
     if (cell.remark) h += '<div class="kv"><b>Remark</b><span>'+esc(cell.remark)+'</span></div>';
-    (cell.ncs||[]).forEach(function(nc){
+    /* photo column stores a comma-separated list of Drive thumbnail URLs */
+    var photos = String(cell.photo || '').split(',').map(function(p){ return p.trim(); }).filter(Boolean);
+    if (photos.length) {
+      h += '<div class="m-sec">Evidence (' + photos.length + ')</div><div class="m-gal">';
+      photos.forEach(function(p){
+        h += '<img src="'+esc(p)+'" loading="lazy" onclick="window.open(this.src,\'_blank\')" onerror="this.style.display=\'none\'">';
+      });
+      h += '</div>';
+    }
+
+    var ncs = cell.ncs || [], tasks = cell.tasks || [], rts = cell.redTags || [];
+    h += '<div class="m-sec">Linked Records</div>';
+    if (!ncs.length && !tasks.length && !rts.length) {
+      h += '<div class="m-none">No NC, Task or Red Tag raised for this parameter.</div>';
+    }
+    ncs.forEach(function(nc){
       h += '<div class="nc-card"><div class="st">🔴 NC · '+esc(nc.status)+'</div>'
          + '<div style="font-weight:700;margin:3px 0">'+esc(nc.ncId)+'</div>'
          + (nc.desc?'<div style="font-size:12px">'+esc(nc.desc)+'</div>':'')
          + (nc.responsible?'<div style="font-size:11px;color:#6b7280;margin-top:3px">Owner: '+esc(nc.responsible)+(nc.target?' · due '+esc(nc.target):'')+'</div>':'')
          + '</div>';
     });
-    if (cell.photo) h += '<img class="m-photo" src="'+esc(cell.photo)+'" onerror="this.style.display=\'none\'">';
+    tasks.forEach(function(t){
+      h += '<div class="task-card"><div class="st">📋 Task · '+esc(t.status)+'</div>'
+         + '<div style="font-weight:700;margin:3px 0">'+esc(t.taskId)+'</div>'
+         + (t.title?'<div style="font-size:12px">'+esc(t.title)+'</div>':'')
+         + (t.owner?'<div style="font-size:11px;color:#6b7280;margin-top:3px">Owner: '+esc(t.owner)+(t.due?' · due '+esc(t.due):'')+'</div>':'')
+         + '</div>';
+    });
+    rts.forEach(function(rt){
+      h += '<div class="rt-card"><div class="st">🏷️ Red Tag · '+esc(rt.status)+'</div>'
+         + '<div style="font-weight:700;margin:3px 0">'+esc(rt.tagId)+'</div>'
+         + (rt.item?'<div style="font-size:12px">'+esc(rt.item)+'</div>':'')
+         + (rt.owner?'<div style="font-size:11px;color:#6b7280;margin-top:3px">Owner: '+esc(rt.owner)+(rt.deadline?' · due '+esc(rt.deadline):'')+'</div>':'')
+         + '</div>';
+    });
     h += '<div class="m-actions">';
-    if (cell.ncs && cell.ncs.length) h += '<a class="m-btn p" href="'+DEPLOY+'?v2=1&action=actionlist&zone='+encodeURIComponent(ZONE)+ACTQS+'" target="_top">Open in Actions</a>';
+    if (ncs.length || tasks.length || rts.length) h += '<a class="m-btn p" href="'+DEPLOY+'?v2=1&action=actionlist&zone='+encodeURIComponent(ZONE)+ACTQS+'" target="_top">Open in Actions</a>';
     h += '<button class="m-btn s" onclick="closeSheet()">Close</button></div>';
     openSheet(h);
   }

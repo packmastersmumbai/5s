@@ -78,6 +78,34 @@ function getZoneMatrix(zoneId, maxDates) {
       }
     }
 
+    // Tasks -> attach to the cell whose criterion matches SOURCE_REF (set by QuickAudit),
+    // falling back to a pillar match, on the task's creation date.
+    var tb = ss.getSheetByName('TaskBoard');
+    if (tb && tb.getLastRow() > 1) {
+      var t = tb.getDataRange().getValues();
+      for (var m = 1; m < t.length; m++) {
+        if (String(t[m][TASK_COL.ZONE_ID]).trim() !== zoneId) continue;
+        var tStatus = String(t[m][TASK_COL.STATUS] || '').trim().toUpperCase();
+        if (tStatus === 'DELETED') continue;
+        var tDate = _zmDate_(t[m][TASK_COL.CREATED], tz);
+        if (!keepDate[tDate]) continue;
+        var tKey = String(t[m][TASK_COL.SOURCE_REF] || '').trim();
+        if (!tKey) continue;
+        var tInfo = {
+          taskId: String(t[m][TASK_COL.TASK_ID]), status: tStatus,
+          title: String(t[m][TASK_COL.TITLE] || ''),
+          owner: String(t[m][TASK_COL.ASSIGNED_TO] || ''),
+          due: _zmDate_(t[m][TASK_COL.DUE_DATE], tz)
+        };
+        criteria.forEach(function (c) {
+          if (c.id !== tKey && c.pillar !== tKey) return;
+          var cellT = (cells[c.id] = cells[c.id] || {})[tDate];
+          if (!cellT) cellT = cells[c.id][tDate] = { score: null };
+          (cellT.tasks = cellT.tasks || []).push(tInfo);
+        });
+      }
+    }
+
     // Red tags: open ones, zone-level indicator
     var redTags = [];
     var rt = ss.getSheetByName('RedTagRegister');
@@ -87,7 +115,21 @@ function getZoneMatrix(zoneId, maxDates) {
         if (String(r[k][RT_COL.ZONE_ID]).trim() !== zoneId) continue;
         var rs = String(r[k][RT_COL.STATUS] || '').trim().toUpperCase();
         if (rs === 'CLOSED' || rs === 'DISPOSED' || rs === 'DELETED') continue;
-        redTags.push({ tagId: String(r[k][RT_COL.TAG_ID]), item: String(r[k][RT_COL.ITEM_DESC] || ''), status: rs });
+        var rtInfo = {
+          tagId: String(r[k][RT_COL.TAG_ID]), item: String(r[k][RT_COL.ITEM_DESC] || ''), status: rs,
+          owner: String(r[k][RT_COL.OWNER] || ''), deadline: _zmDate_(r[k][RT_COL.DEADLINE], tz)
+        };
+        redTags.push(rtInfo);
+        // RedTagRegister has no criterion reference column, so a red tag can only be
+        // matched to the audit date, not to a specific parameter. Attach it to every
+        // scored cell on that date so it surfaces in the parameter detail sheet.
+        var rtDate = _zmDate_(r[k][RT_COL.CREATED], tz);
+        if (!keepDate[rtDate]) continue;
+        criteria.forEach(function (c) {
+          var cellR = (cells[c.id] || {})[rtDate];
+          if (!cellR) return;   // only annotate parameters actually scored that day
+          (cellR.redTags = cellR.redTags || []).push(rtInfo);
+        });
       }
     }
 

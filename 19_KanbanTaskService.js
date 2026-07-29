@@ -275,13 +275,14 @@ function deleteTask(taskId) {
     var data = sheet.getDataRange().getValues();
     for (var r = 1; r < data.length; r++) {
       if (String(data[r][TASK_COL.TASK_ID]).trim() !== taskId) continue;
+      var prev = String(data[r][TASK_COL.STATUS] || STATUS.BACKLOG);   // for Undo
       var updates = {};
       updates[TASK_COL.STATUS] = STATUS.DELETED;
       updates[TASK_COL.UPDATED] = new Date();
       updates[TASK_COL.CLOSED_BY] = v2GetCurrentUser_();
       v2BatchUpdateRow_(sheet, r + 1, updates, data[r]);
       try { var c = CacheService.getScriptCache(), z = String(data[r][TASK_COL.ZONE_ID]).trim(); c.remove("pm5s_tasks_ALL_ALL"); c.remove("pm5s_tasks_" + z + "_ALL"); } catch(e) {}
-      return { success: true, message: "Task " + taskId + " deleted." };
+      return { success: true, message: "Task " + taskId + " deleted.", prevStatus: prev };
     }
     return { success: false, message: "Task not found: " + taskId };
   }, "deleteTask:" + taskId, { success: false, message: "Server error." });
@@ -438,15 +439,53 @@ function deleteRedTag(tagId) {
     var data = sheet.getDataRange().getValues();
     for (var r = 1; r < data.length; r++) {
       if (String(data[r][RT_COL.TAG_ID]).trim() !== tagId) continue;
+      var prev = String(data[r][RT_COL.STATUS] || STATUS.IDENTIFIED);   // for Undo
       var updates = {};
       updates[RT_COL.STATUS] = STATUS.DELETED;
       updates[RT_COL.DISPOSED_BY] = v2GetCurrentUser_();
       v2BatchUpdateRow_(sheet, r + 1, updates, data[r]);
       try { var c = CacheService.getScriptCache(), z = String(data[r][RT_COL.ZONE_ID]).trim(); c.remove("pm5s_redtags_ALL_ALL"); c.remove("pm5s_redtags_" + z + "_ALL"); } catch(e) {}
-      return { success: true, message: "Red Tag " + tagId + " deleted." };
+      return { success: true, message: "Red Tag " + tagId + " deleted.", prevStatus: prev };
     }
     return { success: false, message: "Red Tag not found: " + tagId };
   }, "deleteRedTag:" + tagId, { success: false, message: "Server error." });
+}
+
+/**
+ * Undo a soft-delete: flip STATUS back from DELETED to the value the client
+ * captured from the delete call's prevStatus. One function for all three record
+ * types — delete already set STATUS = DELETED, this reverses only that column.
+ * @param {string} type  'NC' | 'TASK' | 'RED_TAG'
+ * @param {string} id    record id
+ * @param {string} prevStatus  status to restore (from delete*'s return)
+ */
+function restoreRecord_(type, id, prevStatus) {
+  var MAP = {
+    NC:      { sheet: "NC_CAPA",         idCol: NC_COL.NC_ID,   statusCol: NC_COL.STATUS },
+    TASK:    { sheet: "TaskBoard",       idCol: TASK_COL.TASK_ID, statusCol: TASK_COL.STATUS },
+    RED_TAG: { sheet: "RedTagRegister",  idCol: RT_COL.TAG_ID,  statusCol: RT_COL.STATUS }
+  };
+  var m = MAP[type];
+  if (!m) return { success: false, message: "Unknown type: " + type };
+  var status = String(prevStatus || "").toUpperCase();
+  if (!status || status === "DELETED") return { success: false, message: "No prior status to restore." };
+  return v2SafeExecute_(function() {
+    var ss = v2GetSpreadsheet_(), sheet = ss.getSheetByName(m.sheet);
+    if (!sheet) return { success: false, message: m.sheet + " not found." };
+    var data = sheet.getDataRange().getValues();
+    for (var r = 1; r < data.length; r++) {
+      if (String(data[r][m.idCol]).trim() !== id) continue;
+      if (String(data[r][m.statusCol]).toUpperCase() !== "DELETED") {
+        return { success: false, message: "Record is not deleted; nothing to restore." };
+      }
+      var u = {}; u[m.statusCol] = status;
+      v2BatchUpdateRow_(sheet, r + 1, u, data[r]);
+      try { var c = CacheService.getScriptCache(); c.remove("pm5s_tasks_ALL_ALL"); c.remove("pm5s_redtags_ALL_ALL"); } catch(e) {}
+      if (typeof invalidateZoneMapCache_ === "function") invalidateZoneMapCache_();
+      return { success: true, message: type + " " + id + " restored." };
+    }
+    return { success: false, message: type + " not found: " + id };
+  }, "restoreRecord_:" + type + ":" + id, { success: false, message: "Server error." });
 }
 
 function advanceRedTagPhase(tagId, toPhase, notes) {

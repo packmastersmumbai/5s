@@ -389,10 +389,11 @@ function deleteCAPA(ncId) {
     var data = sheet.getDataRange().getValues();
     for (var r = 1; r < data.length; r++) {
       if (String(data[r][NC_COL.NC_ID]).trim() !== ncId) continue;
+      var prev = String(data[r][NC_COL.STATUS] || "OPEN");   // for Undo
       var u = {}; u[NC_COL.STATUS] = "DELETED"; u[NC_COL.VERIFICATION_REMARKS] = "Deleted by " + v2GetCurrentUser_();
       v2BatchUpdateRow_(sheet, r + 1, u, data[r]);
       if (typeof invalidateZoneMapCache_ === "function") invalidateZoneMapCache_();
-      return { success: true, message: "NC " + ncId + " deleted." };
+      return { success: true, message: "NC " + ncId + " deleted.", prevStatus: prev };
     }
     return { success: false, message: "NC not found: " + ncId };
   }, "deleteCAPA:" + ncId, { success: false, message: "Server error." });

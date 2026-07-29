@@ -128,11 +128,11 @@ function createCAPA(zoneId, description, type, pillar, sqcdpDim, responsiblePers
     pillar || "",               // 5: criterion_id (e.g. S1-C1)
     description || "",          // 6: criterion_label
     "",                         // 7: score_given
-    responsiblePerson || "",    // 8: auditor_email
+    v2SafeCell_(responsiblePerson),  // 8: auditor_email
     "",                         // 9: root_cause
     "",                         // 10: corrective_action
     "",                         // 11: preventive_action
-    responsiblePerson || "",    // 12: responsible_person
+    v2SafeCell_(responsiblePerson),  // 12: responsible_person
     targetDateStr,              // 13: target_date
     "OPEN",                     // 14: status (uppercase — matches STATUS enum & all comparisons)
     "",                         // 15: closure_date

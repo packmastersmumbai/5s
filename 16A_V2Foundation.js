@@ -415,6 +415,18 @@ function v2GetCurrentUser_() {
 }
 
 /**
+ * Neutralise a client-supplied name before it is written to a sheet cell.
+ * Anonymous QR users type their own name (QuickAudit prompt), so a value like
+ * "=HYPERLINK(...)" would execute when an admin exports the sheet to CSV/Excel.
+ * Prefix any leading =,+,-,@ with a quote and cap length. Use for every
+ * user-entered field that lands in a row (createdBy/taggedBy/responsiblePerson).
+ */
+function v2SafeCell_(val, maxLen) {
+  var s = String(val == null ? "" : val).slice(0, maxLen || 100);
+  return /^[=+\-@]/.test(s) ? "'" + s : s;
+}
+
+/**
  * Gets the effective user, preferring an explicit parameter,
  * then Session, then "system".
  *

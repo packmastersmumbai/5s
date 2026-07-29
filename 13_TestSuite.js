@@ -497,6 +497,23 @@ function runAllTests() {
       assert("Function '" + fn + "' exists", typeof eval(fn) === "function");
     });
 
+    // _tg5sWho_ — suppresses placeholder names on every Telegram card
+    if (typeof _tg5sWho_ === "function") {
+      assert("_tg5sWho_ drops 'system'",  _tg5sWho_("system") === "");
+      assert("_tg5sWho_ drops 'worker'",  _tg5sWho_("worker") === "");
+      assert("_tg5sWho_ drops 'auditor'", _tg5sWho_("auditor") === "");
+      assert("_tg5sWho_ strips email domain", _tg5sWho_("jane@x.com") === "jane");
+      assert("_tg5sWho_ keeps a real name", _tg5sWho_("Ravi") === "Ravi");
+    }
+
+    // v2SafeCell_ — neutralises CSV/formula injection from client-entered names
+    if (typeof v2SafeCell_ === "function") {
+      assert("v2SafeCell_ quotes leading =", v2SafeCell_("=HYPERLINK(1)") === "'=HYPERLINK(1)");
+      assert("v2SafeCell_ quotes leading @", v2SafeCell_("@x") === "'@x");
+      assert("v2SafeCell_ leaves plain name", v2SafeCell_("Ravi") === "Ravi");
+      assert("v2SafeCell_ caps length", v2SafeCell_(new Array(200).join("a")).length <= 100);
+    }
+
   } catch (suiteError) {
     results.push({ name: "TEST SUITE ERROR", status: "FAIL", detail: suiteError.message });
     totalFailed++;

@@ -150,7 +150,7 @@ function createTask(taskData) {
       var days = (pr === "high" || pr === "urgent") ? 1 : (pr === "low" ? 7 : 3);
       dueObj = new Date(now.getTime() + days * 86400000);
     }
-    row[TASK_COL.ASSIGNED_TO] = d.assignedTo || ""; row[TASK_COL.DUE_DATE] = dueObj;
+    row[TASK_COL.ASSIGNED_TO] = v2SafeCell_(d.assignedTo || ""); row[TASK_COL.DUE_DATE] = dueObj;
     row[TASK_COL.STATUS] = STATUS.BACKLOG; row[TASK_COL.UPDATED] = now;
     row[TASK_COL.CLOSED_DATE] = ""; row[TASK_COL.CLOSED_BY] = "";
     row[TASK_COL.REMARKS] = "";
@@ -337,7 +337,7 @@ function createRedTag(tagData) {
     // Prefer the name the client captured: anonymous web-app users have no
     // Session identity, so v2GetCurrentUser_() alone always writes "system".
     row[RT_COL.PHOTO_FILE_ID] = "";
-    row[RT_COL.TAGGED_BY] = (tagData && tagData.createdBy) || v2GetCurrentUser_();
+    row[RT_COL.TAGGED_BY] = v2SafeCell_((tagData && tagData.createdBy) || v2GetCurrentUser_());
     row[RT_COL.OWNER] = d.owner || ""; row[RT_COL.DEADLINE] = deadline;
     row[RT_COL.DISPOSITION] = ""; row[RT_COL.DISPOSED_DATE] = ""; row[RT_COL.DISPOSED_BY] = "";
     row[RT_COL.REVIEW_NOTES] = ""; row[RT_COL.STATUS] = STATUS.IDENTIFIED; row[RT_COL.REMARKS] = d.remarks || "";

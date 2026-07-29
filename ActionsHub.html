@@ -1664,8 +1664,10 @@ function toggleRowDetail(type, id, el) {
   var tr = el && el.closest ? el.closest('tr') : null;
   if (!tr) { openDetail(type, id); return; }   // fall back to the modal
 
-  /* collapse any currently-open expander (including this one → toggle off) */
-  var existing = tr.parentNode.querySelector('tr.ah-detail-row');
+  /* collapse any currently-open expander (including this one → toggle off).
+     Search globally: each type section is its own <table>, so tr.parentNode
+     would miss an expander open in a different section. */
+  var existing = document.querySelector('tr.ah-detail-row');
   var wasThis = existing && existing.previousElementSibling === tr;
   if (existing) existing.parentNode.removeChild(existing);
   document.querySelectorAll('.ah-tr.expanded').forEach(function(r) { r.classList.remove('expanded'); });

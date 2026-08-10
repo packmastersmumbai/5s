@@ -170,8 +170,49 @@ var DWM = (function () {
     } catch (e) { /* never block */ }
   }
 
-  return { upsertTask: upsertTask, syncTaskSafe: syncTaskSafe, EXEC_URL: EXEC_URL };
+  /**
+   * Verify an INBOUND signed callback from DWM (same HMAC + canonical scheme as
+   * our outbound calls). DWM must sign the canonical string of all params except
+   * sig/fmt/act (sorted key=value, RAW values) with the shared secret, and send a
+   * fresh `ts` (unix seconds). Returns { ok:true } or { ok:false, error }.
+   */
+  function verifySig(params, maxSkewSec) {
+    if (!params || !params.sig) return { ok: false, error: 'missing sig' };
+    var ts = Number(params.ts || 0);
+    var skew = maxSkewSec || 300;
+    var nowSec = Math.floor(Date.now() / 1000);
+    if (!ts || Math.abs(nowSec - ts) > skew) return { ok: false, error: 'stale or missing ts' };
+    var expect;
+    try { expect = _sign(params); } catch (e) { return { ok: false, error: e.message }; }
+    if (String(params.sig) !== expect) return { ok: false, error: 'bad sig' };
+    return { ok: true };
+  }
+
+  return { upsertTask: upsertTask, syncTaskSafe: syncTaskSafe, verifySig: verifySig, EXEC_URL: EXEC_URL };
 })();
+
+
+/**
+ * DWM → QMS reverse sync. Call from doPost when a DWM task is completed:
+ *   POST JSON { act:'dwm-done', ref:'<TK|NC|RT id>', ts:<unixSec>, sig:'<hmac>', by:'<user>', status:'completed' }
+ * The `ref` is the same stable id we sent on create, so completing in DWM closes
+ * the source QMS record. HMAC-verified + timestamp-replay-protected. Idempotent.
+ */
+function handleDwmDone_(data) {
+  var v = DWM.verifySig(data);
+  if (!v.ok) return jsonResponse_(403, { ok: false, error: 'DWM callback rejected: ' + v.error });
+  var ref = String((data && data.ref) || '').trim();
+  if (!ref) return jsonResponse_(400, { ok: false, error: 'missing ref' });
+  var by = String((data && data.by) || 'DWM').split('@')[0];
+  var note = 'Completed in DWM by ' + by;
+  var pre = ref.substring(0, 3).toUpperCase(), r;
+  if (pre === 'TK-')      r = updateTaskStatus(ref, STATUS.DONE, note);
+  else if (pre === 'NC-') r = updateNCStatus(ref, 'Closed');
+  else if (pre === 'RT-') r = updateRedTagStatus(ref, STATUS.CLOSED, note, note);
+  else return jsonResponse_(400, { ok: false, error: 'unknown ref type: ' + ref });
+  var ok = !!(r && (r.ok || r.success));
+  return jsonResponse_(ok ? 200 : 404, { ok: ok, ref: ref, result: r });
+}
 
 
 /**
@@ -200,6 +241,22 @@ function dwmResolveUser_(idOrName) {
     }
   } catch (e) {}
   return s;  // pass through — DWM tries name/alias match
+}
+
+/**
+ * Whether a red tag warrants its own tracked DWM task.
+ * ponytail: a red tag whose only action is disposal, with nobody assigned, IS
+ * its own record — spawning a DWM task for it just adds noise. Anything with an
+ * owner, or any non-disposal action (repair/return/relocate), pushes.
+ * Override: ScriptProperty DWM_REDTAG_PUSH_ALL="true" pushes every red tag.
+ */
+function dwmShouldPushRedTag_(proposedAction, owner) {
+  try {
+    if (PropertiesService.getScriptProperties().getProperty('DWM_REDTAG_PUSH_ALL') === 'true') return true;
+  } catch (e) {}
+  if (owner && String(owner).trim()) return true;
+  var a = String(proposedAction || '').toLowerCase();
+  return !/^(discard|scrap|dispose|disposed|trash|reject)/.test(a);
 }
 
 /** One-time helper: set the shared secret, then DELETE the call (don't commit the value). */

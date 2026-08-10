@@ -1200,6 +1200,7 @@ function raiseRedTag(formData) {
     proposedAction: String(formData.action || formData.reason || 'Discard'),
     estimatedValue: Number(formData.estValue) || 0,
     owner: String(formData.owner || formData.taggedBy || ''),
+    deadline: String(formData.deadline || ''),
     remarks: remarks,
     photoUrl: rtPhotoUrls.join(','),
     createdBy: String(formData.createdBy || formData.taggedBy || '')

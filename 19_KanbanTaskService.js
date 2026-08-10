@@ -186,7 +186,11 @@ function createTask(taskData) {
         facts: [
           "📌 " + TelegramLib.esc(d.title),
           "👤 " + TelegramLib.esc(tOwner || "Unassigned") + " · ⚡ " + TelegramLib.esc(d.priority || "medium") +
-            " · 📅 " + Utilities.formatDate(dueObj, TZ, "dd-MMM")
+            " · 📅 " + Utilities.formatDate(dueObj, TZ, "dd-MMM"),
+          // Surface the audit linkage that was already stored but never shown —
+          // the linked NC id or the failed criterion the task was raised from.
+          (d.source && d.source !== "MANUAL" && d.sourceRefId)
+            ? "🔍 " + TelegramLib.esc((d.source === "AUDIT" ? "Audit " : d.source + " ") + d.sourceRefId) : ""
         ],
         action: "complete & mark done",
         // Only show a separate "raised by" when it differs from the owner —
@@ -324,12 +328,15 @@ function createRedTag(tagData) {
       proposedAction: { required: false, type: "string", maxLen: 50, defaultVal: "Discard" },
       // photoUrl may hold several comma-joined Drive URLs (~200 chars each)
       owner: { required: false, type: "string", maxLen: 100 }, photoUrl: { required: false, type: "string", maxLen: 2000 },
+      deadline: { required: false, type: "string", maxLen: 20 },
       remarks: { required: false, type: "string", maxLen: 500 }
     });
     if (!v.valid) return { success: false, tagId: "", message: v.errors.join("; ") };
     var d = v.data, ss = v2GetSpreadsheet_(), sheet = ss.getSheetByName("RedTagRegister");
     if (!sheet) return { success: false, tagId: "", message: "RedTagRegister sheet not found." };
+    // Auditor-chosen deadline wins; otherwise fall back to +7 days.
     var tagId = generateRedTagId_(), now = new Date(), deadline = new Date(now.getTime() + 7 * 86400000);
+    if (d.deadline) { var _pd = new Date(d.deadline); if (!isNaN(_pd.getTime())) deadline = _pd; }
     var row = [];
     row[RT_COL.TAG_ID] = tagId; row[RT_COL.CREATED] = now; row[RT_COL.ZONE_ID] = d.zoneId;
     row[RT_COL.ZONE_NAME] = v2GetZoneName_(d.zoneId); row[RT_COL.ITEM_DESC] = d.itemDescription;
@@ -346,7 +353,8 @@ function createRedTag(tagData) {
     // ✅ CACHE INVALIDATION: Clear dependent caches
     if (typeof invalidateRedTagCache_ === "function") invalidateRedTagCache_(d.zoneId);
     try { var c = CacheService.getScriptCache(); c.remove("pm5s_redtags_ALL_ALL"); c.remove("pm5s_redtags_" + d.zoneId + "_ALL"); } catch(e) {}
-    if (typeof DWM !== "undefined") {
+    if (typeof DWM !== "undefined" &&
+        (typeof dwmShouldPushRedTag_ !== "function" || dwmShouldPushRedTag_(d.proposedAction, d.owner))) {
       DWM.syncTaskSafe({ title: "Red Tag: " + d.itemDescription, ref: tagId, status: "open",
         assignee: (typeof dwmResolveUser_ === "function") ? dwmResolveUser_(d.owner) : (d.owner || ""),
         creator: (typeof dwmResolveUser_ === "function") ? dwmResolveUser_(tagData.createdBy) : "",

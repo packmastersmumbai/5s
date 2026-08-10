@@ -417,22 +417,16 @@ function add6SSafetyCriteria() {
 // ID GENERATORS
 // ============================================================================
 
-function generateRedTagId_() {
-  return "RT-" + Utilities.formatDate(new Date(), TZ, "yyyyMMdd-HHmmss") + "-" + Math.floor(Math.random() * 1000);
+// PREFIX-YYMMDD-### — short, date-scannable, unique-per-record.
+// ponytail: 3-digit random suffix, ~1/1000 same-day collision ceiling. If two
+// records ever share an id, widen the suffix (4 digits / base36 seconds-of-day).
+function shortId_(prefix) {
+  return prefix + "-" + Utilities.formatDate(new Date(), TZ, "yyMMdd") +
+    "-" + ("00" + Math.floor(Math.random() * 1000)).slice(-3);
 }
 
-function generateKaizenId_() {
-  return "KZ-" + Utilities.formatDate(new Date(), TZ, "yyyyMMdd-HHmmss") + "-" + Math.floor(Math.random() * 1000);
-}
-
-function generateTaskId_() {
-  return "TK-" + Utilities.formatDate(new Date(), TZ, "yyyyMMdd-HHmmss") + "-" + Math.floor(Math.random() * 1000);
-}
-
-function generateWalkId_() {
-  return "GW-" + Utilities.formatDate(new Date(), TZ, "yyyyMMdd-HHmmss") + "-" + Math.floor(Math.random() * 1000);
-}
-
-function generateWDGLLId_() {
-  return "WD-" + Utilities.formatDate(new Date(), TZ, "yyyyMMdd-HHmmss") + "-" + Math.floor(Math.random() * 1000);
-}
+function generateRedTagId_() { return shortId_("RT"); }
+function generateKaizenId_()  { return shortId_("KZ"); }
+function generateTaskId_()    { return shortId_("TK"); }
+function generateWalkId_()    { return shortId_("GW"); }
+function generateWDGLLId_()   { return shortId_("WD"); }

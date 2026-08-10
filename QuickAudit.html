@@ -929,11 +929,15 @@ function updateCreateArea_(idx) {
   if (types.indexOf('TASK') >= 0) {
     h += '<div class="qa-cf-grp"><span class="qa-cf-lbl task">Task</span>';
     h += '<input class="qa-cf" data-f="task_title" type="text" placeholder="Task title">';
+    h += '<div class="qa-cf-row"><input class="qa-cf" data-f="task_resp" type="text" placeholder="Assign to">';
+    h += '<input class="qa-cf qa-cf-date" data-f="task_due" type="date" title="Due date"></div>';
     h += recPhotoCtrl_(idx, 'TASK') + '</div>';
   }
   if (types.indexOf('REDTAG') >= 0) {
     h += '<div class="qa-cf-grp"><span class="qa-cf-lbl rt">Red Tag</span>';
     h += '<input class="qa-cf" data-f="rt_item" type="text" placeholder="Item to tag">';
+    h += '<div class="qa-cf-row"><input class="qa-cf" data-f="rt_owner" type="text" placeholder="Owner">';
+    h += '<input class="qa-cf qa-cf-date" data-f="rt_due" type="date" title="Deadline"></div>';
     h += recPhotoCtrl_(idx, 'REDTAG') + '</div>';
   }
   fields.innerHTML = h;
@@ -1048,7 +1052,7 @@ function submitCardCreate(idx) {
         .withSuccessHandler(function(r){ if (r && r.success) { okIds.push('Task ' + r.taskId); mark('TASK', true); } else { errors.push('Task failed'); mark('TASK', false); } next(); })
         .withFailureHandler(function(e){ errors.push('Task: ' + e.message); mark('TASK', false); next(); })
         .createTask({ title: taskTitle, zoneId: zone, description: link_('Raised from QuickAudit — ' + c.labelEn), priority: 'MEDIUM',
-                      assignedTo: who, dueDate: '',
+                      assignedTo: cfVal_(idx, 'task_resp') || who, dueDate: cfVal_(idx, 'task_due'),
                       source: 'AUDIT', sourceRefId: linkRef || c.criterionId || '', createdBy: who,
                       photosB64: recPhotosB64_(idx, 'TASK') });
     } else {
@@ -1056,7 +1060,8 @@ function submitCardCreate(idx) {
         .withSuccessHandler(function(r){ var ok = r && (r.ok || r.success); if (ok) { okIds.push('Red Tag ' + r.tagNo); mark('REDTAG', true); } else { errors.push('Red Tag failed'); mark('REDTAG', false); } next(); })
         .withFailureHandler(function(e){ errors.push('Red Tag: ' + e.message); mark('REDTAG', false); next(); })
         .raiseRedTag({ zone: zone, item: rtItem, quantity: 1, category: 'Other', reason: link_('Flagged during audit'), action: '',
-                       owner: who, taggedBy: who, createdBy: who,
+                       owner: cfVal_(idx, 'rt_owner') || who, taggedBy: who, createdBy: who,
+                       deadline: cfVal_(idx, 'rt_due'),
                        photosB64: recPhotosB64_(idx, 'REDTAG') });
     }
   }

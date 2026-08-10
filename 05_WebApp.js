@@ -258,6 +258,13 @@ function doPost(e) {
       return jsonResponse_(400, { error: "No data received" });
     }
 
+    // ── DWM → QMS reverse sync: a DWM task completed → close the source record ──
+    // Signed callback, not an audit submission, so it must run before the
+    // zone_id/submission_type checks below.
+    if (data && data.act === 'dwm-done') {
+      return handleDwmDone_(data);
+    }
+
     // Validate required fields
     if (!data.zone_id) {
       return jsonResponse_(400, { error: "Missing zone_id" });

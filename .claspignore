@@ -13,6 +13,11 @@ package-lock.json
 # Naming convention: always suffix throwaway Node scripts with _tmp.js.
 *_tmp.js
 
+# Retired files — quarantined, NEVER push, never reference, never revive
+# without reading _unused/README.md first. See that file for what each one
+# was and why it was retired.
+_unused/**
+
 # Docs / GitHub Pages (served outside GAS)
 docs/**
 scripts/**

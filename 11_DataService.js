@@ -1463,6 +1463,14 @@ function getUnifiedActionList(filters) {
     return Math.max(0, Math.floor((now - d) / 86400000));
   }
 
+  /** Whole days a due date is in the past; 0 if not yet due or unparseable. */
+  function daysPastDue(dueVal) {
+    if (!dueVal) return 0;
+    var d = (dueVal instanceof Date) ? dueVal : new Date(dueVal);
+    if (isNaN(d.getTime())) return 0;
+    return Math.max(0, Math.floor((now - d) / 86400000));
+  }
+
   function mapNcStatus(raw) {
     var s = String(raw || "").toUpperCase().trim();
     if (s === "IN_PROGRESS" || s === "VERIFICATION") return "IN_PROGRESS";
@@ -1514,6 +1522,7 @@ function getUnifiedActionList(filters) {
           status:      uStatus,
           priority:    pri,
           ageDays:     age,
+          daysPastDue: overdue ? daysPastDue(nc.targetDate) : 0,
           isOverdue:   overdue,
           createdDate: nc.createdDate || ""
         });
@@ -1550,6 +1559,7 @@ function getUnifiedActionList(filters) {
           status:      tStatus,
           priority:    tPri,
           ageDays:     tAge,
+          daysPastDue: tOver ? daysPastDue(tDue) : 0,
           isOverdue:   tOver,
           createdDate: t.createdDate || ""
         });
@@ -1585,6 +1595,7 @@ function getUnifiedActionList(filters) {
           status:      rtStatus,
           priority:    rtPri,
           ageDays:     rtAge,
+          daysPastDue: rtOver ? daysPastDue(rtDue) : 0,
           isOverdue:   rtOver,
           createdDate: rt.createdDate || ""
         });

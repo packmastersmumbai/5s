@@ -514,6 +514,33 @@ function runAllTests() {
       assert("v2SafeCell_ caps length", v2SafeCell_(new Array(200).join("a")).length <= 100);
     }
 
+    // daysPastDue — overdue chip must count from dueDate, NOT createdDate
+    if (typeof getUnifiedActionList === "function") {
+      var ual = getUnifiedActionList({});
+      var ualItems = (ual && ual.items) ? ual.items : [];
+      assert("getUnifiedActionList returns an items array", Array.isArray(ualItems));
+
+      var overdueOnes = ualItems.filter(function (x) { return x.isOverdue; });
+      var notOverdue  = ualItems.filter(function (x) { return !x.isOverdue; });
+
+      assert("every item exposes daysPastDue",
+        ualItems.every(function (x) { return typeof x.daysPastDue === "number"; }));
+      assert("non-overdue items have daysPastDue 0",
+        notOverdue.every(function (x) { return x.daysPastDue === 0; }));
+      assert("daysPastDue never negative",
+        ualItems.every(function (x) { return x.daysPastDue >= 0; }));
+      // The regression: daysPastDue is measured from dueDate, not createdDate.
+      // Recompute independently and compare against what the service reported.
+      assert("overdue daysPastDue matches dueDate arithmetic",
+        overdueOnes.every(function (x) {
+          if (!x.dueDate) return x.daysPastDue === 0;
+          var d = new Date(x.dueDate);
+          if (isNaN(d.getTime())) return x.daysPastDue === 0;
+          var expected = Math.max(0, Math.floor((new Date() - d) / 86400000));
+          return Math.abs(x.daysPastDue - expected) <= 1; // tolerate clock/TZ edge
+        }));
+    }
+
   } catch (suiteError) {
     results.push({ name: "TEST SUITE ERROR", status: "FAIL", detail: suiteError.message });
     totalFailed++;

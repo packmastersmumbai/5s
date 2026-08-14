@@ -1618,7 +1618,7 @@ function buildTable_(rows) {
       ' onclick="toggleRowDetail(' + openArgs + ',this)"' +
       ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleRowDetail(' + openArgs + ',this);}"' +
       ' title="' + escHtml(a.title) + '">' +
-      (overdue ? '<span class="ovd">&#9888; ' + (a.ageDays != null ? escHtml(String(a.ageDays)) + 'd overdue' : 'overdue') + '</span>' : '') +
+      (overdue ? '<span class="ovd">&#9888; ' + (a.daysPastDue > 0 ? escHtml(String(a.daysPastDue)) + 'd overdue' : 'overdue') + '</span>' : '') +
       '<span class="ah-ttl-txt">' + escHtml(a.title) + '</span></td>';
     html += '<td class="ah-td muted hide-sm" data-label="Zone">' + escHtml(a.zone || '') + '</td>';
     html += '<td class="ah-td muted hide-sm" data-label="Owner">' + escHtml(a.owner || '—') + '</td>';

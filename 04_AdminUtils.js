@@ -10,6 +10,7 @@
  * Functions:
  *   onOpen()                — Simple trigger: loads custom menu
  *   createAdminMenu()       — Builds the PackMasters 5S admin menu
+ *   quickSetup()            — Consolidated 4-step first-time setup
  *   runInitialSetup()       — Full first-time setup
  *   setDeploymentId()       — Prompts for and stores DEPLOY_ID
  *   sendTestEmail()         — Sends a test email to MC
@@ -17,6 +18,10 @@
  *   runArchiveManually()    — Manual archive trigger
  *   runMonthlyRollupManually() — Manual monthly rollup trigger
  *   verifyNamedRanges()     — Checks all Named Ranges are intact
+ *
+ * Every menu entry is registered in createAdminMenu(); there are no manually
+ * added items. A handler with no addItem() call is unreachable — four such
+ * *FromMenu handlers were removed 2026-08-14.
  */
 
 // ============================================================================
@@ -149,8 +154,10 @@ function quickSetup() {
     // ────────────────────────────────────────────────────────────────
     Logger.log("⏳ STEP 3/4: Setting up user authentication...");
     try {
-      setupUsersSheet();
-      Logger.log("✅ Users sheet created with 5 test accounts");
+      // PIN auth (25b_PinAuth.js) owns the Users sheet. The old password-based
+      // setupUsersSheet() wrote a 6-column schema that PIN login cannot read.
+      var seeded = seedUsers();
+      Logger.log("✅ Users sheet seeded with " + (seeded && seeded.count) + " PIN accounts");
       steps.push({ step: 3, name: "Setup Users", ok: true });
     } catch (e) {
       Logger.log("❌ User setup failed: " + e.message);
@@ -614,23 +621,6 @@ function runMonthlyRollupManually() {
   }
 }
 
-/**
- * Run all tests — placeholder for Phase 5 implementation.
- */
-function runAllTestsFromMenu() {
-  var ui = SpreadsheetApp.getUi();
-
-  if (typeof runAllTests === "function") {
-    runAllTests();
-  } else {
-    ui.alert(
-      "Not Available Yet",
-      "The test suite will be available after Phase 5 deployment.\n" +
-      "This is a placeholder menu item.",
-      ui.ButtonSet.OK
-    );
-  }
-}
 
 
 // ============================================================================
@@ -666,81 +656,12 @@ function getProjectVersion() {
 // DIAGNOSTICS
 // ============================================================================
 
-/**
- * Runs system diagnostics from the admin menu.
- * Checks spreadsheet access, config, sheets, and data integrity.
- */
-function runDiagnosticsFromMenu() {
-  var ui = SpreadsheetApp.getUi();
-
-  try {
-    var result = v2Diagnose();
-    var lines = [];
-    lines.push("═══════════════ DIAGNOSTICS ═══════════════");
-    lines.push("");
-    lines.push("Spreadsheet Access: " + (result.spreadsheet ? "✅ OK" : "❌ FAILED"));
-    lines.push("Spreadsheet ID: " + result.spreadsheetId);
-    lines.push("Deploy ID: " + result.deployId);
-    lines.push("Zone Config: " + (result.zoneConfig ? "✅ " + result.zoneCount + " zones" : "❌ NOT SET"));
-    lines.push("");
-    lines.push("─── Sheet Data Rows ───");
-    Object.keys(result.sheets).forEach(function(name) {
-      var count = result.sheets[name];
-      var icon = count === -1 ? "❌ MISSING" : (count === 0 ? "⚠️ EMPTY" : "✅ " + count + " rows");
-      lines.push("  " + name + ": " + icon);
-    });
-
-    if (result.errors.length > 0) {
-      lines.push("");
-      lines.push("─── Errors ───");
-      result.errors.forEach(function(e) { lines.push("  ❌ " + e); });
-    }
-
-    lines.push("");
-    lines.push("═══════════════════════════════════════════");
-
-    var html = HtmlService.createHtmlOutput(
-      "<pre style='font-family:monospace; font-size:12px; white-space:pre-wrap;'>" +
-      lines.join("\n") + "</pre>"
-    ).setWidth(500).setHeight(500);
-    ui.showModalDialog(html, "System Diagnostics");
-  } catch (e) {
-    ui.alert("Diagnostics Error", e.message, ui.ButtonSet.OK);
-  }
-}
 
 
 // ============================================================================
 // ONE-STEP SYSTEM INITIALIZATION
 // ============================================================================
 
-/**
- * Opens the SetupWizard web page in a sidebar/dialog.
- * Called from the admin menu "🚀 One-Step System Init".
- */
-function openSetupWizardFromMenu() {
-  // ✅ SECURITY CHECK: Only ADMIN role can access setup wizard
-  try {
-    v2CheckPermission_("SYSTEM_INIT", v2GetCurrentUser_());
-  } catch (e) {
-    SpreadsheetApp.getUi().alert("❌ Access Denied: " + e.message);
-    return;
-  }
-
-  var props = PropertiesService.getScriptProperties();
-  var deployId = props.getProperty("DEPLOY_ID") || "";
-  var deployUrl = deployId
-    ? "https://script.google.com/macros/s/" + deployId + "/exec"
-    : "";
-  var html = HtmlService.createTemplateFromFile("SetupWizard");
-  html.deployUrl = deployUrl;
-  html.zoneId = "";
-  var page = html.evaluate()
-    .setWidth(540)
-    .setHeight(680)
-    .setSandboxMode(HtmlService.SandboxMode.IFRAME);
-  SpreadsheetApp.getUi().showModalDialog(page, "PackMasters 5S — System Setup");
-}
 
 /**
  * One-step system initialization orchestrator.
@@ -907,47 +828,6 @@ function openManualBackupDialog() {
   }
 }
 
-/**
- * Shows backup status and list of available backups.
- */
-function showBackupStatus() {
-  var ui = SpreadsheetApp.getUi();
-  try {
-    var status = getBackupStatus();
-    var backups = listBackups();
-
-    var message = "📊 Backup Status\n" +
-      "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
-      "Total Backups: " + status.totalBackups + "\n" +
-      "Retention: " + status.retentionDays + " days\n" +
-      "Total Size: " + status.totalSizeMB + " MB\n\n";
-
-    if (status.latestBackup) {
-      message += "Latest Backup:\n" +
-        "  • " + status.latestBackup.label + "\n" +
-        "  • " + new Date(status.latestBackup.timestamp).toLocaleString() + "\n" +
-        "  • " + status.latestBackup.sheetsCount + " sheets backed up\n\n";
-    }
-
-    message += "Recent Backups:\n";
-    if (backups.length === 0) {
-      message += "  (No backups yet)\n";
-    } else {
-      for (var i = 0; i < Math.min(5, backups.length); i++) {
-        var b = backups[i];
-        var dt = new Date(b.timestamp);
-        message += "  " + (i + 1) + ". " + b.label + " (" + dt.toLocaleDateString() + ")\n";
-      }
-      if (backups.length > 5) {
-        message += "  ... and " + (backups.length - 5) + " more\n";
-      }
-    }
-
-    ui.alert("Backup Status", message, ui.ButtonSet.OK);
-  } catch (e) {
-    ui.alert("Error", "Could not retrieve backup status: " + e.message, ui.ButtonSet.OK);
-  }
-}
 
 function fixDeployId() {
   var newId = "AKfycbwCp-llVo81JDPQLMoIWa-vP9BiRaNwwMjjKxh9elI8HLju9umi_dgokXXgYYK9HIg3_w";

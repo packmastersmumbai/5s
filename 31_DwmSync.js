@@ -280,51 +280,20 @@ function Dwm_selfTest() {
 
 
 /* ============================================================================
- *  EXAMPLE WIRING — copy the relevant one into your real save handler.
- *  These are illustrative; map fields from YOUR record object.
+ *  WIRING REFERENCE — DWM.syncTaskSafe() field map.
+ *
+ *    title     string   human label, e.g. 'CAPA: ' + problem
+ *    ref       string   STABLE record id — links record <-> DWM task forever
+ *    status    string   'open' | 'in-progress' | 'completed'
+ *    creator   string   DWM username/email of who raised it
+ *    client    string   DWM client name                      (optional)
+ *    assignee  string   DWM user name/email                  (optional)
+ *    due       string   'YYYY-MM-DD'                         (optional)
+ *    priority  string   'high' | 'medium' | 'low'
+ *    desc      string   free text — root cause, defect, notes
+ *    photo     boolean  true = require photo proof of completion
+ *
+ *  Call it from the record's own save/update handler, mapping the fields above
+ *  from that record. For inspections, only sync FAILs that need follow-up —
+ *  skip routine passes.
  * ========================================================================= */
-
-/** 5S — CAPA / corrective action saved. Call from your CAPA save/update function. */
-function example_onCapaSaved(capa) {
-  // capa.state should be one of: 'open' | 'in-progress' | 'completed'
-  DWM.syncTaskSafe({
-    title:    'CAPA: ' + (capa.problem || capa.title || 'corrective action'),
-    ref:      capa.id,                              // STABLE id — links record <-> DWM task forever
-    status:   capa.state || 'open',
-    creator:  capa.raisedBy || '',                  // DWM username/email of who raised it
-    client:   capa.client || '',                    // DWM client name (optional)
-    assignee: capa.responsible || '',               // DWM user name/email (optional)
-    due:      capa.targetDate || '',                // 'YYYY-MM-DD'
-    priority: (capa.severity === 'High') ? 'high' : 'medium',
-    desc:     capa.rootCause || '',
-    photo:    true                                  // require photo proof of completion
-  });
-}
-
-/** QMS — IQC/OQC inspection submitted with a FAIL that needs follow-up. */
-function example_onInspectionFail(insp) {
-  DWM.syncTaskSafe({
-    title:    'QC follow-up: ' + (insp.partName || insp.item) + ' (' + insp.type + ')',
-    ref:      insp.id,                              // e.g. 'IQC-2026-0042'
-    status:   insp.dispositionDone ? 'completed' : (insp.inProgress ? 'in-progress' : 'open'),
-    client:   insp.client || '',
-    assignee: insp.assignedTo || '',
-    priority: 'high',
-    desc:     'Defect: ' + (insp.defect || '') + '. ' + (insp.notes || ''),
-    photo:    true
-  });
-  // Only call for FAILs that need action — skip routine passes.
-}
-
-/** Improvement / SQDCP action — assigned or closed. */
-function example_onImprovementAction(act) {
-  DWM.syncTaskSafe({
-    title:    'Improvement: ' + act.title,
-    ref:      act.id,
-    status:   act.closed ? 'completed' : (act.assigned ? 'in-progress' : 'open'),
-    assignee: act.owner || '',
-    due:      act.dueDate || '',
-    priority: 'medium',
-    desc:     act.description || ''
-  });
-}

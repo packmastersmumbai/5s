@@ -59,18 +59,34 @@ that does the job now.
 Findings from the same audit that were **left in place** — deliberately, so
 nobody re-discovers them and assumes they were missed:
 
-- **Dead code inside live files** — `getDefaultZoneConfig__PLACEHOLDER_DO_NOT_USE_`
-  (181 lines, `01_Config.js`), the password-auth chain in `25_Authentication.js`
-  (~187 lines: `authenticateUser`, `addUser`, `changePassword`, `verifyPassword`,
-  `hashPassword`), `example_on*` functions (39 lines, `31_DwmSync.js`), unused
-  cache invalidators, unregistered menu handlers. These need surgery inside files
-  that still export live functions — a separate, test-gated job, not a file move.
-  `25_Authentication.js` in particular still owns `validateSession()`, which every
-  protected route depends on.
+- ~~**Dead code inside live files**~~ — **done 2026-08-14, second pass**, 789 lines
+  deleted outright (not quarantined — these were function bodies, not files):
+  - `01_Config.js` — `getDefaultZoneConfig__PLACEHOLDER_DO_NOT_USE_` (181)
+  - `25_Authentication.js` — the whole password stack: `setupUsersSheet`,
+    `authenticateUser`, `addUser`, `changePassword`, `verifyPassword`,
+    `hashPassword`, `hashPassword_`, `generateSalt_`, `getCurrentSessionFromUrl`,
+    `purgeExpiredSessions`, `installSessionCleanupTrigger` (440). File went
+    552 → 112 lines and now holds only `validateSession` / `logoutUser` /
+    `getCurrentUserInfo`, which PIN auth depends on.
+  - `04_AdminUtils.js` — 4 unregistered `*FromMenu` handlers (113)
+  - `20_EnhancedWebApp.js` — `openSetupWizard_`, `openDataImport_` (12)
+  - `31_DwmSync.js` — `example_on*` replaced by a field-map comment (39)
+
+  **A real bug surfaced during this pass:** `quickSetup()` (the "🔧 Initial Setup"
+  menu item) called `setupUsersSheet()`, which wrote the old 6-column
+  `password_hash` schema over the `Users` sheet that PIN login reads with 12
+  columns. Running initial setup would have broken login for everyone. Now calls
+  `seedUsers()` from `25b_PinAuth.js` instead.
 - **`WDGLLLibrary.html`** — also a "pending" placeholder, but route `wdgll`
   actively serves it. Retiring it breaks a live route; needs a product decision.
 - **28 copies of `escHtml`/`esc`** across 27 HTML files (~110 lines). Consolidating
-  into `CommonStyles` (already included by 24 of them) is a refactor, not a deletion.
+  into `CommonStyles` (already included by 24 of them) is a refactor, not a deletion —
+  **and the copies are not identical**, so it needs care rather than a blind merge.
+  Six files (`ZoneSelector`, `RecordView`, `OPLViewer`, `ManagementReview`,
+  `SetupWizard`, `MRMReportPack_Full`) escape `& < >` but **not `"`**. None of the
+  six currently interpolate into an HTML attribute, so there is no live injection
+  hole — but any future `title="…"` or `data-x="…"` in those files would open one.
+  Consolidate on the strict version (`& < > "` plus the falsy guard) when doing it.
 - **`clasp run` entry points** — `listAllProperties`, `deleteStaleProperties`,
   `persistSpreadsheetId`, `systemHealthCheck`, `seedDemoData` etc. look dead to a
   static scan because nothing in the repo calls them. They are invoked externally

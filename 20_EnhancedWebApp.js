@@ -276,18 +276,6 @@ function testWebhook_() {
   v2GetSpreadsheet_().toast("Webhook test sent!", "Webhook", 3);
 }
 
-function openDataImport_() {
-  var html = HtmlService.createHtmlOutputFromFile("DataImport")
-    .setWidth(700).setHeight(500);
-  SpreadsheetApp.getUi().showModalDialog(html, "📥 Data Import");
-}
-
-function openSetupWizard_() {
-  var html = HtmlService.createHtmlOutputFromFile("SetupWizard")
-    .setWidth(800).setHeight(600);
-  SpreadsheetApp.getUi().showModalDialog(html, "🧙 Setup Wizard");
-}
-
 // ============================================================================
 // ENHANCED MASTER ORCHESTRATOR HOOK
 // ============================================================================

@@ -1183,8 +1183,24 @@ function submitAudit() {
         document.querySelector('.qa-prog').style.display = 'none';
         if (result.submissionId) prepareAuditShare_(result.submissionId);
       } else {
+        /* Server accepted the request but rejected the payload. Was a raw
+           alert() — a blocking native dialog, unstyled, and the only path here
+           not using pmToast. Reported inline at the submit bar so the auditor
+           can see the reason and their scores at the same time. */
         btn.disabled = false; btn.textContent = 'Complete Audit';
-        alert(result ? result.message : 'Submission failed');
+        var msg = (result && result.message) ? result.message : 'Submission failed — please try again';
+        var errEl = document.getElementById('qaSubmitErr');
+        if (!errEl) {
+          errEl = document.createElement('div');
+          errEl.id = 'qaSubmitErr';
+          errEl.className = 'qa-submit-err';
+          errEl.setAttribute('role', 'alert');
+          var foot = document.querySelector('.qa-foot-inner');
+          if (foot) foot.insertBefore(errEl, foot.firstChild);
+        }
+        errEl.textContent = msg;
+        errEl.style.display = 'block';
+        if (typeof pmToast === 'function') pmToast(msg, 'error');
       }
     })
     .withFailureHandler(function(e) { queueOffline_(e.message); })
@@ -1627,6 +1643,32 @@ window.PM_TOUR_STEPS = [
   }
   /* Keep the expanded areas from eating neighbouring taps in the icon row. */
   .qa-hicons { gap: 10px; }
+
+  /* Inline submit error — sits above the submit button so the reason and the
+     scores are visible together. */
+  .qa-submit-err {
+    display: none;
+    margin-bottom: 8px; padding: 8px 12px;
+    border-radius: 8px;
+    background: var(--sc0-bg, #fff1ef);
+    color: oklch(42% 0.20 22);
+    border: 1px solid oklch(78% 0.12 22);
+    font-size: 13px; font-weight: 600; line-height: 1.35;
+  }
+
+  /* Evidence icons are quiet until the criterion is scored.
+     Measured 2026-08-20 against live data before changing this: photos are
+     attached to 12/40 red tags (30%) — a real workflow — so the icons are NOT
+     hidden behind a disclosure step, which would add a tap to something used
+     on nearly a third of tags. They are only de-emphasised: still visible,
+     still one tap, still 44px, but they stop competing with the score buttons
+     on the 15 criteria where nothing is wrong.
+     Scoring the card (.scored, set in JS) restores full contrast. */
+  .qa-card:not(.scored) .qa-hicons { opacity: .55; }
+  .qa-card:not(.scored) .qa-hicons:hover,
+  .qa-card:not(.scored) .qa-hicons:focus-within { opacity: 1; }
+  .qa-hicons { transition: opacity .18s ease; }
+  @media (prefers-reduced-motion: reduce) { .qa-hicons { transition: none; } }
   .qa-ic:active { transform:scale(.9); }
   .qa-ic.sel { background:#e8f0ff; border-color:#2563eb; color:#2563eb; }
   .qa-ic.pending { background:#fff7e6; border-color:#f0c069; color:#b9770a; animation:qaPulse 1s ease-in-out infinite; }

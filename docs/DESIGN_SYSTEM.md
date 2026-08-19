@@ -1,0 +1,144 @@
+# PackMasters 5S — Design System
+
+Single source of truth: **`CommonStyles.html`**. Include it in every page:
+
+```html
+<?!= include("CommonStyles") ?>
+```
+
+34 of 42 pages do. The two deliberate exceptions are documented under
+[Exceptions](#exceptions).
+
+> **Rule: no raw hex in page CSS.** If a colour, size, radius or shadow is not
+> in this document, add it here first, then use the token. Literals are how the
+> palette forked three ways (see Exceptions).
+
+---
+
+## Tokens
+
+### Surfaces
+| Token | Light | Dark |
+|---|---|---|
+| `--bg-page` | `#F8FAFC` | `#0d0d1a` |
+| `--bg-card` | `#FFFFFF` | `#15152a` |
+| `--bg-card-2` | `#F7F6F3` | `#1b1b32` |
+| `--bg-header` | `#FFFFFF` | ✓ overridden |
+
+### Borders
+`--border` `#E2E8F0` · `--border-light` `#F1F5F9` · `--border-focus` `#1E3A5F`
+
+`--border-focus` is also the keyboard focus-ring colour. Do not repurpose it.
+
+### Brand
+`--pm-primary` `#0F172A` · `--pm-primary-light` `#1E293B` ·
+`--pm-primary-dark` `#152D4A` · `--pm-primary-soft` `rgba(15,23,42,.06)` ·
+`--pm-accent` `#2F9E44` · `--pm-accent-light` `#37B24D`
+
+### 5S pillars
+`--5s-sort` (Seiri, red) · `--5s-set` (Seiton, orange) · `--5s-shine` (Seiso,
+green) · `--5s-standard` (Seiketsu, blue) · `--5s-sustain` (Shitsuke, purple)
+
+### SQCDP
+`--sqcdp-s` Safety · `--sqcdp-q` Quality · `--sqcdp-c` Cost ·
+`--sqcdp-d` Delivery · `--sqcdp-p` People
+
+### Scores
+Semantic pairs: `--score-green` / `--score-green-bg`, and the same for
+`amber`, `red`, `blue`. Numeric audit ramp `--score-0` … `--score-4`
+(0 = red fail → 4 = deep green pass).
+
+### Type
+`--font-display` Outfit · `--font-main` Figtree + Noto Sans Devanagari
+(**required** — the floor UI is bilingual Hindi/English) · `--font-mono`
+JetBrains Mono.
+
+Scale: `--size-xs` 11 · `--size-sm` 13 · `--size-base` 15 · `--size-lg` 17 ·
+`--size-xl` 21 · `--size-2xl` 28 (px).
+
+Text: `--text-primary` · `--text-secondary` · `--text-muted` · `--text-light`.
+
+### Spacing — 4px grid
+`--sp-1` 4 · `--sp-2` 8 · `--sp-3` 12 · `--sp-4` 16 · `--sp-5` 20 ·
+`--sp-6` 24 · `--sp-8` 32
+
+### Shape & elevation
+`--r-sm` 5 · `--r` 8 · `--r-lg` 12 · `--r-xl` 16 ·
+`--shadow` · `--shadow-lg`
+
+### Interaction
+`--tap-min` **44px** — minimum touch target. Non-negotiable: users operate this
+on a factory floor, often gloved. `--trans` `0.18s ease`.
+
+---
+
+## Components
+
+92 classes. Primary families:
+
+| Family | Variants |
+|---|---|
+| `.pm-btn` | `--primary` `--success` `--danger` `--outline` `--lg` |
+| `.pm-card` | — |
+| `.pm-input` / `.pm-textarea` | — |
+| `.badge` | `--green` `--amber` `--red` `--blue` `--navy` |
+| `.pf-btn` | `--pass` `--fail` (pass/fail toggle) |
+| `.pm-toast` `.pm-drawer` `.pm-fab` `.pm-spinner` `.pm-overlay` | — |
+| `.bottom-nav` | `-item` `-icon` |
+
+### Required states
+Every interactive component must define `:hover`, `:active`, `:disabled` and
+inherit `:focus-visible` from the global accessibility block. **Do not write
+`outline: none` without an accompanying `:focus-visible` rule.**
+
+Known gaps: `.pm-btn` has no loading state; `.pm-input` has no invalid state.
+
+---
+
+## Accessibility
+
+- **Focus** — a global `:focus-visible` block gives a 3px `--border-focus`
+  outline (accent in dark mode). `:focus-visible` fires only for keyboard/AT
+  navigation, so tap and mouse users see nothing.
+- **Reduced motion** — `@media (prefers-reduced-motion: reduce)` neutralises
+  animation, transition and `transform: scale()` press effects.
+- **Touch** — use `--tap-min` (44px), never a hardcoded height.
+- **Colour** — never encode meaning in colour alone. The overdue rail pairs its
+  red border with a text chip; follow that pattern.
+
+Target: **WCAG 2.2 AA**.
+
+---
+
+## Theming
+
+Dark mode is opt-in per document:
+
+```js
+document.documentElement.setAttribute('data-theme', 'dark');  // persisted: localStorage 'pm5s_theme'
+```
+
+38 of 69 tokens are overridden. Untouched tokens are intentionally
+theme-independent (spacing, radii, fonts, `--text-light`).
+
+⚠️ **Only `CommonStyles` and `GembaBoard` currently wire up the toggle.** Adding
+the attribute-setter to a page is what makes dark mode reachable there.
+
+---
+
+## Exceptions
+
+**`RecordView.html`** does not include CommonStyles. It is anonymous,
+high-traffic, opened from Telegram links, and the include forces a ~195KB
+ZONE_CONFIG parse per load — see `serveRecordViewFast_()` in
+`20_EnhancedWebApp.js`. It therefore declares a 17-token local `:root` using
+short names (`--ink`, `--bg`, `--accent`).
+**Its values are copied from this document and must be kept in sync.**
+
+**`InsightsView.html`** includes CommonStyles at the end of `<body>` and still
+carries ~142 hex literals from a pre-token palette. Migrating it is tracked
+work, not a licence to add more literals.
+
+---
+
+*Audited and updated 2026-08-20.*

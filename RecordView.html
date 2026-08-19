@@ -5,14 +5,32 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>PackMasters 5S — Record</title>
 <style>
+  /* Local aliases onto the canonical CommonStyles palette.
+     This page deliberately does NOT include CommonStyles — see
+     serveRecordViewFast_() in 20_EnhancedWebApp.js: it is anonymous,
+     high-traffic, and skipping the include avoids parsing ~195KB of
+     ZONE_CONFIG per load. Values below are copied from CommonStyles :root
+     so the two stay in visual sync; the short local names are kept so the
+     29 var() uses in this file are untouched.
+     KEEP IN SYNC with CommonStyles.html :root. Updated 2026-08-20. */
   :root {
-    --ink: #1a1f2e; --ink2: #5a6472; --ink3: #9aa1ad;
-    --line: #e3e6ee; --line-lt: #eef0f6; --bg: #f4f6fb;
-    --card: #ffffff; --accent: #2563eb; --accent-soft: #eaf1ff;
-    --red: #c0392b; --red-bg: #fdecec;
-    --amber: #b9770a; --amber-bg: #fef5e7;
-    --green: #1e8e50; --green-bg: #eafaf1;
-    --r: 14px; --shadow: 0 2px 14px rgba(16,24,40,.06);
+    --ink: #0F172A;    /* = --text-primary   */
+    --ink2: #475569;   /* = --text-secondary */
+    --ink3: #94A3B8;   /* = --text-muted     */
+    --line: #E2E8F0;   /* = --border         */
+    --line-lt: #F1F5F9;/* = --border-light   */
+    --bg: #F8FAFC;     /* = --bg-page        */
+    --card: #FFFFFF;   /* = --bg-card        */
+    --accent: #2F9E44; /* = --pm-accent      */
+    --accent-soft: #EBFBEE; /* = --score-green-bg */
+    --red: #C92A2A;    /* = --score-red      */
+    --red-bg: #FFF5F5; /* = --score-red-bg   */
+    --amber: #E67700;  /* = --score-amber    */
+    --amber-bg: #FFF3E0; /* = --score-amber-bg */
+    --green: #2F9E44;  /* = --score-green    */
+    --green-bg: #EBFBEE; /* = --score-green-bg */
+    --r: 8px;          /* = --r              */
+    --shadow: 0 1px 3px rgba(0,0,0,.06); /* = --shadow */
   }
   * { box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; }

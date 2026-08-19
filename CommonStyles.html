@@ -120,10 +120,6 @@
   --font-main:    'Figtree', 'Noto Sans', 'Noto Sans Devanagari', system-ui, sans-serif;
   --font-mono:    'JetBrains Mono', 'SF Mono', 'Courier New', monospace;
 
-  /* Legacy aliases (keep for backward compat with older pages) */
-  --f-display: var(--font-display);
-  --f-body:    var(--font-main);
-  --f-mono:    var(--font-mono);
 
   /* Text */
   --text-primary:   #0F172A;
@@ -182,6 +178,37 @@
   --score-blue-bg:   rgba(24,100,171,.18);
   --shadow:    0 1px 4px rgba(0,0,0,.55), 0 1px 2px rgba(0,0,0,.4);
   --shadow-lg: 0 4px 18px rgba(0,0,0,.65), 0 2px 6px rgba(0,0,0,.45);
+
+  /* Brand + semantic ramps — added 2026-08-20. The light-mode values are
+     saturated mid-tones picked against a white page; on the dark surface they
+     lose contrast, so each is lightened toward the same hue. Without these the
+     5S pillar, SQCDP and score colours stayed at their light values and the
+     theme was only 25% covered. */
+  --pm-accent:        #40C057;
+  --pm-accent-light:  #51CF66;
+
+  --5s-sort:     #FF6B6B;
+  --5s-set:      #FF922B;
+  --5s-shine:    #38D9A9;
+  --5s-standard: #4DABF7;
+  --5s-sustain:  #9775FA;
+
+  --sqcdp-s: #FF6B6B;
+  --sqcdp-q: #4DABF7;
+  --sqcdp-c: #FFA94D;
+  --sqcdp-d: #38D9A9;
+  --sqcdp-p: #9775FA;
+
+  --score-green: #51CF66;
+  --score-amber: #FFA94D;
+  --score-red:   #FF6B6B;
+  --score-blue:  #4DABF7;
+
+  --score-0: #FF6B6B;
+  --score-1: #FF922B;
+  --score-2: #FFA94D;
+  --score-3: #51CF66;
+  --score-4: #38D9A9;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1347,6 +1374,65 @@ input, select, textarea { font-size: max(16px, 1em); }
   .bottom-nav-item { height: 44px; font-size: 10px; }
   .bottom-nav-icon { font-size: 16px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ACCESSIBILITY — focus visibility (WCAG 2.2 AA 2.4.7) and reduced motion
+   (2.3.3). Added 2026-08-20. :focus-visible only fires for keyboard/AT
+   navigation, so mouse and touch users see no ring — the floor-tap UX is
+   unchanged while keyboard users get a real indicator.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.pm-btn:focus-visible,
+.pm-btn--primary:focus-visible,
+.pm-btn--success:focus-visible,
+.pm-btn--danger:focus-visible,
+.pm-btn--outline:focus-visible,
+.pm-btn--lg:focus-visible,
+.pf-btn:focus-visible,
+.pf-toggle:focus-visible,
+.lang-toggle:focus-visible,
+.bottom-nav-item:focus-visible,
+.pm-fab:focus-visible,
+.action-item:focus-visible,
+.criterion-row:focus-visible,
+[role="button"]:focus-visible,
+a:focus-visible,
+summary:focus-visible {
+  outline: 3px solid var(--border-focus);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+/* Inputs already recolour their border on :focus; add the ring so the cue is
+   not carried by colour alone (1.4.1 Use of Colour). */
+.pm-input:focus-visible,
+.pm-textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid var(--border-focus);
+  outline-offset: 1px;
+}
+
+/* Dark mode: navy ring is invisible on a navy surface — use the accent. */
+[data-theme="dark"] .pm-btn:focus-visible,
+[data-theme="dark"] .pf-btn:focus-visible,
+[data-theme="dark"] .pm-input:focus-visible,
+[data-theme="dark"] .pm-textarea:focus-visible,
+[data-theme="dark"] [role="button"]:focus-visible,
+[data-theme="dark"] a:focus-visible {
+  outline-color: var(--pm-accent-light);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .skeleton { animation: none !important; background-image: none !important; }
+  .pm-btn:active, .pf-btn:active, .pm-btn--primary:active { transform: none !important; }
+}
+
 </style>
 <!-- Flash-of-theme prevention: apply dark mode before first paint -->
 <script>

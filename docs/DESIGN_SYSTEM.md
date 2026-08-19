@@ -100,6 +100,10 @@ Known gaps: `.pm-btn` has no loading state; `.pm-input` has no invalid state.
 - **Focus** — a global `:focus-visible` block gives a 3px `--border-focus`
   outline (accent in dark mode). `:focus-visible` fires only for keyboard/AT
   navigation, so tap and mouse users see nothing.
+  The selector targets **elements** (`button`, `a`, `select`, `[role="button"]`,
+  `[tabindex]:not([tabindex="-1"])`), not class names — pages define dozens of
+  their own button classes (`.ah-btn`, `.iv-filter-btn`, `.gw-yn-btn`, `.fm-btn`
+  …) and enumerating them guarantees gaps. New markup is covered automatically.
 - **Reduced motion** — `@media (prefers-reduced-motion: reduce)` neutralises
   animation, transition and `transform: scale()` press effects.
 - **Touch** — use `--tap-min` (44px), never a hardcoded height.

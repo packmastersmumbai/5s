@@ -1382,22 +1382,26 @@ input, select, textarea { font-size: max(16px, 1em); }
    unchanged while keyboard users get a real indicator.
    ═══════════════════════════════════════════════════════════════════════ */
 
+/* Element-level, not class-level. Pages define dozens of their own button
+   classes (.ah-btn, .iv-filter-btn, .gw-yn-btn, .fm-btn …); enumerating them
+   guarantees gaps. Targeting the elements catches every one, including markup
+   added later. */
+button:focus-visible,
+a:focus-visible,
+summary:focus-visible,
+select:focus-visible,
+[role="button"]:focus-visible,
+[role="tab"]:focus-visible,
+[role="link"]:focus-visible,
+[tabindex]:not([tabindex="-1"]):focus-visible,
 .pm-btn:focus-visible,
-.pm-btn--primary:focus-visible,
-.pm-btn--success:focus-visible,
-.pm-btn--danger:focus-visible,
-.pm-btn--outline:focus-visible,
-.pm-btn--lg:focus-visible,
 .pf-btn:focus-visible,
 .pf-toggle:focus-visible,
 .lang-toggle:focus-visible,
 .bottom-nav-item:focus-visible,
 .pm-fab:focus-visible,
 .action-item:focus-visible,
-.criterion-row:focus-visible,
-[role="button"]:focus-visible,
-a:focus-visible,
-summary:focus-visible {
+.criterion-row:focus-visible {
   outline: 3px solid var(--border-focus);
   outline-offset: 2px;
   border-radius: var(--r-sm);
@@ -1413,12 +1417,13 @@ select:focus-visible {
 }
 
 /* Dark mode: navy ring is invisible on a navy surface — use the accent. */
-[data-theme="dark"] .pm-btn:focus-visible,
-[data-theme="dark"] .pf-btn:focus-visible,
-[data-theme="dark"] .pm-input:focus-visible,
-[data-theme="dark"] .pm-textarea:focus-visible,
+[data-theme="dark"] button:focus-visible,
+[data-theme="dark"] a:focus-visible,
+[data-theme="dark"] select:focus-visible,
 [data-theme="dark"] [role="button"]:focus-visible,
-[data-theme="dark"] a:focus-visible {
+[data-theme="dark"] [tabindex]:not([tabindex="-1"]):focus-visible,
+[data-theme="dark"] .pm-input:focus-visible,
+[data-theme="dark"] .pm-textarea:focus-visible {
   outline-color: var(--pm-accent-light);
 }
 

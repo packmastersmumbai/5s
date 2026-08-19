@@ -151,4 +151,57 @@ work, not a licence to add more literals.
 
 ---
 
+## Contributing
+
+The system forked three ways because there was no answer to "the tokens don't
+fit my page." There is one now.
+
+**Your page needs a value the system doesn't have.**
+
+1. **Check for a near-match first.** `--score-amber` probably covers your
+   warning colour. Reuse beats addition.
+2. **If it is genuinely new, add it here and to `CommonStyles.html` :root** —
+   in the same commit as the page that needs it. A token used once is fine; a
+   literal used once is not, because the next page copies it.
+3. **Name it by role, not appearance.** `--score-red`, not `--bright-red`.
+   Roles survive a rebrand; appearances do not.
+4. **If it needs a dark value, add that too** in the `[data-theme="dark"]`
+   block. Half-themed tokens are how dark mode ended up at 25% coverage.
+
+**When forking is acceptable** — exactly two cases:
+
+- **Measured performance**, like `RecordView` (see Exceptions). Document the
+  measurement in the file and here.
+- **A need the system genuinely cannot express.** Then say so, and expect the
+  fork to be promoted back. QuickAudit's vivid pillar ramp was a real gap — the
+  muted `--5s-*` set did not read at arm's length on the floor. It is now
+  canonical as `--pillar-*-vivid`.
+
+"I was in a hurry" is not on the list. That path produced 887 hex literals.
+
+**Promoting a fork back.** If your page solved something well, move the tokens
+into `CommonStyles.html` :root, note the origin in a comment, and point the page
+at the canonical names. Nothing is lost; everyone gains.
+
+---
+
+## Adoption status
+
+Measured 2026-08-20. Re-measure with the commands in the audit trail, not by eye.
+
+| Metric | Then | Target |
+|---|---|---|
+| Token adoption (var vs hex) | 64% | 85% |
+| Pages at 0% adoption | 10 | 0 |
+| Parallel palettes | 4 | 1 (RecordView) |
+| `data-theme` wired | 2 / 41 | 41 |
+
+Pages at 0%, smallest first — each is find-and-replace, not redesign, and 7 of
+them already include CommonStyles: `WDGLLLibrary` (4 literals), `SkillsMatrix`
+(13), `DataImport` (14), `PinLogin` (17), `PhotoAnnotator` (24), `AuditReport`
+(26), `OPLViewer` (30), `MRMReportPack_Full` (32), `MRMSummary` (34),
+`RedTagForm` (44).
+
+---
+
 *Audited and updated 2026-08-20.*

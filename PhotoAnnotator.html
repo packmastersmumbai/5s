@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+<?!= include("CommonStyles") ?>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Photo Annotator</title>
@@ -8,17 +9,17 @@
   * { box-sizing: border-box; }
   body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #111; color: white; touch-action: none; }
   .toolbar { display: flex; gap: 4px; padding: 8px; background: #222; flex-wrap: wrap; align-items: center; }
-  .toolbar button { padding: 8px 12px; border: 1px solid #555; border-radius: 6px; background: #333; color: white; font-size: 14px; cursor: pointer; min-height: 44px; min-width: 44px; }
-  .toolbar button.active { background: #2980b9; border-color: #3498db; }
-  .toolbar select { padding: 6px; border-radius: 6px; background: #333; color: white; border: 1px solid #555; }
+  .toolbar button { padding: 8px 12px; border: 1px solid var(--text-secondary); border-radius: 6px; background: var(--text-primary); color: white; font-size: 14px; cursor: pointer; min-height: 44px; min-width: 44px; }
+  .toolbar button.active { background: var(--score-blue); border-color: var(--score-blue); }
+  .toolbar select { padding: 6px; border-radius: 6px; background: var(--text-primary); color: white; border: 1px solid var(--text-secondary); }
   .canvas-container { position: relative; width: 100%; display: flex; justify-content: center; align-items: center; background: #000; overflow: hidden; }
   canvas { max-width: 100%; max-height: calc(100vh - 120px); display: block; }
-  .stamp-preview { position: absolute; bottom: 8px; left: 8px; font-size: 10px; color: #999; background: rgba(0,0,0,0.7); padding: 4px 8px; border-radius: 4px; }
+  .stamp-preview { position: absolute; bottom: 8px; left: 8px; font-size: 10px; color: var(--text-muted); background: rgba(0,0,0,0.7); padding: 4px 8px; border-radius: 4px; }
   .action-bar { display: flex; gap: 8px; padding: 8px; background: #222; justify-content: center; }
   .action-bar button { padding: 10px 24px; border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; min-height: 44px; }
-  .btn-save { background: #27ae60; color: white; }
-  .btn-cancel { background: #555; color: white; }
-  .btn-undo { background: #f39c12; color: white; }
+  .btn-save { background: var(--score-green); color: white; }
+  .btn-cancel { background: var(--text-secondary); color: white; }
+  .btn-undo { background: var(--score-amber); color: white; }
 </style>
 </head>
 <body>

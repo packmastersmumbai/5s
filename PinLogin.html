@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+<?!= include("CommonStyles") ?>
   <base target="_top">
   <!-- Nav shim (PinLogin doesn't include CommonStyles): relay nav to the GitHub
        Pages wrapper via postMessage when embedded; top-nav when direct. -->
@@ -16,9 +17,9 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-      background: linear-gradient(160deg,#0f172a,#1e293b); color: #f1f5f9;
+      background: linear-gradient(160deg,var(--pm-primary),var(--pm-primary-light)); color: var(--border-light);
       min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
-    .card { width: 100%; max-width: 380px; background: #1e293b; border: 1px solid #334155;
+    .card { width: 100%; max-width: 380px; background: var(--pm-primary-light); border: 1px solid var(--pm-primary-light);
       border-radius: 18px; padding: 28px 24px; box-shadow: 0 12px 40px rgba(0,0,0,.4); }
     .brand { text-align: center; margin-bottom: 18px; }
     .brand h1 { font-size: 20px; font-weight: 700; letter-spacing: .5px; }
@@ -29,22 +30,22 @@
     .user.sel { opacity: 1; transform: scale(1.06); }
     .ava { width: 46px; height: 46px; border-radius: 50%; margin: 0 auto 4px;
       display: flex; align-items: center; justify-content: center; font-weight: 700;
-      color: #fff; font-size: 16px; border: 2px solid transparent; }
-    .user.sel .ava { border-color: #38bdf8; box-shadow: 0 0 0 3px rgba(56,189,248,.25); }
+      color: var(--bg-card); font-size: 16px; border: 2px solid transparent; }
+    .user.sel .ava { border-color: var(--score-blue); box-shadow: 0 0 0 3px rgba(56,189,248,.25); }
     .uname { font-size: 11px; color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .err { min-height: 18px; text-align: center; font-size: 13px; color: #f87171; margin: 4px 0 10px; }
+    .err { min-height: 18px; text-align: center; font-size: 13px; color: var(--score-red); margin: 4px 0 10px; }
     .dots { display: flex; gap: 14px; justify-content: center; margin: 6px 0 20px; }
     .dot { width: 14px; height: 14px; border-radius: 50%; background: transparent;
       border: 2px solid #64748b; transition: all .12s; }
-    .dot.fill { background: #38bdf8; border-color: #38bdf8; }
+    .dot.fill { background: var(--score-blue); border-color: var(--score-blue); }
     .pad { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
-    .key { padding: 16px 0; font-size: 22px; font-weight: 600; background: #334155;
-      border: none; color: #f1f5f9; border-radius: 12px; cursor: pointer; transition: background .1s; }
-    .key:active { background: #475569; }
+    .key { padding: 16px 0; font-size: 22px; font-weight: 600; background: var(--pm-primary-light);
+      border: none; color: var(--border-light); border-radius: 12px; cursor: pointer; transition: background .1s; }
+    .key:active { background: var(--text-secondary); }
     .key.ghost { background: transparent; }
     .shake { animation: shk .45s; }
     @keyframes shk { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-8px)} 40%,80%{transform:translateX(8px)} }
-    .ver { text-align: center; font-size: 10px; color: #475569; margin-top: 16px; }
+    .ver { text-align: center; font-size: 10px; color: var(--text-secondary); margin-top: 16px; }
   </style>
 </head>
 <body>

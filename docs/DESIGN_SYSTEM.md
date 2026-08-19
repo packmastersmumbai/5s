@@ -187,21 +187,46 @@ at the canonical names. Nothing is lost; everyone gains.
 
 ## Adoption status
 
-Measured 2026-08-20. Re-measure with the commands in the audit trail, not by eye.
+Measured 2026-08-20 **on `<style>` blocks only** — counting hex in JavaScript
+too (runtime chart colours, canvas fills) understates adoption and is not what
+this system governs.
 
-| Metric | Then | Target |
+| Metric | Value | Target |
 |---|---|---|
-| Token adoption (var vs hex) | 64% | 85% |
-| Pages at 0% adoption | 10 | 0 |
-| Parallel palettes | 4 | 1 (RecordView) |
-| `data-theme` wired | 2 / 41 | 41 |
+| Token adoption in page CSS | **83%** | 90% |
+| Pages at 0% adoption | **0** | 0 |
+| Parallel palettes | 2 | 1 |
+| QuickAudit targets ≥44px | **169/169** | 169/169 |
 
-Pages at 0%, smallest first — each is find-and-replace, not redesign, and 7 of
-them already include CommonStyles: `WDGLLLibrary` (4 literals), `SkillsMatrix`
-(13), `DataImport` (14), `PinLogin` (17), `PhotoAnnotator` (24), `AuditReport`
-(26), `OPLViewer` (30), `MRMReportPack_Full` (32), `MRMSummary` (34),
-`RedTagForm` (44).
+### Enforced by check
 
----
+```bash
+node scripts/check-hex-budget.js
+```
+
+Each page has a budget of remaining raw hex literals in its `<style>` block;
+the script exits 1 when one exceeds it. A **ratchet, not a gate** — existing
+debt is budgeted, new debt fails.
+
+Lower a budget when you migrate a page. **Never raise one** without a reason
+recorded here. If your page needs a value that isn't a token, that is what
+[Contributing](#contributing) is for.
+
+Verified in both directions on 2026-08-20: exits 1 when literals are injected
+over budget, exits 0 once reverted.
+
+> This deliberately does **not** live in `runAllTests`. A GAS-side version was
+> written first and could not be shown to fail on injected debt — the assertion
+> passed regardless, because `HtmlService.createHtmlOutputFromFile` returns
+> evaluated output rather than raw source. An unfalsifiable test is worse than
+> no test: it advertises protection it does not provide. It was removed.
+
+### Remaining parallel palettes
+
+- **`RecordView`** — documented performance exception, values kept in sync.
+- **`QuickAudit`** — 43 local oklch tokens. Its vivid pillar ramp is now
+  canonical (`--pillar-*-vivid`), so migration is possible without loss; the
+  remaining ink/surface scale still needs porting. Largest single consistency
+  win left.
 
 *Audited and updated 2026-08-20.*

@@ -188,7 +188,7 @@
 var TYPE = '<?= (params && params.type) ? String(params.type).replace(/[^a-zA-Z]/g,"") : "" ?>';
 var ID   = '<?= (params && params.id) ? String(params.id).replace(/[^a-zA-Z0-9\-_]/g,"") : "" ?>';
 var DU   = '<?= deployUrl ?>';
-function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 function render(rec){
   var el = document.getElementById('rec');

@@ -49,8 +49,10 @@ that does the job now.
 | `AnalyticsView.html` | 240 | Analytics/metrics view | Same merge as ChartsView | `InsightsView.html` |
 | `MRMReportPack.html` | 12 | Placeholder stub — "Full UI implementation pending" | Shadowed by the real implementation; route `mrmpack` serves the `_Full` version | `MRMReportPack_Full.html` |
 | `TierDashboard.html` | 12 | Placeholder stub — "Full UI implementation pending" | Shadowed by the real implementation; routes `tierdash` / `riskregister` serve the `_Full` version | `TierDashboard_Full.html` |
+| `14_HealthCheck.js` | 177 | `systemHealthCheck()` — spreadsheet/sheet/trigger checks returning `checks: []` | Shadowed. `28_Monitoring.js` defines the same function name, loads later, and wins in GAS's flat global scope — confirmed at runtime (live return shape is `{healthy, checks:{...}}`, the Monitoring one) | `28_Monitoring.js` |
+| `OfflineQueue.html` | 269 | Standalone IndexedDB offline-submission queue | `CommonStyles.html:1680` now inlines `OfflineQueueService` directly; the separate file has no `include()` | inline block in `CommonStyles.html` |
 
-**Total quarantined: 3,101 lines across 9 files.**
+**Total quarantined: 3,547 lines across 11 files.**
 
 ---
 
@@ -79,15 +81,52 @@ nobody re-discovers them and assumes they were missed:
   `seedUsers()` from `25b_PinAuth.js` instead.
 - **`WDGLLLibrary.html`** — also a "pending" placeholder, but route `wdgll`
   actively serves it. Retiring it breaks a live route; needs a product decision.
-- **28 copies of `escHtml`/`esc`** across 27 HTML files (~110 lines). Consolidating
-  into `CommonStyles` (already included by 24 of them) is a refactor, not a deletion —
-  **and the copies are not identical**, so it needs care rather than a blind merge.
-  Six files (`ZoneSelector`, `RecordView`, `OPLViewer`, `ManagementReview`,
-  `SetupWizard`, `MRMReportPack_Full`) escape `& < >` but **not `"`**. None of the
-  six currently interpolate into an HTML attribute, so there is no live injection
-  hole — but any future `title="…"` or `data-x="…"` in those files would open one.
-  Consolidate on the strict version (`& < > "` plus the falsy guard) when doing it.
+- **`escHtml`/`esc` duplication** — investigated in the third pass and
+  **deliberately kept**. See "escHtml consolidation — attempted, then rejected"
+  below. The six weak variants have been hardened to escape `"`.
 - **`clasp run` entry points** — `listAllProperties`, `deleteStaleProperties`,
   `persistSpreadsheetId`, `systemHealthCheck`, `seedDemoData` etc. look dead to a
   static scan because nothing in the repo calls them. They are invoked externally
   from the CLI. **Do not delete on "no references" evidence alone.**
+
+
+---
+
+## Third pass — 2026-08-14 (shadowed duplicates)
+
+Four function names were defined **twice** across files. GAS has one flat global
+scope, so the later-loading definition silently wins and the earlier one is
+unreachable code that still *looks* live.
+
+**Never resolve these by reading load order — probe them.** A `clasp run` probe
+calling each function and inspecting the return shape corrected this audit twice:
+
+| Name | Predicted keeper | Actual keeper (probed) |
+|---|---|---|
+| `systemHealthCheck` | 28_Monitoring | 28_Monitoring ✓ |
+| `getSheetHeaders` | — | 20_EnhancedWebApp |
+| `getProjectVersion` | 04_AdminUtils ✗ | **15_Versions** |
+| `getFloorMapData` | 27_FloorMapService | 27_FloorMapService ✓ (but the two copies read *different sheets* — `MapConfig` vs `FloorMapConfig` — so the loser was quietly broken, not merely redundant) |
+
+Losers removed: `19_KanbanTaskService.js` `getFloorMapData`, `00_Diag.js`
+`getSheetHeaders`, `04_AdminUtils.js` `PROJECT_VERSION`+`getProjectVersion`.
+Plus 15 unreferenced exports across 11 files (~660 lines).
+
+### escHtml consolidation — attempted, then rejected
+
+The earlier note proposed merging 23 copies of `escHtml`/`esc` into
+`CommonStyles`. **Do not do this.** Two facts kill it:
+
+1. **11 of the 23 pages do not include `CommonStyles` at all** — they include
+   nothing and are fully self-contained. Consolidating means *adding* an include
+   to 11 files to remove a helper from them.
+2. The real footprint is only ~31 body lines, not the ~95 first estimated — most
+   copies are one-liners.
+
+Net effect would be more coupling for roughly zero lines. The duplication is the
+cheaper option here.
+
+What *was* worth doing: the six weak variants (`ZoneSelector`, `RecordView`,
+`OPLViewer`, `ManagementReview`, `SetupWizard`, `MRMReportPack_Full`) escaped
+`& < >` but not `"`. All six now escape `"` too — same line count, strictly
+safer if any of them ever interpolates into an HTML attribute.

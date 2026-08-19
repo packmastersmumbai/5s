@@ -33,7 +33,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f5f5f5;min-height:100vh
 <div class="container" id="content"><div style="text-align:center;padding:60px;color:#999">Loading...</div></div>
 
 <script>
-function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
 function loadCandidates(){
   google.script.run.withSuccessHandler(function(data){

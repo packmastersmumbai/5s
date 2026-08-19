@@ -41,7 +41,7 @@ td{padding:7px 10px;border-bottom:1px solid #eee}tr:nth-child(even){background:#
 <div class="container" id="content"><div style="text-align:center;padding:60px;color:#999">Generating MRM Report...</div></div>
 
 <script>
-function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function fmt(n){return typeof n==='number'?n.toLocaleString():String(n||'—');}
 
 function load(){

@@ -271,11 +271,6 @@ function createEnhancedAdminMenu() {
   // Menu consolidated into 📋 PackMasters Admin in 04_AdminUtils.js
 }
 
-function testWebhook_() {
-  sendWebhookNotification("🧪 PackMasters 5S webhook test — " + new Date().toLocaleString());
-  v2GetSpreadsheet_().toast("Webhook test sent!", "Webhook", 3);
-}
-
 // ============================================================================
 // ENHANCED MASTER ORCHESTRATOR HOOK
 // ============================================================================
@@ -537,48 +532,6 @@ function getSheetHeaders(sheetName) {
 // SETUP WIZARD SUPPORT
 // ============================================================================
 
-/**
- * Applies setup wizard configuration.
- */
-function applySetupWizardConfig(wizConfig) {
-  try {
-    var props = PropertiesService.getScriptProperties();
-
-    if (wizConfig.companyName) props.setProperty("COMPANY_NAME", wizConfig.companyName);
-    if (wizConfig.logoUrl) props.setProperty("LOGO_URL", wizConfig.logoUrl);
-    if (wizConfig.mcEmail) props.setProperty("MC_EMAIL", wizConfig.mcEmail);
-    if (wizConfig.topEmail) props.setProperty("TOP_EMAIL", wizConfig.topEmail);
-
-    // Update zone config if provided
-    if (wizConfig.zones && wizConfig.zones.length > 0) {
-      var ss = v2GetSpreadsheet_();
-      var zonesSheet = ss.getSheetByName("Zones");
-      if (zonesSheet) {
-        // Clear existing data (keep headers)
-        if (zonesSheet.getLastRow() > 1) {
-          zonesSheet.getRange(2, 1, zonesSheet.getLastRow() - 1, zonesSheet.getLastColumn()).clearContent();
-        }
-        // Write new zone data
-        var zoneRows = wizConfig.zones.map(function(z) {
-          return [z.id, z.name, z.nameHi || "", z.leader, z.email || "",
-                  z.auditDay || "Monday", z.auditDayNum || 1, z.driveFolderId || ""];
-        });
-        if (zoneRows.length > 0) {
-          zonesSheet.getRange(2, 1, zoneRows.length, zoneRows[0].length).setValues(zoneRows);
-        }
-      }
-    }
-
-    // Refresh all configs
-    refreshConfig();
-    if (typeof refreshEnhancedConfig_ === "function") refreshEnhancedConfig_();
-
-    logAdminAction_("setupWizard", "Configuration applied via Setup Wizard.");
-    return { success: true, message: "Configuration applied successfully!" };
-  } catch (e) {
-    return { success: false, message: e.message };
-  }
-}
 
 // ============================================================================
 // BOTTOM NAV — ICON LIBRARY

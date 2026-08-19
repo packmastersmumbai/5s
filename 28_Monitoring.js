@@ -331,34 +331,3 @@ function systemHealthCheck() {
 // UTILITY FUNCTIONS
 // ============================================================================
 
-/**
- * Gets monitoring stats for admin dashboard.
- * @returns {Object} Current monitoring state
- */
-function getMonitoringStats() {
-  try {
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var adminLog = ss.getSheetByName("AdminLog");
-    if (!adminLog) return { errors24h: 0, lastError: null };
-
-    var data = adminLog.getDataRange().getValues();
-    var now = new Date();
-    var oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-
-    var recentErrors = [];
-    for (var i = data.length - 1; i >= 1 && i >= data.length - 100; i--) {
-      var rowTime = new Date(data[i][0]);
-      if (rowTime >= oneDayAgo && String(data[i][2]).indexOf("ERROR") !== -1) {
-        recentErrors.push({ time: rowTime, action: data[i][2], message: data[i][3] });
-      }
-    }
-
-    return {
-      errors24h: recentErrors.length,
-      lastError: recentErrors.length > 0 ? recentErrors[0] : null,
-      checked: now.toISOString()
-    };
-  } catch (e) {
-    return { errors24h: 0, error: e.message };
-  }
-}

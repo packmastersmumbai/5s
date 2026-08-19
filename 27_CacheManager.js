@@ -236,26 +236,6 @@ function v2ClearAllCaches() {
 // CACHE STATISTICS & MONITORING
 // ============================================================================
 
-/**
- * Gets cache hit/miss statistics for monitoring.
- * Useful for understanding cache efficiency.
- *
- * @returns {Object} Cache statistics
- */
-function getCacheStats() {
-  try {
-    // ScriptCache doesn't provide hit/miss stats directly
-    // This is a placeholder for future analytics
-    var stats = {
-      timestamp: new Date().toISOString(),
-      // Cache stats would be tracked by instrumenting get/put calls
-      note: "Cache hit/miss stats not available via CacheService API"
-    };
-    return stats;
-  } catch (e) {
-    return { error: e.message };
-  }
-}
 
 // ============================================================================
 // INTEGRATION HOOKS — Call these in CRUD operations
@@ -274,40 +254,6 @@ function invalidateTaskCache_(zoneId) {
   v2InvalidateCache("TaskBoard", zoneId);
 }
 
-function invalidateNCCache_(zoneId) {
-  v2InvalidateCache("NC_CAPA", zoneId);
-}
-
-function invalidateKaizenCache_(zoneId) {
-  v2InvalidateCache("KaizenSuggestions", zoneId);
-}
-
-function invalidateDailySubmissionCache_(zoneId) {
-  v2InvalidateCache("DailySubmissions", zoneId);
-}
-
-function invalidateWeeklyAuditCache_(zoneId) {
-  v2InvalidateCache("WeeklyAudit", zoneId);
-}
-
-/**
- * Called when zone config changes (Zones sheet edited).
- * Invalidates all caches since zone info affects all queries.
- */
-function invalidateConfigCaches_() {
-  try {
-    var cache = CacheService.getScriptCache();
-    cache.remove(CACHE_KEYS.ZONE_CONFIG);
-    cache.remove(CACHE_KEYS.CHECKLIST_SCHEMA);
-
-    // Clear all zone-specific caches too
-    v2ClearAllCaches();
-
-    Logger.log("✅ Config caches invalidated");
-  } catch (e) {
-    Logger.log("Error invalidating config: " + e.message);
-  }
-}
 
 // ============================================================================
 // CACHE HEALTH CHECK

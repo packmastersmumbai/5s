@@ -623,34 +623,6 @@ function runMonthlyRollupManually() {
 
 
 
-// ============================================================================
-// VERSIONS FILE
-// ============================================================================
-
-/**
- * Project version tracking object.
- * Updated with each deployment.
- */
-var PROJECT_VERSION = {
-  current: "1.0.0",
-  phases: {
-    "1.0.0": {
-      date: "2025-04-01",
-      phases: "1",
-      deployId: "NOT_SET",
-      description: "Phase 1 — Foundation: Spreadsheet, Config & QR Generation"
-    }
-  }
-};
-
-/**
- * Returns the current project version.
- * @returns {string} Version string
- */
-function getProjectVersion() {
-  return PROJECT_VERSION.current;
-}
-
 
 // ============================================================================
 // DIAGNOSTICS

@@ -884,35 +884,3 @@ function getGembaBoardData() {
       timestamp: Utilities.formatDate(new Date(), TZ, "dd-MMM-yyyy HH:mm"), totalZones: zoneIds.length };
   }, "getGembaBoardData", { zones: [], plantAvg: 0, timestamp: "" }, "medium");
 }
-
-function getFloorMapData() {
-  return v2SafeExecute_(function() {
-    var ss = v2GetSpreadsheet_(), zoneConfig = v2GetZoneConfig_();
-    var summaryData = v2LoadSheet_(ss, "Summary"), mapData = v2LoadSheet_(ss, "MapConfig");
-    var zoneScores = {};
-    for (var s = summaryData.length - 1; s >= 1; s--) {
-      var zid = String(summaryData[s][0]).trim();
-      // Column 11 = pct_score, Column 13 = nc_count (0-indexed)
-      if (zid && !zoneScores[zid] && summaryData[s][11]) zoneScores[zid] = { weeklyPct: summaryData[s][11] || 0, openNCs: summaryData[s][13] || 0 };
-    }
-    var polyMap = {};
-    for (var m = 1; m < mapData.length; m++) {
-      var mz = String(mapData[m][0]).trim();
-      if (mz) polyMap[mz] = { polygon: String(mapData[m][1] || ""), labelX: mapData[m][2] || 0, labelY: mapData[m][3] || 0 };
-    }
-    var zones = [];
-    Object.keys(zoneConfig).sort().forEach(function(zoneId) {
-      var sc = zoneScores[zoneId] || { weeklyPct: 0, openNCs: 0 }, po = polyMap[zoneId] || {};
-      var pct = parseFloat(sc.weeklyPct) || 0;
-      var color = pct >= 80 ? "#27ae60" : pct >= 60 ? "#f39c12" : pct > 0 ? "#e74c3c" : "#555555";
-      // Use client-expected field names: id, name, score, color (not zoneId/zoneName/weeklyPct)
-      zones.push({ id: zoneId, name: zoneConfig[zoneId].name, score: pct > 0 ? pct : null,
-        color: color, openNCs: sc.openNCs || 0,
-        polygon: po.polygon || "", labelX: po.labelX || 0, labelY: po.labelY || 0 });
-    });
-    // Include FLOOR_MAP_LAYOUT so FloorMap.html can position zones on the custom grid
-    var layoutRaw = PropertiesService.getScriptProperties().getProperty('FLOOR_MAP_LAYOUT');
-    var layout = layoutRaw ? JSON.parse(layoutRaw) : {};
-    return { zones: zones, layout: layout };
-  }, "getFloorMapData", { zones: [], layout: {} }, "medium");
-}

@@ -382,67 +382,6 @@ function detectStreaks(digestEvents) {
 // ANOMALY DETECTION
 // ============================================================================
 
-/**
- * Detects score anomalies: sudden drops (>20%) or suspicious jumps (>40%).
- * Returns anomaly flags to be checked during weekly audit submission.
- *
- * @param {string} zoneId
- * @returns {Object|null} Anomaly info or null
- */
-function checkScoreAnomaly(zoneId) {
-  var ss = v2GetSpreadsheet_();
-  var weeklySheet = ss.getSheetByName("WeeklyAudit");
-  if (!weeklySheet || weeklySheet.getLastRow() <= 1) return null;
-
-  var data = weeklySheet.getDataRange().getValues(); // BATCH_READ
-  var recentScores = [];
-
-  for (var r = 1; r < data.length; r++) {
-    if (String(data[r][NC_COL.ZONE_ID]).trim() === zoneId) {
-      var pct = parseFloat(data[r][data[r].length - 4]) || 0; // pct_score column
-      var auditDate = data[r][5];
-      if (auditDate instanceof Date) {
-        recentScores.push({ date: auditDate, pct: pct });
-      }
-    }
-  }
-
-  recentScores.sort(function(a, b) { return b.date - a.date; });
-
-  if (recentScores.length < 4) return null; // Need 4+ weeks for meaningful average
-
-  // 4-week rolling average (excluding the most recent)
-  var sum = 0;
-  for (var i = 1; i < Math.min(5, recentScores.length); i++) {
-    sum += recentScores[i].pct;
-  }
-  var avg4wk = sum / Math.min(4, recentScores.length - 1);
-  var latestPct = recentScores[0].pct;
-  var deviation = latestPct - avg4wk;
-  var deviationPct = Math.abs(deviation) / (avg4wk || 1) * 100;
-
-  if (deviation < 0 && deviationPct > 20) {
-    return {
-      type: "DROP",
-      deviationPct: Math.round(deviationPct),
-      latestPct: Math.round(latestPct),
-      avg4wk: Math.round(avg4wk),
-      message: "Score dropped " + Math.round(deviationPct) + "% from 4-week average (" + Math.round(avg4wk) + "% → " + Math.round(latestPct) + "%)."
-    };
-  }
-
-  if (deviation > 0 && deviationPct > 40) {
-    return {
-      type: "JUMP",
-      deviationPct: Math.round(deviationPct),
-      latestPct: Math.round(latestPct),
-      avg4wk: Math.round(avg4wk),
-      message: "⚠️ Unusual score jump of " + Math.round(deviationPct) + "% from 4-week average (" + Math.round(avg4wk) + "% → " + Math.round(latestPct) + "%). Please verify."
-    };
-  }
-
-  return null;
-}
 
 
 // ============================================================================

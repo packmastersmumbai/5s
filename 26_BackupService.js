@@ -423,31 +423,3 @@ function convertArrayToCSV_(array) {
   }).join("\n");
 }
 
-/**
- * Gets backup status summary for admin dashboard.
- * @returns {Object} { totalBackups: int, latestBackup: Object, oldestBackup: Object, totalSize: MB }
- */
-function getBackupStatus() {
-  try {
-    var backups = listBackups();
-    var backupFolder = getBackupFolder_();
-    var totalSize = 0;
-
-    if (backupFolder) {
-      var files = backupFolder.getFiles();
-      while (files.hasNext()) {
-        totalSize += files.next().getSize();
-      }
-    }
-
-    return {
-      totalBackups: backups.length,
-      latestBackup: backups[0] || null,
-      oldestBackup: backups[backups.length - 1] || null,
-      totalSizeMB: Math.round(totalSize / (1024 * 1024)),
-      retentionDays: BACKUP_CONFIG.RETENTION_DAYS
-    };
-  } catch (e) {
-    return { totalBackups: 0, error: e.message };
-  }
-}

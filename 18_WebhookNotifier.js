@@ -313,54 +313,6 @@ function sendDailySummaryReport() {
 // AUTO PDF AUDIT REPORT AFTER WEEKLY SUBMISSION
 // ============================================================================
 
-/**
- * Generates a PDF snapshot of the audit report and emails it.
- * Called from doPost after a weekly audit is successfully written.
- *
- * @param {Object} data — Weekly audit form data
- * @param {Object} zone — Zone config object
- * @param {string} auditorEmail
- * @param {string} dateStr — Audit date
- * @param {string} submissionId — The generated submission ID
- */
-function autoSendAuditReportPDF(data, zone, auditorEmail, dateStr, submissionId) {
-  try {
-    var props = PropertiesService.getScriptProperties();
-    var deployId = props.getProperty("DEPLOY_ID");
-    if (!deployId || deployId === "NOT_SET") return;
-
-    // Build the print URL for the audit report
-    var printUrl = "https://script.google.com/macros/s/" + deployId + "/exec" +
-      "?action=print&zone=" + encodeURIComponent(zone.id) +
-      "&month=" + dateStr.substring(0, 7) +
-      "&type=audit";
-
-    // Email the link (generating actual PDF from Apps Script is complex and quota-heavy)
-    var mcEmail = props.getProperty("MC_EMAIL") || "";
-    var recipients = [zone.email];
-    if (mcEmail) recipients.push(mcEmail);
-
-    var subject = "📋 Weekly Audit Report — " + zone.name + " — " + dateStr;
-    var html = emailHeader_("📋 Weekly Audit Complete");
-    html += '<div style="padding:20px;">';
-    html += '<p>The weekly 5S audit for <b>' + zone.name + '</b> has been completed.</p>';
-    html += '<table style="border-collapse:collapse;width:100%;margin:12px 0;">';
-    html += '<tr><td style="padding:6px;border:1px solid #ddd;font-weight:bold;">Zone</td><td style="padding:6px;border:1px solid #ddd;">' + zone.id + ' — ' + zone.name + '</td></tr>';
-    html += '<tr><td style="padding:6px;border:1px solid #ddd;font-weight:bold;">Audit Date</td><td style="padding:6px;border:1px solid #ddd;">' + dateStr + '</td></tr>';
-    html += '<tr><td style="padding:6px;border:1px solid #ddd;font-weight:bold;">Auditor</td><td style="padding:6px;border:1px solid #ddd;">' + auditorEmail + '</td></tr>';
-    html += '<tr><td style="padding:6px;border:1px solid #ddd;font-weight:bold;">Submission ID</td><td style="padding:6px;border:1px solid #ddd;">' + submissionId + '</td></tr>';
-    html += '</table>';
-    html += '<p><a href="' + printUrl + '" style="display:inline-block;background:#1a5276;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;">📄 View Printable Audit Report</a></p>';
-    html += '<p style="color:#666;font-size:12px;">Open the link above and use File → Print for an A4 PDF.</p>';
-    html += '</div>';
-    html += emailFooter_();
-
-    emailWrapper_(recipients.join(","), subject, html);
-    Logger.log("  📧 Auto audit report email sent for " + zone.name);
-  } catch (e) {
-    Logger.log("  ⚠️ Auto audit report email failed: " + e.message);
-  }
-}
 
 // ============================================================================
 // SETUP TRIGGERS FOR DAILY SUMMARY

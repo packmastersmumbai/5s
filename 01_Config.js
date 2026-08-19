@@ -259,18 +259,6 @@ function getAllZoneIds() {
   return Object.keys(config).sort();
 }
 
-/**
- * Returns config for a single zone.
- * @param {string} zoneId — e.g. "Z-01"
- * @returns {Object} Zone config object
- */
-function getZoneById(zoneId) {
-  var config = getZoneConfig();
-  if (!config[zoneId]) {
-    throw new Error("Unknown zone ID: " + zoneId);
-  }
-  return config[zoneId];
-}
 
 
 /**

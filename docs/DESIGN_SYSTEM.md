@@ -91,7 +91,13 @@ Every interactive component must define `:hover`, `:active`, `:disabled` and
 inherit `:focus-visible` from the global accessibility block. **Do not write
 `outline: none` without an accompanying `:focus-visible` rule.**
 
-Known gaps: `.pm-btn` has no loading state; `.pm-input` has no invalid state.
+Known gaps:
+- `.pm-btn` has no loading state; `.pm-input` has no invalid state.
+- On QuickAudit, `.qa-submit` and `.offline-banner__dismiss` receive the 3px
+  ring but page-local rules win on `outline-color`, so it paints in their own
+  colour rather than `--border-focus`. Visible and WCAG-conformant, just
+  off-palette — fix by removing those local outline declarations, not by adding
+  `!important` here.
 
 ---
 

@@ -256,59 +256,164 @@ function _fillAuditSlipView_(ss, detail, zoneCfg, overall, byPillar, ncCount) {
   var tz = (typeof TZ !== "undefined" && TZ) ? TZ : (Session.getScriptTimeZone() || "Asia/Kolkata");
   var sh = ss.getSheetByName(AUDIT_SLIP_SHEET);
   if (!sh) sh = ss.insertSheet(AUDIT_SLIP_SHEET); else sh.clear();
+  try { sh.getDataRange().setFontFamily("Arial").setFontSize(9); } catch (e) {}
 
-  var band = overall >= 80 ? "#1b5e20" : overall >= 60 ? "#b45309" : "#b71c1c";
-  sh.getRange("A1:E1").merge()
-    .setValue("PACK MASTERS — 5S AUDIT REPORT  |  5S ऑडिट रिपोर्ट")
-    .setFontSize(13).setFontWeight("bold").setBackground(band).setFontColor("#ffffff")
-    .setHorizontalAlignment("center");
+  var GREEN = "#1b5e20", AMBER = "#b45309", RED = "#b71c1c";
+  var band = overall >= 80 ? GREEN : overall >= 60 ? AMBER : RED;
+  var W = 6;   // columns A..F
 
-  var when = detail.header.timestamp ? Utilities.formatDate(new Date(detail.header.timestamp), tz, "dd-MMM-yyyy HH:mm") : "—";
-  var pillarStr = ["S1", "S2", "S3", "S4", "S5"].map(function (p) {
-    var b = byPillar[p]; return p + ": " + (b ? Math.round(100 * b.sum / (4 * b.n)) + "%" : "—");
-  }).join("   ");
+  // Title
+  sh.getRange(1, 1, 1, W).merge()
+    .setValue("PACK MASTERS \u2014 5S AUDIT REPORT  |  5S \u0911\u0921\u093F\u091F \u0930\u093F\u092A\u094B\u0930\u094D\u091F")
+    .setFontSize(14).setFontWeight("bold").setBackground(band).setFontColor("#ffffff")
+    .setHorizontalAlignment("center").setVerticalAlignment("middle");
+  sh.setRowHeight(1, 30);
 
-  var info = [
-    ["Zone / ज़ोन", detail.header.zoneId + " — " + detail.header.zoneName],
-    ["Auditor / ऑडिटर", detail.header.auditor],
-    ["Zone Leader / लीडर", zoneCfg.leader || "—"],
-    ["Date & Time / दिनांक", when],
-    ["Overall Score / कुल स्कोर", overall + "%"],
-    ["Pillars / स्तंभ", pillarStr],
-    ["NCs (score ≤ 1) / गैर-अनुरूपता", String(ncCount)]
+  // Score banner - the number a reader should see first
+  sh.getRange(2, 1, 1, 2).merge().setValue(overall + "%")
+    .setFontSize(30).setFontWeight("bold").setFontColor(band)
+    .setHorizontalAlignment("center").setVerticalAlignment("middle");
+  sh.getRange(2, 3, 1, W - 2).merge()
+    .setValue(_slipVerdict_(overall) + "\n" + ncCount + " non-conformity(ies) \u00b7 " +
+              detail.items.length + " criteria audited")
+    .setFontSize(11).setWrap(true).setVerticalAlignment("middle");
+  sh.setRowHeight(2, 52);
+  sh.getRange(2, 1, 1, W).setBorder(true, true, true, true, null, null);
+
+  // Identity block - two label/value pairs per row
+  var when = detail.header.timestamp
+    ? Utilities.formatDate(new Date(detail.header.timestamp), tz, "dd-MMM-yyyy HH:mm") : "\u2014";
+  var pairs = [
+    ["Zone / \u091C\u093C\u094B\u0928", detail.header.zoneId + " \u2014 " + detail.header.zoneName,
+     "Date / \u0926\u093F\u0928\u093E\u0902\u0915", when],
+    ["Auditor / \u0911\u0921\u093F\u091F\u0930", detail.header.auditor || "\u2014",
+     "Zone Leader / \u0932\u0940\u0921\u0930", zoneCfg.leader || "\u2014"]
   ];
-  info.forEach(function (f, i) {
-    var r = i + 2;
-    sh.getRange(r, 1).setValue(f[0]).setFontWeight("bold").setBackground("#e8eaf6");
-    sh.getRange(r, 2, 1, 4).merge().setValue(f[1] || "").setWrap(true);
-    sh.getRange(r, 1, 1, 5).setBorder(true, true, true, true, null, null);
+  var r = 3;
+  pairs.forEach(function (pr) {
+    sh.getRange(r, 1).setValue(pr[0]).setFontWeight("bold").setBackground("#eceff1");
+    sh.getRange(r, 2, 1, 2).merge().setValue(pr[1]).setWrap(true);
+    sh.getRange(r, 4).setValue(pr[2]).setFontWeight("bold").setBackground("#eceff1");
+    sh.getRange(r, 5, 1, 2).merge().setValue(pr[3]).setWrap(true);
+    sh.getRange(r, 1, 1, W).setBorder(true, true, true, true, true, null);
+    r++;
   });
 
-  // per-criterion table header
-  var hr = info.length + 3;
-  var heads = ["Criterion / मानदंड", "Pillar", "Score", "Remark", "Photo"];
-  sh.getRange(hr, 1, 1, 5).setValues([heads]).setFontWeight("bold").setBackground("#cfd8dc")
-    .setBorder(true, true, true, true, true, true);
+  // Pillar scorecard - one column each, was a single cramped string
+  r++;
+  sh.getRange(r, 1, 1, W).merge().setValue("PILLAR SCORECARD / \u0938\u094D\u0924\u0902\u092D")
+    .setFontWeight("bold").setBackground("#37474f").setFontColor("#ffffff");
+  r++;
+  var PN = { S1: "Sort", S2: "Set in Order", S3: "Shine", S4: "Standardise", S5: "Sustain" };
+  var names = [], pcts = [];
+  ["S1", "S2", "S3", "S4", "S5"].forEach(function (pk) {
+    var b = byPillar[pk];
+    names.push(pk + " \u00b7 " + PN[pk]);
+    pcts.push(b ? Math.round(100 * b.sum / (4 * b.n)) + "%" : "\u2014");
+  });
+  names.push("OVERALL"); pcts.push(overall + "%");
+  sh.getRange(r, 1, 1, W).setValues([names]).setFontSize(8).setWrap(true)
+    .setHorizontalAlignment("center").setBackground("#eceff1");
+  sh.getRange(r + 1, 1, 1, W).setValues([pcts]).setFontSize(13).setFontWeight("bold")
+    .setHorizontalAlignment("center");
+  for (var c = 1; c <= W; c++) {
+    var raw = pcts[c - 1];
+    if (raw === "\u2014") continue;
+    var v = parseInt(raw, 10);
+    sh.getRange(r + 1, c).setFontColor(v >= 80 ? GREEN : v >= 60 ? AMBER : RED);
+  }
+  sh.getRange(r, 1, 2, W).setBorder(true, true, true, true, true, true);
+  r += 3;
 
-  var row = hr + 1;
+  // Failing items first - the reason the report exists
+  var fails = detail.items.filter(function (it) { return it.score != null && it.score <= 1; });
+  if (fails.length) {
+    sh.getRange(r, 1, 1, W).merge()
+      .setValue("ACTION REQUIRED \u2014 SCORE 0-1 / \u0915\u093E\u0930\u094D\u0930\u0935\u093E\u0908 \u091C\u0930\u0942\u0930\u0940")
+      .setFontWeight("bold").setBackground(RED).setFontColor("#ffffff");
+    r++;
+    fails.forEach(function (it) {
+      sh.getRange(r, 1).setValue(it.score).setHorizontalAlignment("center")
+        .setFontWeight("bold").setBackground("#fee2e2").setFontColor(RED);
+      sh.getRange(r, 2, 1, W - 1).merge()
+        .setValue((it.label || it.criterionId) + (it.labelHi ? "\n" + it.labelHi : "") +
+                  (it.remark ? "\n\u2192 " + it.remark : ""))
+        .setWrap(true).setFontSize(9);
+      sh.getRange(r, 1, 1, W).setBorder(true, true, true, true, null, null);
+      r++;
+    });
+    r++;
+  }
+
+  // Full criterion table
+  sh.getRange(r, 1, 1, W).merge()
+    .setValue("ALL CRITERIA / \u0938\u092D\u0940 \u092E\u093E\u0928\u0926\u0902\u0921")
+    .setFontWeight("bold").setBackground("#37474f").setFontColor("#ffffff");
+  r++;
+  sh.getRange(r, 1, 1, W)
+    .setValues([["#", "Criterion / \u092E\u093E\u0928\u0926\u0902\u0921", "Pillar", "Score",
+                 "Remark / \u091F\u093F\u092A\u094D\u092A\u0923\u0940", "Photo"]])
+    .setFontWeight("bold").setBackground("#cfd8dc").setBorder(true, true, true, true, true, true);
+  r++;
+
+  var n = 0;
   detail.items.forEach(function (it) {
-    sh.getRange(row, 1).setValue(it.label || it.criterionId).setWrap(true);
-    sh.getRange(row, 2).setValue(it.pillar);
-    var sc = (it.score == null) ? "—" : it.score;
-    sh.getRange(row, 3).setValue(sc).setHorizontalAlignment("center")
-      .setBackground(it.score == null ? "#ffffff" : it.score <= 1 ? "#fee2e2" : it.score <= 2 ? "#fff3cd" : "#e6f4ea");
-    sh.getRange(row, 4).setValue(it.remark || "").setWrap(true);
-    if (it.photoUrl) { sh.getRange(row, 5).setFormula('=IMAGE("' + it.photoUrl + '")'); sh.setRowHeight(row, 64); }
-    sh.getRange(row, 1, 1, 5).setBorder(true, true, true, true, null, null);
-    row++;
+    n++;
+    sh.getRange(r, 1).setValue(n).setHorizontalAlignment("center").setFontSize(8);
+    // English + Hindi. labelHi only became available once getAuditDetail
+    // resolved labels from the zone criteria - they were empty strings before.
+    sh.getRange(r, 2).setValue((it.label || it.criterionId) + (it.labelHi ? "\n" + it.labelHi : ""))
+      .setWrap(true).setFontSize(9);
+    sh.getRange(r, 3).setValue(it.pillar).setHorizontalAlignment("center").setFontSize(8);
+    var sc = (it.score == null) ? "\u2014" : it.score;
+    sh.getRange(r, 4).setValue(sc).setHorizontalAlignment("center").setFontWeight("bold")
+      .setBackground(it.score == null ? "#ffffff" : it.score <= 1 ? "#fee2e2" : it.score <= 2 ? "#fff3cd" : "#e6f4ea")
+      .setFontColor(it.score == null ? "#000000" : it.score <= 1 ? RED : it.score <= 2 ? AMBER : GREEN);
+    sh.getRange(r, 5).setValue(it.remark || "").setWrap(true).setFontSize(9);
+    // every photo, not only the first
+    var urls = (it.photoUrls && it.photoUrls.length) ? it.photoUrls : (it.photoUrl ? [it.photoUrl] : []);
+    if (urls.length) {
+      sh.getRange(r, 6).setFormula('=IMAGE("' + urls[0] + '")');
+      sh.setRowHeight(r, 70);
+      if (urls.length > 1) sh.getRange(r, 5).setNote(urls.length + " photos attached");
+    }
+    sh.getRange(r, 1, 1, W).setBorder(true, true, true, true, null, null);
+    r++;
   });
 
-  sh.setColumnWidth(1, 280); sh.setColumnWidth(2, 50); sh.setColumnWidth(3, 50);
-  sh.setColumnWidth(4, 220); sh.setColumnWidth(5, 90);
+  // Sign-off
+  r++;
+  sh.getRange(r, 1, 1, W).merge()
+    .setValue("SIGN-OFF / \u0939\u0938\u094D\u0924\u093E\u0915\u094D\u0937\u0930")
+    .setFontWeight("bold").setBackground("#37474f").setFontColor("#ffffff");
+  r++;
+  sh.getRange(r, 1, 1, 2).merge().setValue("Auditor / \u0911\u0921\u093F\u091F\u0930").setFontSize(8).setBackground("#eceff1");
+  sh.getRange(r, 3, 1, 2).merge().setValue("Zone Leader / \u0932\u0940\u0921\u0930").setFontSize(8).setBackground("#eceff1");
+  sh.getRange(r, 5, 1, 2).merge().setValue("Reviewed by / \u0938\u092E\u0940\u0915\u094D\u0937\u093E").setFontSize(8).setBackground("#eceff1");
+  sh.getRange(r, 1, 1, W).setBorder(true, true, true, true, true, null);
+  sh.setRowHeight(r + 1, 44);
+  sh.getRange(r + 1, 1, 1, 2).merge();
+  sh.getRange(r + 1, 3, 1, 2).merge();
+  sh.getRange(r + 1, 5, 1, 2).merge();
+  sh.getRange(r + 1, 1, 1, W).setBorder(true, true, true, true, true, null);
+  r += 2;
 
-  sh.getRange(row + 1, 1, 1, 5).merge()
-    .setValue("Doc: FRM/5S/01 | PackMasters 5S | Generated: " + Utilities.formatDate(new Date(), tz, "dd-MMM-yyyy HH:mm"))
-    .setBackground("#f5f5f5").setFontStyle("italic").setHorizontalAlignment("center");
+  sh.getRange(r + 1, 1, 1, W).merge()
+    .setValue("Doc: FRM/5S/01  \u00b7  PackMasters 5S  \u00b7  Generated " +
+              Utilities.formatDate(new Date(), tz, "dd-MMM-yyyy HH:mm"))
+    .setBackground("#f5f5f5").setFontStyle("italic").setFontSize(8).setHorizontalAlignment("center");
+
+  sh.setColumnWidth(1, 34);  sh.setColumnWidth(2, 250); sh.setColumnWidth(3, 46);
+  sh.setColumnWidth(4, 46);  sh.setColumnWidth(5, 190); sh.setColumnWidth(6, 84);
+  try { sh.setHiddenGridlines(true); } catch (e) {}
+}
+
+/** One-line verdict shown beside the score banner. */
+function _slipVerdict_(pct) {
+  if (pct >= 90) return "EXCELLENT \u2014 sustain the standard";
+  if (pct >= 80) return "GOOD \u2014 minor gaps to close";
+  if (pct >= 60) return "NEEDS IMPROVEMENT \u2014 act on the items below";
+  return "CRITICAL \u2014 immediate corrective action required";
 }
 
 /** Build a wa.me deep link with an audit summary + PDF link (emoji-safe). */

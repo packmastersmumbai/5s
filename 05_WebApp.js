@@ -159,7 +159,16 @@ function doGet(e) {
     // "homeData is not defined" and rendered a System Error page for every
     // shared record link. Verified 2026-08-20: serveRecordViewFast_ returned
     // 22451 bytes of valid markup while doGet returned a 772-byte error.
-    var V2_ALWAYS = ["record", "photoannotate", "photoannotator"];
+    // 'quickaudit' is added defensively: nothing currently links it without the
+    // flag (every internal link carries v2=1, and QR codes encode
+    // '?zone=Z-01&v=N' with no action at all), but it is a WORKER_ACTION with a
+    // real v2 form — a hand-typed or externally shared link would otherwise get
+    // the zone landing page instead of the audit. Verified 2026-08-20:
+    // quickaudit without v2 served 66394b landing vs 142210b form with it.
+    // 'daily' and 'weeklyaudit' are deliberately NOT here — they have no v2
+    // form (identical 66394b landing page either way); the landing page is
+    // their intended destination.
+    var V2_ALWAYS = ["record", "photoannotate", "photoannotator", "quickaudit"];
     var forceV2 = V2_ALWAYS.indexOf(action) >= 0;
     if ((params.v2 === "1" || forceV2) && typeof handleV2Route_ === "function") {
       var v2Result = handleV2Route_(params);

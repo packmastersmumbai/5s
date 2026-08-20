@@ -151,7 +151,17 @@ function doGet(e) {
     }
 
     // Route: V2 enhancement pages (v2=1 parameter)
-    if (params.v2 === "1" && typeof handleV2Route_ === "function") {
+    //
+    // V2_ALWAYS: some routes are linked from outside the app — Telegram cards,
+    // QR codes, e-mail — as bare '?action=record&id=...' with no v2=1 flag.
+    // Without this list they fell past the v2 dispatch, matched no v1 route,
+    // and dropped through to serveHomePage_(), which throws
+    // "homeData is not defined" and rendered a System Error page for every
+    // shared record link. Verified 2026-08-20: serveRecordViewFast_ returned
+    // 22451 bytes of valid markup while doGet returned a 772-byte error.
+    var V2_ALWAYS = ["record", "photoannotate", "photoannotator"];
+    var forceV2 = V2_ALWAYS.indexOf(action) >= 0;
+    if ((params.v2 === "1" || forceV2) && typeof handleV2Route_ === "function") {
       var v2Result = handleV2Route_(params);
       if (v2Result) return v2Result;
     }

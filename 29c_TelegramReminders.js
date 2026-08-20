@@ -69,9 +69,13 @@ function _tg5sCard_(opts) {
 
 // Raw deployed /exec URL + query — for inline button links (not an <a> tag).
 function _tg5sDeep_(query) {
+  // Was ScriptApp.getService().getUrl(), which drifted to a dead deployment and
+  // made every Telegram "Open record" button 404. See v2WebAppUrl_.
+  if (typeof v2WebAppUrl_ === 'function') return v2WebAppUrl_(query);
   var base = '';
   try { base = ScriptApp.getService().getUrl() || ''; } catch (e) {}
   if (!base) return '';
+  base = base.replace(/\/dev$/, '/exec');
   return base + (query ? (query.charAt(0) === '?' ? query : '?' + query) : '');
 }
 

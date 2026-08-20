@@ -520,6 +520,43 @@ function v2ValidateInput_(data, rules) {
  * @returns {Spreadsheet}
  */
 var _v2CachedSS = null;
+/**
+ * Canonical web-app URL for links that leave the app (Telegram cards, QR codes,
+ * e-mail, PDFs).
+ *
+ * ScriptApp.getService().getUrl() returns whichever deployment the *script*
+ * considers current, and that drifts from the deployment actually being served.
+ * Measured 2026-08-20: it returned .../AKfycbwoL_Sb.../exec which answered
+ * HTTP 404, while the live app at .../AKfycbyYsCQf.../exec answered 200. Every
+ * "Open record" button in Telegram pointed at the dead one and rendered
+ * Google's "Sorry, unable to open the file at present" page.
+ *
+ * DEPLOY_ID (set by the deploy step) is the source of truth; the service URL is
+ * only a fallback for a project that has never been deployed.
+ *
+ * @param {string} [query]  e.g. '?action=record&id=RT-0001'
+ * @returns {string} absolute /exec URL, or '' if nothing can be resolved
+ */
+function v2WebAppUrl_(query) {
+  var base = "";
+  try {
+    var stored = PropertiesService.getScriptProperties().getProperty("DEPLOY_ID") || "";
+    if (stored && stored !== "NOT_SET") {
+      base = /^https?:\/\//.test(stored)
+        ? stored                                                     // full URL stored
+        : "https://script.google.com/macros/s/" + stored + "/exec";  // bare id stored
+    }
+  } catch (e) {}
+  if (!base) {
+    try { base = ScriptApp.getService().getUrl() || ""; } catch (e) {}
+  }
+  if (!base) return "";
+  base = base.replace(/\/dev$/, "/exec");   // never hand out the owner-only /dev URL
+  if (!query) return base;
+  return base + (query.charAt(0) === "?" ? query : "?" + query);
+}
+
+
 function v2GetSpreadsheet_() {
   if (!_v2CachedSS) {
     _v2CachedSS = SpreadsheetApp.getActiveSpreadsheet();

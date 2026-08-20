@@ -116,7 +116,7 @@ function doGet(e) {
         // Protected action requested without session → show login, remembering
         // the requested destination so we can return there after sign-in.
         var loginTmpl = HtmlService.createTemplateFromFile("PinLogin");
-        loginTmpl.deployUrl = ScriptApp.getService().getUrl();
+        loginTmpl.deployUrl = getDeployUrl_();
         loginTmpl.clearStaleToken = token ? true : false;
         var _nz = params.zone ? String(params.zone).replace(/[^a-zA-Z0-9\-_]/g, "") : "";
         loginTmpl.nextQs = "v2=1&action=" + encodeURIComponent(action) + (_nz ? "&zone=" + _nz : "");
@@ -141,7 +141,7 @@ function doGet(e) {
     // Route: Login page
     if (isLoginAction) {
       var loginTmpl = HtmlService.createTemplateFromFile("PinLogin");
-      loginTmpl.deployUrl = ScriptApp.getService().getUrl();
+      loginTmpl.deployUrl = getDeployUrl_();
       loginTmpl.clearStaleToken = token ? true : false;
       loginTmpl.nextQs = params.next ? String(params.next).replace(/[^a-zA-Z0-9=&\-_%]/g, "") : "";
       return loginTmpl.evaluate()
@@ -819,7 +819,7 @@ function serveManifest_() {
     name: "PackMasters 5S",
     short_name: "PM 5S",
     description: "PackMasters 5S Integrated Management System",
-    start_url: ScriptApp.getService().getUrl(),
+    start_url: getDeployUrl_(),
     display: "standalone",
     orientation: "portrait",
     background_color: "#1a5276",
@@ -952,7 +952,13 @@ function jsonResponse_(statusCode, body) {
  * @private
  */
 function getDeployUrl_() {
-  // Always prefer the live URL of whichever deployment is executing
+  // DEPLOY_ID first. Preferring ScriptApp.getService().getUrl() is what let
+  // externally shared links drift onto a dead deployment (HTTP 404) while the
+  // app itself kept working — see v2WebAppUrl_ in 16A_V2Foundation.js.
+  try {
+    var canonical = (typeof v2WebAppUrl_ === "function") ? v2WebAppUrl_("") : "";
+    if (canonical) return canonical;
+  } catch (e) {}
   try {
     var url = ScriptApp.getService().getUrl();
     if (url) return url;

@@ -61,7 +61,7 @@ function _tg5sZoneLink_(zoneId) {
   var id = String(zoneId || '').trim();
   if (!id) return '';
   var base = '';
-  try { base = ScriptApp.getService().getUrl() || ''; } catch (e) {}
+  try { base = (typeof v2WebAppUrl_ === 'function') ? (v2WebAppUrl_('') || '') : (ScriptApp.getService().getUrl() || ''); } catch (e) {}
   if (!base) return '<b>' + TelegramLib.esc(id) + '</b>';
   return '<a href="' + base + '?zone=' + encodeURIComponent(id) + '">' + TelegramLib.esc(id) + '</a>';
 }

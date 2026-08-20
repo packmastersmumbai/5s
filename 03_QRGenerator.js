@@ -62,16 +62,17 @@ function generateWebAppURL(zoneId, formType) {
   var deployId = props.getProperty("DEPLOY_ID") || "NOT_SET";
   var qrVersion = props.getProperty("QR_VERSION") || "1";
 
-  // Base URL for deployed Web App
-  var baseUrl;
-  if (deployId === "NOT_SET") {
-    // Use dev URL for testing before first deployment
-    baseUrl = ScriptApp.getService().getUrl();
-    if (!baseUrl) {
-      baseUrl = "https://script.google.com/macros/s/DEPLOY_ID_NOT_SET/exec";
-    }
-  } else {
-    baseUrl = "https://script.google.com/macros/s/" + deployId + "/exec";
+  // Base URL for deployed Web App.
+  // v2WebAppUrl_ handles both storage shapes: DEPLOY_ID may hold a bare id OR a
+  // full /exec URL. The old code assumed a bare id and concatenated blindly,
+  // which produced .../macros/s/https://script.google.com/macros/s/AKfy.../exec
+  // once the property held a full URL — a doubled, unopenable link baked into
+  // every printed QR label. QR codes go on walls, so this must be right.
+  var baseUrl = (typeof v2WebAppUrl_ === "function") ? v2WebAppUrl_("") : "";
+  if (!baseUrl) {
+    baseUrl = (deployId && deployId !== "NOT_SET")
+      ? (/^https?:\/\//.test(deployId) ? deployId : "https://script.google.com/macros/s/" + deployId + "/exec")
+      : "https://script.google.com/macros/s/DEPLOY_ID_NOT_SET/exec";
   }
 
   // Build URL with parameters

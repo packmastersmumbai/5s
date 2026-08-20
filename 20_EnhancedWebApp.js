@@ -127,7 +127,7 @@ function handleV2Route_(params) {
     case "home":         return serveV2Page_("HomePage", params);
     case "login": {
       var loginTemplate = HtmlService.createTemplateFromFile("LoginPage");
-      loginTemplate.deployUrl = (function() { try { return ScriptApp.getService().getUrl(); } catch(e) { return "#"; } })();
+      loginTemplate.deployUrl = (function() { try { return v2WebAppUrl_("") || "#"; } catch(e) { return "#"; } })();
       loginTemplate.clearStaleToken = false;
       return loginTemplate.evaluate()
         .setTitle("PackMasters 5S — Login")
@@ -159,7 +159,10 @@ function serveV2Page_(templateFile, params) {
     var props = PropertiesService.getScriptProperties();
     var deployId = props.getProperty("DEPLOY_ID") || "";
     // Always prefer the live deployment URL; fall back to stored DEPLOY_ID only if unavailable
+    // DEPLOY_ID first via v2WebAppUrl_; the old order preferred the service URL
+    // and shipped links to a dead deployment.
     var deployUrl = (function() {
+      try { var c = (typeof v2WebAppUrl_ === "function") ? v2WebAppUrl_("") : ""; if (c) return c; } catch(e) {}
       try { var u = ScriptApp.getService().getUrl(); if (u) return u; } catch(e) {}
       return (deployId && deployId !== "NOT_SET")
         ? "https://script.google.com/macros/s/" + deployId + "/exec"
@@ -248,7 +251,11 @@ function serveV2Page_(templateFile, params) {
 function serveRecordViewFast_(params) {
   var template = HtmlService.createTemplateFromFile("RecordView");
   template.params = params || {};
+  // This is the page Telegram 'Open record' links land on, so its own
+  // deployUrl must resolve DEPLOY_ID first — the old order preferred the
+  // service URL and pointed onward links at a dead deployment.
   template.deployUrl = (function() {
+    try { var c = (typeof v2WebAppUrl_ === "function") ? v2WebAppUrl_("") : ""; if (c) return c; } catch(e) {}
     try { var u = ScriptApp.getService().getUrl(); if (u) return u; } catch(e) {}
     var deployId = PropertiesService.getScriptProperties().getProperty("DEPLOY_ID") || "";
     return (deployId && deployId !== "NOT_SET") ? "https://script.google.com/macros/s/" + deployId + "/exec" : "#";

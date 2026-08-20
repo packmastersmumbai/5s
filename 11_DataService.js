@@ -1738,16 +1738,53 @@ function getAuditDetail(submissionId) {
     var ss = v2GetSpreadsheet_();
     var sheet = ss.getSheetByName("AuditLineItems");
     if (!sheet || sheet.getLastRow() < 2) return { found: false };
-    // criterionId → label map from the checklist schema
-    var labelMap = {};
+    // criterionId -> label map.
+    // The generic CHECKLIST_SCHEMA keys criteria as 'S1-C1', but QuickAudit
+    // writes the ZONE's own criterion ids ('S1-1') into AuditLineItems, and
+    // older rows used a zero-padded 'S1-01'. Sourcing labels from the schema
+    // alone produced label:"" for every item (measured 0/15 on 2026-08-20),
+    // which is why the detail modal, audit cards and PDF showed bare ids.
+    // Build from zone criteria first, fall back to the schema, and register a
+    // zero-pad alias so legacy rows resolve too.
+    var labelMap = {}, labelHiMap = {};
+    function _regLabel_(id, en, hi) {
+      id = String(id || ""); if (!id) return;
+      if (en) labelMap[id] = en;
+      if (hi) labelHiMap[id] = hi;
+      // 'S1-1' <-> 'S1-01' alias, both directions
+      var m = id.match(/^(S\d)-0?(\d+)$/);
+      if (m) {
+        var bare = m[1] + "-" + m[2], padded = m[1] + "-" + (m[2].length === 1 ? "0" : "") + m[2];
+        if (en) { labelMap[bare] = en; labelMap[padded] = en; }
+        if (hi) { labelHiMap[bare] = hi; labelHiMap[padded] = hi; }
+      }
+    }
     try {
       var schema = (typeof getChecklistSchema === "function") ? getChecklistSchema() : null;
       if (schema && schema.criteria) {
-        schema.criteria.forEach(function (c) { labelMap[String(c.id)] = c.labelEn || c.label || c.labelHi || ""; });
+        schema.criteria.forEach(function (c) { _regLabel_(c.id, c.labelEn || c.label || "", c.labelHi || ""); });
       }
     } catch (e) {}
 
     var data = sheet.getDataRange().getValues();
+
+    // Zone criteria carry the ids QuickAudit actually writes. Resolve the zone
+    // from the first matching row, then overlay its labels on top of the schema.
+    try {
+      var zoneForLabels = "";
+      for (var z = 1; z < data.length; z++) {
+        if (String(data[z][0]) === String(submissionId)) { zoneForLabels = String(data[z][1]); break; }
+      }
+      if (zoneForLabels && typeof getZoneConfig === "function") {
+        var zcfg = getZoneConfig()[zoneForLabels];
+        if (zcfg && zcfg.criteria) {
+          zcfg.criteria.forEach(function (c) {
+            _regLabel_(c.id, c.labelEn || c.label || "", c.labelHi || "");
+          });
+        }
+      }
+    } catch (e) {}
+
     var header = null, items = [];
     for (var i = 1; i < data.length; i++) {
       var r = data[i];
@@ -1757,7 +1794,7 @@ function getAuditDetail(submissionId) {
       var cid = String(r[5]);
       var photoUrls = String(r[9] || "").split(",").filter(Boolean);
       var photoFileIds = String(r[10] || "").split(",").filter(Boolean);
-      items.push({ criterionId: cid, label: labelMap[cid] || "", pillar: String(r[6]),
+      items.push({ criterionId: cid, label: labelMap[cid] || "", labelHi: labelHiMap[cid] || "", pillar: String(r[6]),
         score: r[7] === "" ? null : parseInt(r[7], 10), remark: String(r[8] || ""),
         photoUrl: photoUrls[0] || "", photoFileId: photoFileIds[0] || "",
         photoUrls: photoUrls, photoFileIds: photoFileIds });

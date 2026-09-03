@@ -35,11 +35,43 @@
  *   .topMgtEvents: [event, ...]
  *   .errors: [string, ...]
  */
+/**
+ * Returns an address only if it is safe to send to.
+ *
+ * 01_Config.js seeds MC_EMAIL and TOP_EMAIL with @packmasters.in placeholders
+ * and its own comment says to replace them before going live. They were not,
+ * so the digest was mailing addresses nobody owns. Refusing to send is the
+ * correct failure: a bounce is recoverable, delivering plant data to a stranger
+ * is not.
+ * @private
+ */
+function _digestAddress_(raw, key) {
+  var v = String(raw || "").trim();
+  if (!v) return "";
+  if (/@packmasters\.in$/i.test(v)) {
+    Logger.log("  ⚠ " + key + " is still the placeholder " + v +
+               " — refusing to send. Set a real address in Settings.");
+    return "";
+  }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)) {
+    Logger.log("  ⚠ " + key + " is not a valid address: " + v);
+    return "";
+  }
+  return v;
+}
+
 function sendDigestEmails(digestEvents) {
   var props = PropertiesService.getScriptProperties();
+
+  // Master switch, settable from Settings -> Notifications.
+  if (props.getProperty("DIGEST_ENABLED") === "false") {
+    Logger.log("  ⏸ Daily digest is disabled in Settings — nothing sent.");
+    return;
+  }
+
   var zoneConfig = getZoneConfig();
-  var mcEmail = props.getProperty("MC_EMAIL") || "";
-  var topEmail = props.getProperty("TOP_EMAIL") || "";
+  var mcEmail = _digestAddress_(props.getProperty("MC_EMAIL"), "MC_EMAIL");
+  var topEmail = _digestAddress_(props.getProperty("TOP_EMAIL"), "TOP_EMAIL");
   var emailCount = 0;
 
   // ── 1. Zone Leader Digests (one email per ZL with events) ──
@@ -51,9 +83,9 @@ function sendDigestEmails(digestEvents) {
     if (!events || events.length === 0) return;
 
     var zone = zoneConfig[zoneId];
-    if (!zone || !zone.email) return;
-
-    var zlEmail = zone.email;
+    if (!zone) return;
+    var zlEmail = _digestAddress_(zone.email, "zone " + zoneId + " email");
+    if (!zlEmail) return;
     if (!zlDigests[zlEmail]) {
       zlDigests[zlEmail] = {
         zones: [],

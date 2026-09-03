@@ -931,6 +931,8 @@ function getMasterSettingsData() {
         companyName:  props.getProperty("COMPANY_NAME")  || "PackMasters",
         mcEmail:      props.getProperty("MC_EMAIL")       || "",
         topEmail:     props.getProperty("TOP_EMAIL")      || "",
+        // Default ON so existing behaviour is unchanged until switched off.
+        digestEnabled: props.getProperty("DIGEST_ENABLED") !== "false",
         ncThreshold:  schema.ncThreshold !== undefined ? schema.ncThreshold : 1,
         deployId:     props.getProperty("DEPLOY_ID")      || ""
       }
@@ -957,6 +959,9 @@ function saveMasterSettings(data) {
       if (sys.companyName !== undefined) props.setProperty("COMPANY_NAME", String(sys.companyName));
       if (sys.mcEmail     !== undefined) props.setProperty("MC_EMAIL",     String(sys.mcEmail));
       if (sys.topEmail    !== undefined) props.setProperty("TOP_EMAIL",    String(sys.topEmail));
+      if (sys.digestEnabled !== undefined) {
+        props.setProperty("DIGEST_ENABLED", sys.digestEnabled ? "true" : "false");
+      }
       if (sys.deployId    && String(sys.deployId).trim() !== "") {
         props.setProperty("DEPLOY_ID", String(sys.deployId).trim());
       }

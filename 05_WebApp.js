@@ -269,6 +269,28 @@ function doGet(e) {
  * @param {Object} e — Event object with postData
  * @returns {TextOutput} JSON response
  */
+/**
+ * Real email for a login username, from the Users sheet. Returns "" if the
+ * user has no address recorded -- callers must not invent one.
+ * @private
+ */
+function _userEmailForUsername_(username) {
+  if (!username) return "";
+  try {
+    var ss = (typeof v2GetSpreadsheet_ === "function")
+      ? v2GetSpreadsheet_() : SpreadsheetApp.getActiveSpreadsheet();
+    var sh = ss.getSheetByName("Users");
+    if (!sh || sh.getLastRow() < 2) return "";
+    var d = sh.getDataRange().getValues();
+    for (var r = 1; r < d.length; r++) {
+      if (String(d[r][0]).trim().toLowerCase() === String(username).trim().toLowerCase()) {
+        return String(d[r][5] || "").trim();
+      }
+    }
+  } catch (e) {}
+  return "";
+}
+
 function doPost(e) {
   try {
     // Parse the POST body
@@ -347,7 +369,11 @@ function doPost(e) {
       if (!weeklySession.valid) {
         return jsonResponse_(403, { error: "Unauthorized. Weekly audits require a valid login session." });
       }
-      var auditorEmail = weeklySession.username + "@packmasters.in"; // resolved from session, not client-supplied
+      /* This used to synthesise username + "@packmasters.in" -- a placeholder
+         domain nobody owns. Every weekly audit then recorded, and every alert
+         addressed, an invented address. Read the real one from Users; fall
+         back to the username itself so the audit is still attributable. */
+      var auditorEmail = _userEmailForUsername_(weeklySession.username) || weeklySession.username;
 
       if (!checkAuditorAuth(auditorEmail)) {
         return jsonResponse_(403, {

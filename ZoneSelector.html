@@ -56,6 +56,23 @@
     flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .zone-row .chev { color: var(--text-muted); flex-shrink: 0; opacity: .6; }
+  .zs-sheet { position: fixed; inset: 0; z-index: 90; background: rgba(15,23,42,.55);
+    display: flex; align-items: flex-end; justify-content: center; padding: 12px; }
+  .zs-sheet[hidden] { display: none; }
+  .zs-sheet-card { width: 100%; max-width: 460px; background: var(--bg-card);
+    border-radius: 18px 18px 12px 12px; padding: 16px; box-shadow: 0 -8px 32px rgba(0,0,0,.28); }
+  .zs-sheet-hd { font-size: 13px; font-weight: 800; color: var(--text-secondary);
+    letter-spacing: .02em; margin-bottom: 12px; }
+  .zs-act { display: flex; align-items: center; gap: 14px; min-height: 64px; padding: 12px 14px;
+    margin-bottom: 10px; border: 1.5px solid var(--border); border-radius: 12px;
+    background: var(--bg-card); text-decoration: none; color: inherit; }
+  .zs-act:active, .zs-act:hover { border-color: var(--pm-accent); background: var(--bg-card-2); }
+  .zs-act:focus-visible { outline: 3px solid var(--border-focus); outline-offset: 2px; }
+  .zs-act-ic { font-size: 24px; line-height: 1; flex-shrink: 0; }
+  .zs-act-t { display: block; font-size: 15px; font-weight: 700; }
+  .zs-act-s { display: block; font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .zs-sheet-cancel { width: 100%; min-height: 48px; border: none; background: none;
+    font-size: 14px; font-weight: 600; color: var(--text-secondary); cursor: pointer; }
 
   .zs-footer { padding: 14px 16px; text-align: center; border-top: 1px solid var(--bg-card-2); }
   .zs-continue {
@@ -87,6 +104,14 @@
 </div>
 
 <div class="zs-footer">
+  <div class="zs-sheet" id="zsSheet" hidden role="dialog" aria-modal="true" aria-labelledby="zsSheetTitle">
+    <div class="zs-sheet-card">
+      <div class="zs-sheet-hd" id="zsSheetTitle"></div>
+      <div id="zsSheetActions"></div>
+      <button type="button" class="zs-sheet-cancel" onclick="closeZoneSheet()">Cancel</button>
+    </div>
+  </div>
+
   <a class="zs-continue" href="<?= deployUrl ?>?action=login" target="_top">
     Continue to Project &rarr;
   </a>
@@ -122,10 +147,15 @@
     var grid = document.createElement('div');
     grid.className = 'zone-grid';
     items.forEach(function(z) {
+      /* Tapping a zone opens an action sheet rather than jumping straight to
+         QuickAudit: the same zone now has two worker entry points (audit and
+         kaizen), and picking the zone first means neither screen re-asks. */
       var a = document.createElement('a');
       a.className = 'zone-row';
       a.href = deployUrl + '?v2=1&action=quickaudit&zone=' + encodeURIComponent(z.id);
       a.target = '_top';
+      a.setAttribute('role', 'button');
+      a.onclick = function(e) { e.preventDefault(); openZoneSheet(z.id, z.name); };
       a.innerHTML = '<span class="zid">' + escHtml(z.id) + '</span>' +
                     '<span class="znm">' + escHtml(z.name) + '</span>' + CHEV;
       grid.appendChild(a);
@@ -136,6 +166,35 @@
   function escHtml(s) {
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
+
+  /* Zone action sheet — two worker destinations for the tapped zone. Both
+     carry &zone= so the destination screen is already scoped. */
+  var sheet = document.getElementById('zsSheet');
+  var sheetTitle = document.getElementById('zsSheetTitle');
+  var sheetActions = document.getElementById('zsSheetActions');
+
+  function openZoneSheet(id, name) {
+    sheetTitle.textContent = id + ' — ' + name;
+    var q = '&zone=' + encodeURIComponent(id);
+    sheetActions.innerHTML =
+      '<a class="zs-act" target="_top" href="' + deployUrl + '?v2=1&action=quickaudit' + q + '">' +
+        '<span class="zs-act-ic">&#9989;</span>' +
+        '<span><span class="zs-act-t">Quick Audit</span>' +
+        '<span class="zs-act-s">Score this zone now</span></span></a>' +
+      '<a class="zs-act" target="_top" href="' + deployUrl + '?v2=1&action=kaizen' + q + '">' +
+        '<span class="zs-act-ic">&#128161;</span>' +
+        '<span><span class="zs-act-t">Kaizen Idea</span>' +
+        '<span class="zs-act-s">Suggest an improvement</span></span></a>';
+    sheet.hidden = false;
+    document.body.style.overflow = 'hidden';
+    var first = sheetActions.querySelector('.zs-act'); if (first) first.focus();
+  }
+  window.closeZoneSheet = function() {
+    sheet.hidden = true;
+    document.body.style.overflow = '';
+  };
+  sheet.addEventListener('click', function(e) { if (e.target === sheet) closeZoneSheet(); });
+  document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && !sheet.hidden) closeZoneSheet(); });
 })();
 </script>
 </body>

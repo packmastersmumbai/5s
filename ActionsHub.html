@@ -94,6 +94,38 @@ body {
 }
 
 /* ── STATUS TABS ────────────────────────── */
+/* Zone strip: 28 zones will not fit as a static row, so it scrolls
+   horizontally. Each tab carries its live count, and the whole strip is
+   rebuilt from the cached data whenever any other filter changes. */
+.ah-zone-tabs {
+  display: flex; gap: 6px; align-items: center;
+  padding: 8px 16px; max-width: 1440px; margin: 0 auto;
+  background: var(--bg-card); border-bottom: 1px solid var(--border-light);
+  overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.ah-zone-tabs::-webkit-scrollbar { display: none; }
+.ah-zone-tabs:empty { display: none; }
+.ah-zone-tab {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px;
+  min-height: 36px; padding: 0 12px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--bg-card);
+  font-family: var(--font-mono); font-size: 11.5px; font-weight: 700;
+  color: var(--text-secondary); cursor: pointer; white-space: nowrap;
+}
+.ah-zone-tab:hover { border-color: var(--pm-accent); }
+.ah-zone-tab.active {
+  background: var(--pm-primary); border-color: var(--pm-primary); color: #fff;
+}
+.ah-zone-tab:focus-visible { outline: 3px solid var(--border-focus); outline-offset: 2px; }
+.ah-zt-n {
+  font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 999px;
+  background: var(--bg-card-2); color: var(--text-muted);
+}
+.ah-zone-tab.active .ah-zt-n { background: rgba(255,255,255,.22); color: #fff; }
+
+/* The status tabs ARE the reason a started record leaves the list. They were
+   quiet enough to read as headings rather than an active filter, so a record
+   moving Open -> In Progress looked like it had vanished. */
 .ah-status-tabs {
   display: flex;
   gap: 0;
@@ -106,10 +138,10 @@ body {
 .ah-status-tabs::-webkit-scrollbar { display: none; }
 
 .ah-status-tab {
-  padding: 8px 16px;
+  padding: 10px 18px;
   font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 700;
   color: var(--text-muted);
   cursor: pointer;
   border-bottom: 2px solid transparent;
@@ -485,7 +517,92 @@ body {
   max-width: 1440px; margin: 0 auto; padding: 10px 16px;
   background: var(--pm-primary-soft); border-bottom: 1px solid var(--pm-primary);
 }
+/* `display: flex` above beats the HTML `hidden` attribute (which is only
+   `display: none` at UA-stylesheet priority), so the bar — Close selected /
+   Delete selected — rendered on every tab whether or not multi-select was on.
+   This restores what `hidden` is supposed to mean. */
+.ah-bulk-bar[hidden] { display: none; }
 .ah-bulk-count { font-weight: 700; font-size: 13px; color: var(--pm-primary); }
+.ah-bulk-del { background: #DC2626 !important; }
+.ah-cfm { position: fixed; inset: 0; z-index: 120; background: rgba(15,23,42,.55);
+  display: flex; align-items: center; justify-content: center; padding: 16px; }
+.ah-cfm-card { width: 100%; max-width: 420px; background: var(--bg-card);
+  border-radius: 14px; padding: 20px; box-shadow: 0 12px 40px rgba(0,0,0,.3); }
+.ah-cfm-t { font-size: 16px; font-weight: 800; margin-bottom: 8px; }
+.ah-cfm-b { font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 18px; }
+.ah-cfm-acts { display: flex; gap: 10px; justify-content: flex-end; }
+.ah-cfm-acts button { min-height: 44px; padding: 0 18px; border-radius: 8px;
+  font-size: 14px; font-weight: 700; cursor: pointer; border: 1px solid var(--border);
+  background: var(--bg-card); color: var(--text-secondary); }
+.ah-cfm-yes { background: var(--pm-primary); color: #fff; border-color: var(--pm-primary); }
+.ah-cfm-yes.danger { background: #DC2626; border-color: #DC2626; }
+.ah-cfm-acts button:focus-visible { outline: 3px solid var(--border-focus); outline-offset: 2px; }
+.ah-age { display: inline-block; min-width: 34px; padding: 3px 7px; border-radius: 999px;
+  font-size: 11.5px; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
+.ah-age.fresh { background: #E8F5E9; color: #1B5E20; }
+.ah-age.ok    { background: #F1F8E9; color: #33691E; }
+.ah-age.warn  { background: #FFF8E1; color: #7A5D00; }
+.ah-age.hot   { background: #FFF0E6; color: #A33600; }
+.ah-age.stale { background: #FDE7E7; color: #A31515; }
+.ah-age-na { color: var(--text-muted); }
+.ah-due { display: block; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.ah-due.late { color: #A31515; font-weight: 700; white-space: nowrap; }
+:root[data-theme="dark"] .ah-due.late { color: #EF9A9A; }
+/* Row whose write is still in flight — visibly settled, but marked as not yet
+   confirmed so a failure that rolls it back is not a surprise. */
+/* Row on its way out of the current tab: dimmed and desaturated so the move
+   is legible, not a disappearance. The quiet refresh removes it for real. */
+.ah-tr-leaving { opacity: .35; }
+@media (prefers-reduced-motion: no-preference) {
+  .ah-tr-leaving { transition: opacity .25s ease; }
+}
+.rc-src { margin: 10px 0 4px; }
+.rc-src a { font-size: 12.5px; font-weight: 600; color: var(--pm-primary);
+  text-decoration: none; }
+.rc-src a:hover { text-decoration: underline; }
+.rc-src a:focus-visible { outline: 3px solid var(--border-focus); outline-offset: 2px; }
+.ah-evi { margin-top: 10px; }
+.ah-evi-hd { font-size: 10.5px; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
+.ah-evi-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.ah-evi-cell { position: relative; display: inline-block; line-height: 0; cursor: zoom-in; }
+.ah-evi-cell.vid { cursor: pointer; }
+.ah-evi-play { position: absolute; inset: 0; display: flex; align-items: center;
+  justify-content: center; font-size: 22px; color: #fff;
+  text-shadow: 0 1px 6px rgba(0,0,0,.7); pointer-events: none; }
+.ah-evi-thumb { width: 78px; height: 78px; object-fit: cover; border-radius: 8px;
+  border: 1px solid var(--border); cursor: inherit; background: var(--bg-card-2); }
+.ah-evi-thumb:focus-visible { outline: 3px solid var(--border-focus); outline-offset: 2px; }
+.ah-evi-flag { display: block; margin-top: 3px; font-size: 10px; font-weight: 700;
+  color: var(--text-muted); }
+.ah-phase { display: block; margin-top: 3px; font-size: 10px; font-weight: 700;
+  letter-spacing: .03em; text-transform: uppercase; color: var(--text-muted); }
+.ah-row-chev { color: var(--text-muted); font-size: 17px; line-height: 1; opacity: .55; }
+.ah-tr.expanded .ah-row-chev { transform: rotate(90deg); display: inline-block; opacity: 1; }
+@media (prefers-reduced-motion: no-preference) {
+  .ah-row-chev { transition: transform .15s ease; }
+}
+/* Expander actions: same icon buttons as before, but laid out with room for
+   their labels since there is no column width to fight for here. */
+.ah-detail-box .ah-card__actions { display: flex; flex-wrap: wrap; gap: 8px;
+  border-top: 1px solid var(--border-light); margin-top: 10px; padding-top: 10px; }
+.ah-detail-box .ah-acts-primary,
+.ah-detail-box .ah-acts-secondary { display: flex; gap: 8px; }
+.ah-detail-box .ah-acts-secondary { margin-left: auto; }
+.ah-detail-box .ah-ibtn { min-height: 44px; padding: 0 14px; display: inline-flex;
+  align-items: center; gap: 7px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--bg-card); cursor: pointer; font-size: 13px; font-weight: 600; }
+.ah-detail-box .ah-ibtn .ah-ibtn-lbl { display: inline; margin-left: 0; }
+.ah-detail-box .ah-ibtn.del { color: #A31515; }
+.ah-detail-box .ah-ibtn:focus-visible { outline: 3px solid var(--border-focus); outline-offset: 2px; }
+.ah-tr-pending { opacity: .72; }
+.ah-tr-pending .status-lbl { outline: 1px dashed currentColor; outline-offset: 2px; }
+:root[data-theme="dark"] .ah-due-late { color: #EF9A9A; }
+:root[data-theme="dark"] .ah-age.fresh { background: #14311A; color: #A5D6A7; }
+:root[data-theme="dark"] .ah-age.ok    { background: #1B3312; color: #C5E1A5; }
+:root[data-theme="dark"] .ah-age.warn  { background: #3A2F05; color: #FFE082; }
+:root[data-theme="dark"] .ah-age.hot   { background: #3B1F0B; color: #FFCC80; }
+:root[data-theme="dark"] .ah-age.stale { background: #3B1113; color: #EF9A9A; }
 .ah-bulk-btn { min-height: 44px; padding: 0 16px; border: none; border-radius: 8px;
   background: var(--score-green); color: #fff; font-weight: 700; font-size: 14px; cursor: pointer; }
 .ah-bulk-cancel { min-height: 44px; padding: 0 12px; border: none; background: none;
@@ -673,8 +790,99 @@ body {
   letter-spacing: .6px; text-transform: uppercase; color: var(--text-secondary);
   border-top: 1px solid var(--border-light); padding-top: 10px; margin: 12px 0 7px;
 }
-.rc-para { font-size: 13.5px; color: var(--text-primary); line-height: 1.45; margin-bottom: 6px; }
-.rc-para .rc-k { color: var(--text-muted); font-weight: 600; margin-right: 4px; }
+/* ── Expanded record: structure ───────────────────────────────────────────
+   The detail read as one flat column of emoji + value with no field names, no
+   grouping and raw ISO timestamps. It now reads as three answers in order:
+   WHAT was found -> WHAT is being done -> WHO signed it off, with every value
+   carrying its own label. */
+/* ── Audits view ──────────────────────────────────────────────────────────
+   Audits are a scannable set, not a reading list: you look for the low scores.
+   A responsive grid uses the full width instead of one full-bleed row per
+   audit, and the score leads each tile at display size. */
+.au-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
+  gap: 10px; padding: 12px 16px; max-width: 1440px; margin: 0 auto;
+}
+.au-tile {
+  display: flex; align-items: stretch; gap: 12px; width: 100%;
+  padding: 12px; text-align: left; cursor: pointer;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 12px; font: inherit; color: inherit;
+}
+.au-tile:hover { border-color: var(--pm-accent); box-shadow: var(--shadow-sm); }
+.au-tile:focus-visible { outline: 3px solid var(--border-focus); outline-offset: 2px; }
+.au-score {
+  flex: 0 0 62px; display: flex; align-items: center; justify-content: center;
+  border-radius: 10px; font-family: var(--font-mono);
+  font-size: 21px; font-weight: 800; letter-spacing: -.02em;
+}
+.au-score i { font-size: 11px; font-style: normal; font-weight: 700; opacity: .7; margin-left: 1px; }
+.au-score.g { background: #E8F5E9; color: #1B5E20; }
+.au-score.a { background: #FFF8E1; color: #7A5D00; }
+.au-score.r { background: #FDE7E7; color: #A31515; }
+:root[data-theme="dark"] .au-score.g { background: #14311A; color: #A5D6A7; }
+:root[data-theme="dark"] .au-score.a { background: #3A2F05; color: #FFE082; }
+:root[data-theme="dark"] .au-score.r { background: #3B1113; color: #EF9A9A; }
+.au-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.au-zone { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--text-muted); }
+.au-name {
+  font-size: 13.5px; font-weight: 700; color: var(--text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.au-meta { font-size: 11.5px; color: var(--text-secondary); }
+.au-stats {
+  display: flex; gap: 10px; margin-top: 4px; font-size: 11px; color: var(--text-muted);
+}
+.au-by { margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 45%; }
+
+/* Share row: full-width tap targets, not two thin links. */
+.au-share-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.au-share {
+  flex: 1 1 160px; min-height: 44px; padding: 0 16px;
+  border: none; border-radius: 10px; cursor: pointer;
+  font-size: 13.5px; font-weight: 700; font-family: inherit;
+}
+.au-share.pdf { background: #EEF2FF; color: #3730A3; border: 1px solid #C7D2FE; }
+.au-share.wa  { background: #25D366; color: #fff; }
+.au-share:focus-visible { outline: 3px solid var(--border-focus); outline-offset: 2px; }
+.au-share-msg { font-size: 12px; color: var(--text-muted); }
+
+.rc-sec { margin-top: 14px; }
+.rc-sec:first-of-type { margin-top: 10px; }
+.rc-sec-t {
+  margin: 0 0 8px; padding-bottom: 5px;
+  font-size: 10.5px; font-weight: 800; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--text-muted);
+  border-bottom: 1px solid var(--border-light);
+}
+
+/* Label-above-value pairs. Auto-fit keeps them readable from a phone (one
+   column) to a desk monitor (four) without a media query per breakpoint. */
+.rc-fields {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px 18px; margin: 0;
+}
+.rc-f { min-width: 0; }
+.rc-f.wide { grid-column: 1 / -1; }
+.rc-f-k {
+  font-size: 10px; font-weight: 700; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--text-muted); margin-bottom: 2px;
+}
+.rc-f-v {
+  margin: 0; font-size: 13.5px; font-weight: 600; color: var(--text-primary);
+  line-height: 1.35; overflow-wrap: anywhere;
+}
+.rc-f-v.mono { font-family: var(--font-mono); font-size: 12.5px; }
+
+/* Free-text answers (root cause, corrective action) need room to breathe —
+   they are sentences, not values, so the label sits above and the text wraps. */
+.rc-para { font-size: 13.5px; color: var(--text-primary); line-height: 1.5; margin-bottom: 10px; }
+.rc-para:last-child { margin-bottom: 0; }
+.rc-para .rc-k {
+  display: block; font-size: 10px; font-weight: 700; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--text-muted); margin-bottom: 2px;
+}
+.rc-para .rc-pv { display: block; overflow-wrap: anywhere; }
 .rc-repeat {
   display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-mono);
   font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 4px;
@@ -904,6 +1112,35 @@ body {
 .ac-textarea { resize: vertical; min-height: 72px; }
 
 .ac-group { display: flex; flex-direction: column; gap: 12px; }
+.ac-hint { font-weight: 400; color: var(--text-muted); font-size: 11px; }
+.ac-photos { display: flex; gap: 8px; flex-wrap: wrap; }
+.ac-photos:empty { display: none; }
+.ac-thumb { position: relative; width: 72px; height: 72px; border-radius: 8px;
+  overflow: hidden; border: 1px solid var(--border); background: var(--bg-card-2); }
+.ac-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ac-thumb-x { position: absolute; top: 2px; right: 2px; width: 22px; height: 22px;
+  border: none; border-radius: 50%; background: rgba(0,0,0,.62); color: #fff;
+  font-size: 13px; line-height: 1; cursor: pointer; }
+.ac-thumb-edit { position: absolute; bottom: 0; left: 0; right: 0; border: none;
+  background: rgba(0,0,0,.62); color: #fff; font-size: 10px; font-weight: 700;
+  padding: 3px 0; cursor: pointer; }
+.ac-photo-add { min-height: 44px; padding: 0 14px; border: 1px dashed var(--border);
+  border-radius: 8px; background: var(--bg-card); color: var(--text-secondary);
+  font-size: 13px; font-weight: 600; cursor: pointer; }
+.ac-photo-add:focus-visible { outline: 3px solid var(--border-focus); outline-offset: 2px; }
+.ac-photo-add[disabled] { opacity: .5; cursor: default; }
+.ac-photo-note { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.ac-vid { width: 100%; height: 100%; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 3px; background: #1F2937; color: #fff; }
+.ac-vid-ic { font-size: 20px; line-height: 1; }
+.ac-vid-sz { font-size: 9px; font-weight: 700; opacity: .85; }
+.ncv-recap { background: var(--bg-card-2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; font-size: 12.5px;
+  line-height: 1.55; color: var(--text-secondary); }
+.ncv-recap b { color: var(--text-primary); }
+.ncv-recap .ncv-missing { color: var(--text-muted); font-style: italic; }
+.ncv-hint { font-size: 11.5px; margin: 4px 0 2px; min-height: 14px; }
+.ncv-hint.warn { color: #B23C00; font-weight: 600; }
 
 /* footer buttons */
 .ac-footer {
@@ -1042,9 +1279,10 @@ body {
   <h1>Actions</h1>
   <div style="display:flex;align-items:center;gap:8px">
     <div id="ahRefreshBadge" style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted)"></div>
-    <button class="ah-filter-toggle" id="ahSelectToggle" onclick="toggleSelectMode()" title="Select multiple">
+    <button class="ah-filter-toggle" id="ahSelectToggle" onclick="toggleSelectMode()"
+            aria-pressed="false" title="Turn multi-select on or off">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-      Select
+      <span id="ahSelectLabel">Multi-select</span>
     </button>
     <button class="ah-filter-toggle" id="ahFilterToggle" onclick="toggleFilterRow()" title="Filters">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
@@ -1063,12 +1301,22 @@ body {
 
 <!-- FILTERS (status + priority + zone) — folded behind the Filters toggle so the
      default view isn't a stack of 4 competing filter axes (critique P1). -->
+<!-- Zone tabs sit ABOVE the status tabs: zone is the coarser cut (which part
+     of the plant), status the finer one (what state its records are in). The
+     strip is built from the loaded data so every tab carries a live count and
+     zones with no records are not offered. -->
+<div class="ah-zone-tabs" id="ahZoneTabs" role="tablist" aria-label="Zone"></div>
+
+<!-- Status tabs are ALWAYS visible: they are how you reach In Progress and
+     Closed records. They used to sit inside .ah-filter-row (display:none until
+     the Filters toggle was pressed), which made those two views unreachable. -->
+<div class="ah-status-tabs" id="ahStatusTabs">
+  <button class="ah-status-tab active" data-status="OPEN"        onclick="setStatusTab(this)">Open        <span class="tab-badge" id="cntOPEN">0</span></button>
+  <button class="ah-status-tab"        data-status="IN_PROGRESS" onclick="setStatusTab(this)">In Progress <span class="tab-badge" id="cntIN_PROGRESS">0</span></button>
+  <button class="ah-status-tab"        data-status="CLOSED"      onclick="setStatusTab(this)">Closed      <span class="tab-badge" id="cntCLOSED">0</span></button>
+</div>
+
 <div class="ah-filter-row">
-  <div class="ah-status-tabs" id="ahStatusTabs">
-    <button class="ah-status-tab active" data-status="OPEN"        onclick="setStatusTab(this)">Open        <span class="tab-badge" id="cntOPEN">0</span></button>
-    <button class="ah-status-tab"        data-status="IN_PROGRESS" onclick="setStatusTab(this)">In Progress <span class="tab-badge" id="cntIN_PROGRESS">0</span></button>
-    <button class="ah-status-tab"        data-status="CLOSED"      onclick="setStatusTab(this)">Closed      <span class="tab-badge" id="cntCLOSED">0</span></button>
-  </div>
   <div class="ah-filter-chips">
     <button class="ah-chip active" data-pri=""         onclick="setPriChip(this)">All</button>
     <button class="ah-chip crit"   data-pri="CRITICAL" onclick="setPriChip(this)">Critical</button>
@@ -1085,6 +1333,7 @@ body {
 <div class="ah-bulk-bar" id="ahBulkBar" hidden>
   <span class="ah-bulk-count" id="ahBulkCount">0 selected</span>
   <button class="ah-bulk-btn" id="ahBulkClose" onclick="doBulkClose()">✓ Close selected</button>
+  <button class="ah-bulk-btn ah-bulk-del" id="ahBulkDelete" onclick="doBulkDelete()">&#128465; Delete selected</button>
   <button class="ah-bulk-cancel" onclick="toggleSelectMode()">Cancel</button>
 </div>
 
@@ -1152,6 +1401,18 @@ body {
       <select class="ac-select" id="acZone">
         <option value="">— select zone —</option>
       </select>
+    </div>
+
+    <!-- Photo evidence (shared by NC / Task / Red Tag) -->
+    <div class="ac-field">
+      <label class="ac-label">Evidence <span class="ac-hint">photos or short video &middot; up to 8</span></label>
+      <div class="ac-photos" id="acPhotoStrip"></div>
+      <button type="button" class="ac-photo-add" id="acPhotoAdd" onclick="acPickPhoto()">
+        &#128247; Add photo
+      </button>
+      <input type="file" id="acPhotoInput" accept="image/*,video/*" capture="environment" multiple hidden
+             onchange="acOnPhotoPicked(this)">
+      <div class="ac-photo-note" id="acPhotoNote"></div>
     </div>
 
     <!-- NC fields -->
@@ -1249,14 +1510,80 @@ body {
     <button class="rca-close" onclick="closeRcaModal()">✕</button>
   </div>
   <div class="rca-body">
-    <label class="rca-label">Root Cause <em>(min 50 characters)</em></label>
+    <label class="rca-label">Root Cause
+      <em title="ISO CAPA rule enforced by the server: a one-line cause is not an analysis">why did it happen?</em></label>
     <textarea class="rca-textarea" id="rcaRootCause" rows="3" placeholder="Describe the root cause in detail…" oninput="onRcaInput()"></textarea>
     <div class="rca-counter" id="rcaCounter">0 / 50 chars</div>
 
     <label class="rca-label">Corrective Action <em>(required)</em></label>
     <textarea class="rca-textarea" id="rcaCorrectiveAction" rows="2" placeholder="What corrective action will be taken?"></textarea>
 
+    <label class="rca-label" for="rcaOwner">Action By <em>(who is doing it)</em></label>
+    <input class="ac-input" id="rcaOwner" type="text" placeholder="Name of the person actioning this">
+
+    <label class="rca-label" for="rcaTarget">Target Date</label>
+    <input class="ac-input" id="rcaTarget" type="date">
+
+    <label class="rca-label">Evidence <span class="ac-hint">photos or short video &middot; up to 8</span></label>
+    <div class="ac-photos" id="rcaPhotoStrip"></div>
+    <button type="button" class="ac-photo-add" id="rcaPhotoAdd" onclick="rcaPickPhoto()">
+      &#128247; Add photo
+    </button>
+    <input type="file" id="rcaPhotoInput" accept="image/*,video/*" capture="environment" multiple hidden
+           onchange="rcaOnPhotoPicked(this)">
+    <div class="ac-photo-note" id="rcaPhotoNote"></div>
+
     <button class="rca-submit" id="rcaSubmitBtn" onclick="submitRca()" disabled>Submit &amp; Start</button>
+  </div>
+</div>
+
+<!-- NC Close / Verification Modal.
+     Closing an NC is the ISO evidence step, so it collects what an auditor
+     will ask for: the preventive action that stops recurrence, WHO verified
+     it, WHEN, and photo proof. Previously doNcClose() sent an empty remark
+     and closed the record silently, leaving preventive_action, verified_by
+     and verification_remarks blank on every closed NC. -->
+<div class="rca-backdrop" id="ncvBackdrop" onclick="closeNcVerifyModal()"></div>
+<div class="rca-modal" id="ncvModal" role="dialog" aria-modal="true" aria-labelledby="ncvTitle">
+  <div class="rca-header">
+    <span class="rca-title" id="ncvTitle">Close NC &mdash; Verification</span>
+    <button class="rca-close" onclick="closeNcVerifyModal()" aria-label="Close">&#10005;</button>
+  </div>
+  <div class="rca-body">
+    <div class="ncv-recap" id="ncvRecap"></div>
+
+    <label class="rca-label" for="ncvCorrective">Corrective Action Taken <em>(required)</em></label>
+    <textarea class="rca-textarea" id="ncvCorrective" rows="2"
+      placeholder="What was actually done to fix this?" oninput="onNcvInput()"></textarea>
+
+    <label class="rca-label" for="ncvPreventive">Preventive Action <em>(required)</em></label>
+    <textarea class="rca-textarea" id="ncvPreventive" rows="2"
+      placeholder="What stops this recurring?" oninput="onNcvInput()"></textarea>
+
+    <label class="rca-label" for="ncvVerifiedBy">Verified By <em>(required)</em></label>
+    <input class="ac-input" id="ncvVerifiedBy" type="text" placeholder="Name of the verifier"
+      oninput="onNcvInput()">
+    <div class="ncv-hint" id="ncvFourEyes"></div>
+
+    <label class="rca-label" for="ncvDate">Verification Date</label>
+    <input class="ac-input" id="ncvDate" type="date">
+
+    <label class="rca-label" for="ncvRemarks">Verification Remarks</label>
+    <textarea class="rca-textarea" id="ncvRemarks" rows="2"
+      placeholder="How was effectiveness confirmed?"></textarea>
+
+    <label class="rca-label">Closure Evidence <span class="ac-hint">photos or short video &middot; up to 8</span></label>
+    <div class="ac-photos" id="ncvPhotoStrip"></div>
+    <button type="button" class="ac-photo-add" id="ncvPhotoAdd" onclick="ncvPickPhoto()">
+      &#128247; Add photo
+    </button>
+    <input type="file" id="ncvPhotoInput" accept="image/*,video/*" capture="environment" multiple hidden
+           onchange="ncvOnPhotoPicked(this)">
+    <div class="ac-photo-note" id="ncvPhotoNote"></div>
+
+    <button class="rca-submit" id="ncvSubmitBtn" onclick="submitNcVerify()" disabled>
+      &#10003; Verify &amp; Close
+    </button>
   </div>
 </div>
 
@@ -1337,16 +1664,30 @@ function renderAuditsView() {
         document.getElementById('ahContent').innerHTML = '<div class="ah-empty">No submitted audits yet.</div>';
         return;
       }
-      var html = audits.map(function(a) {
+      /* Audits were one-line cards stacked full-width: a wall of near-identical
+         rows that wasted the whole right-hand side of a desktop screen and made
+         the score — the one number you scan for — the same weight as the rest.
+         Now a responsive grid of tiles, score leading. */
+      var html = '<div class="au-grid">' + audits.map(function(a) {
         var pcls = a.pct >= 80 ? 'g' : a.pct >= 60 ? 'a' : 'r';
-        var when = a.timestamp ? new Date(a.timestamp).toLocaleString() : '';
-        return '<div class="ah-card" onclick="openAuditDetail(\'' + escHtml(a.submissionId) + '\')" style="cursor:pointer">' +
-          '<div class="ah-card__body"><div class="ah-card__top">' +
-          '<span class="ah-card__title">' + escHtml(a.zoneId) + ' · ' + escHtml(a.zoneName) + '</span>' +
-          '<span class="ah-pct ' + pcls + '" style="font-weight:700">' + a.pct + '%</span></div>' +
-          '<div class="ah-card__meta">' + escHtml(when) + ' · ' + a.count + ' criteria · ' +
-          a.photos + ' photo(s) · ' + escHtml(a.auditor) + '</div></div></div>';
-      }).join('');
+        var d = a.timestamp ? new Date(a.timestamp) : null;
+        var when = d && !isNaN(d) ? fmtDate_(a.timestamp) : '';
+        var time = d && !isNaN(d)
+          ? (('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2)) : '';
+        return '<button type="button" class="au-tile" ' +
+          'onclick="openAuditDetail(' + escHtml(JSON.stringify(a.submissionId)) + ')">' +
+          '<span class="au-score ' + pcls + '">' + a.pct + '<i>%</i></span>' +
+          '<span class="au-body">' +
+            '<span class="au-zone">' + escHtml(a.zoneId) + '</span>' +
+            '<span class="au-name">' + escHtml(a.zoneName || '') + '</span>' +
+            '<span class="au-meta">' + escHtml(when) + (time ? ' &middot; ' + time : '') + '</span>' +
+            '<span class="au-stats">' +
+              '<span title="criteria scored">&#9989; ' + a.count + '</span>' +
+              '<span title="photos attached">&#128247; ' + a.photos + '</span>' +
+              '<span class="au-by" title="auditor">' + escHtml(a.auditor || '') + '</span>' +
+            '</span>' +
+          '</span></button>';
+      }).join('') + '</div>';
       document.getElementById('ahContent').innerHTML = html;
     })
     .withFailureHandler(function(e) {
@@ -1457,12 +1798,24 @@ function openAuditDetail(submissionId) {
           (it.remark ? '<div style="font-size:12.5px;color:var(--text-muted);margin-top:3px;font-style:italic">' + escHtml(it.remark) + '</div>' : '') +
           '</div>' + photo + '</div>';
       }).join('');
-      h = '<div id="auShare" style="display:flex;gap:8px;margin-bottom:12px"><span style="font-size:12px;color:var(--text-muted)">Preparing report…</span></div>' + h;
+      h = '<div id="auShare" class="au-share-row"><span class="au-share-msg">Preparing report…</span></div>' + h;
       document.getElementById('recordDetailBody').innerHTML = h;
       auditShareLinks_(submissionId);
     })
     .withFailureHandler(function(e) { document.getElementById('recordDetailBody').innerHTML = '<div class="ah-empty">' + escHtml(friendlyError_(e)) + '</div>'; })
     .getAuditDetail(submissionId);
+}
+
+/* Opens an external URL from inside the GAS sandbox iframe.
+   window.open works from a user gesture; if a popup blocker stops it, fall
+   back to navigating the top frame, which the sandbox does permit. */
+function pmNav_(url) {
+  if (!url) return;
+  var w = null;
+  try { w = window.open(url, '_blank', 'noopener,noreferrer'); } catch (e) {}
+  if (w) return;
+  try { window.top.location.href = url; }
+  catch (e) { location.href = url; }
 }
 
 function auditShareLinks_(submissionId) {
@@ -1471,11 +1824,18 @@ function auditShareLinks_(submissionId) {
       var el = document.getElementById('auShare');
       if (!el) return;
       if (r && r.success) {
+        /* target="_blank" is blocked inside the GAS sandbox iframe, so both
+           links silently did nothing. window.open from a click handler escapes
+           the sandbox; pmNav_ falls back to a top-level navigation when the
+           popup is blocked. Verified 2026-09-02: the URLs themselves were
+           always valid — only the navigation was failing. */
         var h = '';
-        if (r.pdfUrl) h += '<a href="' + r.pdfUrl + '" target="_blank" rel="noopener" style="flex:1;text-align:center;padding:9px;border-radius:8px;background:#eef2ff;color:#3730a3;font-weight:600;text-decoration:none;font-size:13px">&#128196; View PDF</a>';
-        if (r.waUrl)  h += '<a href="' + r.waUrl + '" target="_blank" rel="noopener" style="flex:1;text-align:center;padding:9px;border-radius:8px;background:#25D366;color:#fff;font-weight:600;text-decoration:none;font-size:13px">&#128241; WhatsApp</a>';
+        if (r.pdfUrl) h += '<button type="button" class="au-share pdf" ' +
+          'onclick="pmNav_(' + escHtml(JSON.stringify(r.pdfUrl)) + ')">&#128196; View PDF</button>';
+        if (r.waUrl)  h += '<button type="button" class="au-share wa" ' +
+          'onclick="pmNav_(' + escHtml(JSON.stringify(r.waUrl)) + ')">&#128241; Share on WhatsApp</button>';
         el.innerHTML = h;
-      } else { el.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">Report unavailable</span>'; }
+      } else { el.innerHTML = '<span class="au-share-msg">Report unavailable</span>'; }
     })
     .withFailureHandler(function() {
       var el = document.getElementById('auShare');
@@ -1488,7 +1848,7 @@ function setStatusTab(btn) {
   document.querySelectorAll('.ah-status-tab').forEach(function(b) { b.classList.remove('active'); });
   btn.classList.add('active');
   _filters.status = btn.getAttribute('data-status');
-  fetchAndRender();
+  applyFiltersAndRender_();   // local: no round trip
 }
 
 function setPriChip(btn) {
@@ -1500,9 +1860,7 @@ function setPriChip(btn) {
 }
 
 function setZone(val) {
-  _filters.zoneId = val;
-  updateFilterCount_();
-  fetchAndRender();
+  setZoneTab(val);   // same filter, one implementation
 }
 
 /* ── collapsible priority/zone filter row ── */
@@ -1542,15 +1900,30 @@ function loadZones() {
 }
 
 /* ── fetch ── */
-function fetchAndRender() {
-  document.getElementById('ahContent').innerHTML = '<div class="ah-loading">Loading…</div>';
+/* ── Client-side filtering ────────────────────────────────────────────────
+   Every tab click and every chip used to issue its own google.script.run call.
+   The server work is small (~450ms to build the list) but each round trip costs
+   3-16s of GAS transport, so switching tabs felt broken even though nothing was
+   wrong. The full zone-scoped set is fetched ONCE and every status / type /
+   priority change is then applied in the browser — those are pure predicates
+   over data already in hand.
 
-  var f = {
-    zoneId:   _filters.zoneId   || '',
-    type:     _filters.type     || '',
-    status:   _filters.status   || '',
-    priority: _filters.priority || ''
-  };
+   Only the ZONE filter still refetches: it changes which records exist, and the
+   server applies it before building the counts. */
+var _allItems = null;      // full set for the current zone
+var _allCounts = null;
+
+function fetchAndRender(quiet, force) {
+  /* The whole plant is fetched once; zone is now a local filter like the rest,
+     so the cache is valid for every zone and only a WRITE invalidates it. */
+  if (!force && _allItems) {
+    applyFiltersAndRender_();
+    return;
+  }
+
+  if (!quiet) {
+    document.getElementById('ahContent').innerHTML = '<div class="ah-loading">Loading…</div>';
+  }
 
   google.script.run
     .withSuccessHandler(function(data) {
@@ -1558,14 +1931,112 @@ function fetchAndRender() {
         document.getElementById('ahContent').innerHTML = '<div class="ah-empty">No data returned.</div>';
         return;
       }
-      updateBadges(data.counts || {});
-      renderCards(data.items || []);
+      _allItems = data.items || [];
+      _allCounts = data.counts || {};
+      applyFiltersAndRender_();
     })
     .withFailureHandler(function(e) {
       document.getElementById('ahContent').innerHTML =
         '<div class="ah-loading" style="color:var(--score-red)">' + escHtml(friendlyError_(e)) + '</div>';
     })
-    .getUnifiedActionList(f);
+    .getUnifiedActionList({});   // whole plant — every filter is applied locally
+}
+
+/* Zone tabs are rendered from the cached set, so switching zone is instant and
+   the counts always match what the list will show. Zone is applied LOCALLY —
+   the cache holds every zone, so there is no refetch. */
+function buildZoneTabs_() {
+  var wrap = document.getElementById('ahZoneTabs');
+  if (!wrap || !_allItems) return;
+
+  /* Count per zone under the OTHER active filters, so a tab never promises
+     rows that the current status/priority selection would hide. */
+  var counts = {}, names = {};
+  _allItems.forEach(function(i) {
+    if (_filters.status   && i.status   !== _filters.status)   return;
+    if (_filters.type     && i.type     !== _filters.type)     return;
+    if (_filters.priority && i.priority !== _filters.priority) return;
+    var z = i.zoneId || '';
+    if (!z) return;
+    counts[z] = (counts[z] || 0) + 1;
+    if (i.zone && !names[z]) names[z] = i.zone;
+  });
+
+  var zones = Object.keys(counts).sort();
+  var total = zones.reduce(function(n, z) { return n + counts[z]; }, 0);
+  var cur = _filters.zoneId || '';
+
+  var html = '<button class="ah-zone-tab' + (cur === '' ? ' active' : '') + '"' +
+    ' role="tab" aria-selected="' + (cur === '' ? 'true' : 'false') + '"' +
+    ' onclick="setZoneTab(\'\')">All zones<span class="ah-zt-n">' + total + '</span></button>';
+
+  zones.forEach(function(z) {
+    var on = (cur === z);
+    html += '<button class="ah-zone-tab' + (on ? ' active' : '') + '"' +
+      ' role="tab" aria-selected="' + (on ? 'true' : 'false') + '"' +
+      ' title="' + escHtml(names[z] || z) + '"' +
+      ' onclick="setZoneTab(' + escHtml(JSON.stringify(z)) + ')">' +
+      escHtml(z) + '<span class="ah-zt-n">' + counts[z] + '</span></button>';
+  });
+
+  /* A zone that currently has no rows still needs its tab while selected,
+     otherwise the control you just used disappears under you. */
+  if (cur && zones.indexOf(cur) < 0) {
+    html += '<button class="ah-zone-tab active" role="tab" aria-selected="true"' +
+      ' onclick="setZoneTab(' + escHtml(JSON.stringify(cur)) + ')">' +
+      escHtml(cur) + '<span class="ah-zt-n">0</span></button>';
+  }
+  wrap.innerHTML = html;
+}
+
+function setZoneTab(z) {
+  _filters.zoneId = z;
+  /* Keep the Filters-row dropdown in step — it is the same filter. */
+  var sel = document.getElementById('ahZoneSelect');
+  if (sel) sel.value = z;
+  updateFilterCount_();
+  applyFiltersAndRender_();          // local: the cache spans every zone
+  var active = document.querySelector('.ah-zone-tab.active');
+  if (active && active.scrollIntoView) active.scrollIntoView({ block: 'nearest', inline: 'center' });
+}
+
+/* Applies the current status/type/priority filters to the cached set and
+   recomputes the badges. Each badge excludes only its own dimension, matching
+   the server-side contract in getUnifiedActionList. */
+function applyFiltersAndRender_() {
+  if (!_allItems) return;
+  var st = _filters.status || '', ty = _filters.type || '', pr = _filters.priority || '';
+
+  var zn = _filters.zoneId || '';
+  var match = function(i, skip) {
+    if (skip !== 'status'   && st && i.status   !== st) return false;
+    if (skip !== 'type'     && ty && i.type     !== ty) return false;
+    if (skip !== 'priority' && pr && i.priority !== pr) return false;
+    /* Zone is filtered here rather than server-side so switching zone costs
+       nothing — the cached set already spans the whole plant. */
+    if (skip !== 'zone'     && zn && i.zoneId   !== zn) return false;
+    return true;
+  };
+
+  var counts = {
+    byStatus:   { OPEN: 0, IN_PROGRESS: 0, CLOSED: 0 },
+    byType:     { NC: 0, TASK: 0, RED_TAG: 0 },
+    byPriority: { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 },
+    byTypeStatus: (_allCounts && _allCounts.byTypeStatus) || {},
+    total: 0
+  };
+  _allItems.forEach(function(i) {
+    if (match(i, 'status')   && counts.byStatus[i.status]     !== undefined) counts.byStatus[i.status]++;
+    if (match(i, 'type')     && counts.byType[i.type]         !== undefined) counts.byType[i.type]++;
+    if (match(i, 'priority') && counts.byPriority[i.priority] !== undefined) counts.byPriority[i.priority]++;
+  });
+
+  var shown = _allItems.filter(function(i) { return match(i, null); });
+  counts.total = shown.length;
+
+  updateBadges(counts);
+  buildZoneTabs_();
+  renderCards(shown);
 }
 
 /* ── badge updates ── */
@@ -1622,10 +2093,48 @@ function renderCards(items) {
 }
 
 /* one table for a set of rows (no Type column — the section header carries it) */
+/* Age is the signal operators scan for, so it carries colour rather than
+   sitting as grey text: the longer a record has been open the hotter the chip.
+   Bands are calendar days since creation. Colour is never the only cue - the
+   number stays, and the title cell keeps its own overdue warning - so this
+   still reads for a colour-blind auditor. */
+function ageBand_(d) {
+  if (d == null) return null;
+  if (d <= 3)  return { k: 'fresh', t: '0-3 days old' };
+  if (d <= 7)  return { k: 'ok',    t: '4-7 days old' };
+  if (d <= 14) return { k: 'warn',  t: '8-14 days old' };
+  if (d <= 30) return { k: 'hot',   t: '15-30 days old' };
+  return { k: 'stale', t: 'over 30 days old' };
+}
+/* Overdue belongs in the Due column, not glued to the front of the record
+   name: prefixing the title pushed the actual name sideways and made every
+   list scan start with a number instead of the thing being read. The row
+   still carries data-overdue for its red left rail, and the Due cell now
+   shows the date with the lateness under it. */
+function dueCell_(a, overdue) {
+  var due = a.dueDate ? escHtml(a.dueDate) : '&mdash;';
+  if (!overdue) return '<span class="ah-due">' + due + '</span>';
+  /* Date only — the day COUNT is deliberately not repeated here. Age already
+     answers "how long has this existed", and two large numbers side by side
+     read as the same fact twice even though they are not: measured on live
+     data, age and days-past-due differ on 183 of 184 overdue records
+     (RT-0001: 83d old, 73d late). The date plus a red marker says "late";
+     the exact lateness is one hover away and in the detail view. */
+  var late = (a.daysPastDue > 0) ? a.daysPastDue + ' days past due' : 'past due';
+  return '<span class="ah-due late" title="' + escHtml(late) + '">&#9888; ' + due + '</span>';
+}
+
+function ageCell_(d) {
+  var b = ageBand_(d);
+  if (!b) return '<span class="ah-age-na">&mdash;</span>';
+  return '<span class="ah-age ' + b.k + '" title="' + b.t + '">' + escHtml(String(d)) + 'd</span>';
+}
+
 function buildTable_(rows) {
   var sel = _selectMode;
   var selCol = sel ? '<col class="c-sel">' : '';
-  var selHead = sel ? '<th class="ah-sel-th"></th>' : '';
+  var selHead = sel ? '<th class="ah-sel-th"><input type="checkbox" class="ah-sel-box ah-sel-all"' +
+    ' aria-label="Select all in this section" onchange="onSelAll_(this)"></th>' : '';
   var html = '<div class="ah-table-wrap"><table class="ah-table' + (sel ? ' selecting' : '') + '">' +
     '<colgroup>' + selCol + '<col class="c-title"><col class="c-zone"><col class="c-owner">' +
     '<col class="c-due"><col class="c-age"><col class="c-pri"><col class="c-status"><col class="c-acts"></colgroup>' +
@@ -1654,15 +2163,21 @@ function buildTable_(rows) {
       ' onclick="toggleRowDetail(' + openArgs + ',this)"' +
       ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleRowDetail(' + openArgs + ',this);}"' +
       ' title="' + escHtml(a.title) + '">' +
-      (overdue ? '<span class="ovd">&#9888; ' + (a.daysPastDue > 0 ? escHtml(String(a.daysPastDue)) + 'd overdue' : 'overdue') + '</span>' : '') +
       '<span class="ah-ttl-txt">' + escHtml(a.title) + '</span></td>';
     html += '<td class="ah-td muted hide-sm" data-label="Zone">' + escHtml(a.zone || '') + '</td>';
     html += '<td class="ah-td muted hide-sm" data-label="Owner">' + escHtml(a.owner || '—') + '</td>';
-    html += '<td class="ah-td muted hide-sm" data-label="Due">' + escHtml(a.dueDate || '—') + '</td>';
-    html += '<td class="ah-td muted hide-sm" data-label="Age">' + (a.ageDays != null ? escHtml(String(a.ageDays)) + 'd' : '—') + '</td>';
+    html += '<td class="ah-td hide-sm" data-label="Due">' + dueCell_(a, overdue) + '</td>';
+    html += '<td class="ah-td hide-sm" data-label="Age">' + ageCell_(a.ageDays) + '</td>';
     html += '<td class="ah-td" data-label="Priority">' + (a.priority ? '<span class="pri-badge ' + escHtml(a.priority) + '">' + escHtml(a.priority) + '</span>' : '') + '</td>';
-    html += '<td class="ah-td" data-label="Status"><span class="status-lbl ' + escHtml(a.status) + '">' + escHtml(statusLabel(a.status)) + '</span></td>';
-    html += '<td class="ah-td acts">' + buildActionIcons(a) + '</td>';
+    html += '<td class="ah-td" data-label="Status">' + statusCell_(a) +
+      ((a.photos && a.photos.length)
+        ? '<span class="ah-evi-flag" title="' + a.photos.length + ' photo(s) attached">&#128247; ' +
+          a.photos.length + '</span>' : '') + '</td>';
+    /* Actions live in the expander only. Repeating them on every row put four
+       controls beside every record, competing with the record itself and
+       duplicating exactly what the expander already offers. The chevron says
+       the row opens; the actions are one tap away. */
+    html += '<td class="ah-td acts"><span class="ah-row-chev" aria-hidden="true">&#8250;</span></td>';
     html += '</tr>';
   });
   return html + '</tbody></table></div>';
@@ -1718,46 +2233,105 @@ function typeName(t) {
   return t;
 }
 
+/* Red Tag rows show their real PHASE, not just the coarse Open/In-Progress
+   mapping — the phase is what determines which button comes next. */
+var RT_PHASE_LABEL = { IDENTIFIED: 'Identified', EVALUATED: 'Evaluated',
+                       DISPOSED: 'Disposed', CLOSED: 'Closed' };
+
+/* Evidence thumbnails. Photos are attached at raise / start / closure and were
+   being written to the sheet all along, but the Actions list never carried a
+   photo field, so nothing could render them. Thumbnails open the existing
+   lightbox. */
+/* Dates arrive as raw ISO strings ("2026-07-03T04:46:31.233Z"). Rendering
+   those verbatim put a timestamp with milliseconds in front of an operator who
+   only needs the day. */
+function fmtDate_(v) {
+  if (!v) return '';
+  var str = String(v);
+  var d = new Date(str);
+  if (isNaN(d.getTime())) return str.slice(0, 10);
+  var MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return d.getDate() + ' ' + MON[d.getMonth()] + ' ' + d.getFullYear();
+}
+
+/* A labelled field. The old grid showed a bare emoji and a value, so "🕵 By
+   someone@x" and "📅 2026-06-26" carried no field name at all — you had to
+   infer what each number meant. Every value now names itself. */
+function field_(label, value, opts) {
+  if (value === null || value === undefined || value === '') return '';
+  opts = opts || {};
+  return '<div class="rc-f' + (opts.wide ? ' wide' : '') + '">' +
+    '<dt class="rc-f-k">' + escHtml(label) + '</dt>' +
+    '<dd class="rc-f-v' + (opts.mono ? ' mono' : '') + '">' + escHtml(String(value)) + '</dd></div>';
+}
+
+/* A titled block. Sections were bare text with no container, so the page read
+   as one undifferentiated column. */
+function section_(title, body) {
+  if (!body) return '';
+  return '<section class="rc-sec">' +
+    '<h4 class="rc-sec-t">' + escHtml(title) + '</h4>' + body + '</section>';
+}
+
+function photoStrip_(photos) {
+  if (!photos || !photos.length) return '';
+  return '<div class="ah-evi">' +
+    '<div class="ah-evi-hd">Evidence &middot; ' + photos.length + '</div>' +
+    '<div class="ah-evi-row">' + photos.map(function(u, i) {
+      /* Drive renders a poster frame for video at the same thumbnail URL, so
+         the tile looks the same; the play badge and the viewer differ. */
+      var vid = _isVideoUrl_(u);
+      return '<span class="ah-evi-cell' + (vid ? ' vid' : '') + '"' +
+        ' onclick="event.stopPropagation();' +
+        (vid ? 'openVideo_' : 'openLightbox_') + '(' + escHtml(JSON.stringify(u)) + ')">' +
+        '<img class="ah-evi-thumb" src="' + escHtml(u) + '" loading="lazy"' +
+        ' alt="Evidence ' + (i + 1) + (vid ? ' (video)' : '') + '">' +
+        (vid ? '<span class="ah-evi-play" aria-hidden="true">&#9654;</span>' : '') +
+        '</span>';
+    }).join('') + '</div></div>';
+}
+
+/* A stored video keeps its extension in the Drive filename, but the thumbnail
+   URL only carries the file id — so the marker is added at upload time as
+   "#v" on the URL. Anything else is treated as an image. */
+function _isVideoUrl_(u) { return /#v$/.test(String(u)); }
+
+/** Opens a clip in Drive's own player — no codec handling on our side. */
+function openVideo_(url) {
+  var id = String(url).match(/[?&]id=([^&#]+)/);
+  window.open(id ? 'https://drive.google.com/file/d/' + id[1] + '/view'
+                 : String(url).replace(/#v$/, ''),
+              '_blank', 'noopener,noreferrer');
+}
+
+/* Opens a photo full-size. Falls back to a new tab if the page has no
+   lightbox element (the Actions page ships one; other hosts may not). */
+function openLightbox_(url) {
+  var lb = document.querySelector('.ah-lightbox');
+  var img = lb && lb.querySelector('img');
+  if (!lb || !img) { window.open(url, '_blank', 'noopener,noreferrer'); return; }
+  img.src = url;
+  lb.classList.add('open');
+  lb.onclick = function() { lb.classList.remove('open'); img.src = ''; };
+}
+
+function statusCell_(a) {
+  var base = '<span class="status-lbl ' + escHtml(a.status) + '">' +
+             escHtml(statusLabel(a.status)) + '</span>';
+  if (a.type !== 'RED_TAG') return base;
+  var raw = String(a.rawStatus || '').toUpperCase();
+  var phase = RT_PHASE_LABEL[raw];
+  if (!phase || raw === 'CLOSED') return base;
+  return base + '<span class="ah-phase" title="Red Tag stage ' +
+    (raw === 'IDENTIFIED' ? '1' : raw === 'EVALUATED' ? '2' : '3') + ' of 3">' +
+    escHtml(phase) + '</span>';
+}
+
 function statusLabel(s) {
   if (s === 'IN_PROGRESS') return 'In Progress';
   if (s === 'OPEN') return 'Open';
   if (s === 'CLOSED') return 'Closed';
   return s;
-}
-
-/* ── action buttons per type + status ── */
-function buildActionBtns(a) {
-  var id = a.id;
-  var si = escHtml(JSON.stringify(id));
-  var html = '';
-
-  if (a.type === 'NC') {
-    if (a.status === 'OPEN') {
-      html += '<button class="ah-btn start" onclick="event.stopPropagation();openRcaModal(' + si + ')">&#8594; Start</button>';
-      html += '<button class="ah-btn close" onclick="event.stopPropagation();doNcClose(' + si + ',this)">&#10003; Close</button>';
-    } else if (a.status === 'IN_PROGRESS') {
-      html += '<button class="ah-btn close" onclick="event.stopPropagation();doNcClose(' + si + ',this)">&#10003; Close</button>';
-    }
-  } else if (a.type === 'TASK') {
-    var raw = (a.rawStatus || '').toUpperCase();
-    if (raw === 'BACKLOG' || raw === 'THIS_WEEK' || raw === 'OPEN' || a.status === 'OPEN') {
-      html += '<button class="ah-btn start" onclick="event.stopPropagation();doTaskStatus(' + si + ',\'IN_PROGRESS\',this)">&#8594; Start</button>';
-      html += '<button class="ah-btn done"  onclick="event.stopPropagation();doTaskStatus(' + si + ',\'DONE\',this)">&#10003; Done</button>';
-    } else if (a.status === 'IN_PROGRESS') {
-      html += '<button class="ah-btn done" onclick="event.stopPropagation();doTaskStatus(' + si + ',\'DONE\',this)">&#10003; Done</button>';
-    }
-  } else if (a.type === 'RED_TAG') {
-    var raw2 = (a.rawStatus || a.status || '').toUpperCase();
-    var nextPhase = nextRedTagPhase(raw2);
-    if (nextPhase) {
-      html += '<button class="ah-btn phase" onclick="event.stopPropagation();doRedTagPhase(' + si + ',\'' + nextPhase.phase + '\',this)">' + nextPhase.label + '</button>';
-    }
-  }
-  /* Edit + Delete available for all types/states */
-  var aj = escHtml(JSON.stringify(a));
-  html += '<button class="ah-btn edit" onclick="event.stopPropagation();openEditModal(' + aj + ')">&#9998; Edit</button>';
-  html += '<button class="ah-btn del" onclick="event.stopPropagation();doDelete(' + escHtml(JSON.stringify(a.type)) + ',' + escHtml(JSON.stringify(a.id)) + ',this)">&#128465; Delete</button>';
-  return html;
 }
 
 /* ── Edit modal ── */
@@ -1809,7 +2383,7 @@ function submitEdit() {
     fn = 'editRedTag'; updates = { itemDescription: v('edDesc'), owner: v('edOwner'), deadline: v('edDue') };
   }
   google.script.run
-    .withSuccessHandler(function(r) { closeEditModal(); fetchAndRender(); })
+    .withSuccessHandler(function(r) { closeEditModal(); fetchAndRender(false, true); })
     .withFailureHandler(function(e) { showToast(friendlyError_(e), 'error'); })
     [fn](id, updates);
 }
@@ -1828,12 +2402,12 @@ function doDelete(type, id, btn) {
   var fn = type === 'NC' ? 'deleteCAPA' : type === 'TASK' ? 'deleteTask' : 'deleteRedTag';
   google.script.run
     .withSuccessHandler(function(r) {
-      closeAllDetailModals_(); fetchAndRender();
+      closeAllDetailModals_(); fetchAndRender(false, true);
       /* Real Undo: delete is a soft status flip, restore reverses it. */
       var prev = r && r.prevStatus;
       showUndoToast_(typeName(type) + ' deleted.', function(){
         google.script.run
-          .withSuccessHandler(function(){ showToast(typeName(type) + ' restored.', 'success'); fetchAndRender(); })
+          .withSuccessHandler(function(){ showToast(typeName(type) + ' restored.', 'success'); fetchAndRender(false, true); })
           .withFailureHandler(function(e){ showToast(friendlyError_(e), 'error'); })
           .restoreRecord_(type, id, prev);
       });
@@ -1865,49 +2439,163 @@ var _selectMode = false;
 function toggleSelectMode() {
   _selectMode = !_selectMode;
   var btn = document.getElementById('ahSelectToggle');
-  if (btn) btn.classList.toggle('on', _selectMode);
-  if (!_selectMode) { var bar = document.getElementById('ahBulkBar'); if (bar) bar.hidden = true; }
-  fetchAndRender();   // re-render to add/remove the checkbox column
+  if (btn) {
+    btn.classList.toggle('on', _selectMode);
+    btn.setAttribute('aria-pressed', _selectMode ? 'true' : 'false');
+  }
+  /* Name the state, not the action: an unlabelled toggle gave no clue that
+     the checkbox column was a mode you had entered and could leave. */
+  var lbl = document.getElementById('ahSelectLabel');
+  if (lbl) lbl.textContent = _selectMode ? 'Exit multi-select' : 'Multi-select';
+  var bar = document.getElementById('ahBulkBar');
+  if (bar) {
+    /* Show the bar as soon as select mode is ON, at 0 selected, so the exit
+       route ("Cancel") and the action buttons are visible from the moment the
+       mode is entered. It used to appear only after the first checkbox was
+       ticked, which left the user in a changed mode with no visible way out. */
+    bar.hidden = !_selectMode;
+    if (_selectMode) {
+      var cnt = document.getElementById('ahBulkCount');
+      if (cnt) cnt.textContent = '0 selected';
+      _setBulkActionsEnabled_(false);
+    }
+  }
+  fetchAndRender();
+}
+
+/** Bulk actions are meaningless with an empty selection. @private */
+function _setBulkActionsEnabled_(on) {
+  ['ahBulkClose', 'ahBulkDelete'].forEach(function(id) {
+    var b = document.getElementById(id);
+    if (b) b.disabled = !on;
+  });
 }
 
 function selectedRows_() {
-  return Array.prototype.slice.call(document.querySelectorAll('.ah-sel-box:checked'))
-    .map(function(box){ var tr = box.closest('tr'); return tr && { id: tr.getAttribute('data-id'), type: tr.getAttribute('data-type') }; })
+  /* :not(.ah-sel-all) matters: the header select-all box is also an .ah-sel-box,
+     and its closest('tr') is the header row, which carries no data-id. Counting
+     it inflated the "N selected" label by one and would have dispatched a bulk
+     call with a null id. The data-id guard is a second belt on the same seam. */
+  return Array.prototype.slice.call(document.querySelectorAll('.ah-sel-box:not(.ah-sel-all):checked'))
+    .map(function(box){ var tr = box.closest('tr'); return tr && tr.getAttribute('data-id')
+      ? { id: tr.getAttribute('data-id'), type: tr.getAttribute('data-type') } : null; })
     .filter(Boolean);
 }
 
 function onSelToggle_() {
   var n = selectedRows_().length;
-  var bar = document.getElementById('ahBulkBar');
   var cnt = document.getElementById('ahBulkCount');
   if (cnt) cnt.textContent = n + ' selected';
-  if (bar) bar.hidden = (n === 0);
+  /* The bar's visibility now tracks select MODE, not the selection count —
+     see toggleSelectMode. Only the actions gate on having something picked. */
+  _setBulkActionsEnabled_(n > 0);
+  /* keep each section header box in sync with its own rows */
+  document.querySelectorAll('.ah-table.selecting').forEach(function(tbl) {
+    var all = tbl.querySelectorAll('.ah-sel-box:not(.ah-sel-all)');
+    var on  = tbl.querySelectorAll('.ah-sel-box:not(.ah-sel-all):checked');
+    var head = tbl.querySelector('.ah-sel-all');
+    if (!head) return;
+    head.checked = all.length > 0 && on.length === all.length;
+    head.indeterminate = on.length > 0 && on.length < all.length;
+  });
+}
+
+/* Header checkbox toggles only the rows of ITS OWN table: each type section is
+   a separate <table>, and a global select-all would silently arm rows the user
+   cannot see under a collapsed section. */
+function onSelAll_(box) {
+  var tbl = box.closest('table');
+  if (!tbl) return;
+  tbl.querySelectorAll('.ah-sel-box:not(.ah-sel-all)').forEach(function(b) { b.checked = box.checked; });
+  onSelToggle_();
+}
+
+/* In-app confirm: window.confirm() is unreliable inside the GAS sandbox iframe
+   (documented in CLAUDE.md), and a swallowed prompt on a DESTRUCTIVE bulk path
+   would delete without asking. Promise-based so callers read linearly. */
+function ahConfirm_(opts) {
+  return new Promise(function(resolve) {
+    var wrap = document.createElement('div');
+    wrap.className = 'ah-cfm';
+    wrap.innerHTML =
+      '<div class="ah-cfm-card" role="dialog" aria-modal="true">' +
+        '<div class="ah-cfm-t">' + escHtml(opts.title) + '</div>' +
+        '<div class="ah-cfm-b">' + escHtml(opts.body) + '</div>' +
+        '<div class="ah-cfm-acts">' +
+          '<button class="ah-cfm-no">Cancel</button>' +
+          '<button class="ah-cfm-yes' + (opts.danger ? ' danger' : '') + '">' + escHtml(opts.ok) + '</button>' +
+        '</div></div>';
+    function done(v) {
+      document.removeEventListener('keydown', onKey, true);
+      if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+      resolve(v);
+    }
+    function onKey(e) { if (e.key === 'Escape') { e.preventDefault(); done(false); } }
+    wrap.querySelector('.ah-cfm-no').onclick = function() { done(false); };
+    wrap.querySelector('.ah-cfm-yes').onclick = function() { done(true); };
+    wrap.onclick = function(e) { if (e.target === wrap) done(false); };
+    document.addEventListener('keydown', onKey, true);
+    document.body.appendChild(wrap);
+    wrap.querySelector('.ah-cfm-no').focus();
+  });
+}
+
+/* One engine for every bulk transition. Runs the per-row call the existing
+   single-record buttons already use - no bulk endpoint - so a partial failure
+   leaves the successful rows applied and reports the count honestly. */
+function runBulk_(sel, btn, verb, pick) {
+  var origText = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = verb + '\u2026'; }
+  var done = 0, failed = 0;
+  function finish() {
+    if (done + failed < sel.length) return;
+    showToast(done + ' ' + verb.toLowerCase() + 'd' + (failed ? ', ' + failed + ' failed' : ''),
+              failed ? 'error' : 'success');
+    if (btn) { btn.disabled = false; btn.textContent = origText; }
+    _selectMode = false;
+    var b = document.getElementById('ahSelectToggle'); if (b) b.classList.remove('on');
+    var bar = document.getElementById('ahBulkBar'); if (bar) bar.hidden = true;
+    fetchAndRender(false, true);
+  }
+  sel.forEach(function(r) {
+    var c = pick(r);
+    google.script.run
+      .withSuccessHandler(function(res){ (res && (res.success || res.ok) !== false) ? done++ : failed++; finish(); })
+      .withFailureHandler(function(){ failed++; finish(); })
+      [c.fn].apply(null, c.args);
+  });
+}
+
+function doBulkDelete() {
+  var sel = selectedRows_();
+  if (!sel.length) return;
+  ahConfirm_({
+    title: 'Delete ' + sel.length + ' record' + (sel.length > 1 ? 's' : '') + '?',
+    body: 'They are removed from the active lists. This is a soft delete, so an admin can restore them.',
+    ok: 'Delete', danger: true
+  }).then(function(go) {
+    if (!go) return;
+    runBulk_(sel, document.getElementById('ahBulkDelete'), 'Delete', function(r) {
+      return { fn: r.type === 'NC' ? 'deleteCAPA' : r.type === 'TASK' ? 'deleteTask' : 'deleteRedTag',
+               args: [r.id] };
+    });
+  });
 }
 
 function doBulkClose() {
   var sel = selectedRows_();
   if (!sel.length) return;
-  if (!confirm('Close ' + sel.length + ' selected record' + (sel.length > 1 ? 's' : '') + '?')) return;
-  var btn = document.getElementById('ahBulkClose');
-  if (btn) { btn.disabled = true; btn.textContent = 'Closing…'; }
-  var done = 0, failed = 0;
-  function finish() {
-    if (done + failed < sel.length) return;
-    showToast(done + ' closed' + (failed ? ', ' + failed + ' failed' : ''), failed ? 'error' : 'success');
-    _selectMode = false;
-    var b = document.getElementById('ahSelectToggle'); if (b) b.classList.remove('on');
-    var bar = document.getElementById('ahBulkBar'); if (bar) bar.hidden = true;
-    fetchAndRender();
-  }
-  sel.forEach(function(r) {
-    var fn, args;
-    if (r.type === 'NC')       { fn = 'updateCAPAStatus';  args = [r.id, 'CLOSED', '', '']; }
-    else if (r.type === 'TASK'){ fn = 'updateTaskStatus';  args = [r.id, 'DONE', '']; }
-    else                       { fn = 'advanceRedTagPhase'; args = [r.id, 'CLOSED', '']; }
-    google.script.run
-      .withSuccessHandler(function(res){ (res && (res.success || res.ok)) ? done++ : failed++; finish(); })
-      .withFailureHandler(function(){ failed++; finish(); })
-      [fn].apply(null, args);
+  ahConfirm_({
+    title: 'Close ' + sel.length + ' record' + (sel.length > 1 ? 's' : '') + '?',
+    body: 'Each is moved to its closed state.',
+    ok: 'Close them'
+  }).then(function(go) {
+    if (!go) return;
+    runBulk_(sel, document.getElementById('ahBulkClose'), 'Close', function(r) {
+      if (r.type === 'NC')    return { fn: 'updateCAPAStatus',  args: [r.id, 'CLOSED', '', ''] };
+      if (r.type === 'TASK')  return { fn: 'updateTaskStatus',  args: [r.id, 'DONE', ''] };
+      return { fn: 'advanceRedTagPhase', args: [r.id, 'CLOSED', ''] };
+    });
   });
 }
 
@@ -1997,41 +2685,76 @@ function renderNcDetail(d, targetId) {
   }
   function para(key, val) {
     if (val === null || val === undefined || val === '') return '';
-    return '<div class="rc-para"><span class="rc-k">' + key + '</span>' + escHtml(String(val)) + '</div>';
+    return '<div class="rc-para"><span class="rc-k">' + escHtml(key) + '</span>' +
+           '<span class="rc-pv">' + escHtml(String(val)) + '</span></div>';
   }
   var zone = d.zoneName || d.zoneId;
-  var badges = d.status ? '<span class="status-lbl ' + escHtml(d.status) + '">' + escHtml(statusLabel(d.status)) + '</span>' : '';
+  /* Status, zone, owner and the description-as-title are all on the row this
+     expander opens directly under, so they are NOT repeated here. Repeat is
+     kept — it is a flag the row cannot show. Pillar / score / target come from
+     the full-detail fetch and appear nowhere else. */
+  var badges = '';
   if (d.isRepeat) badges += '<span class="rc-repeat">&#128257; Repeat' + (d.recurrenceCount ? ' ×' + escHtml(String(d.recurrenceCount)) : '') + '</span>';
-  var html = '<div class="rc-hero"><span class="rc-emoji">&#128995;</span>' +
+  var html = '<div class="rc-hero">' +
     '<span class="rc-id">' + escHtml(d.id) + '</span>' +
     '<span class="rc-badges">' + badges + '</span></div>';
-  if (d.description) html += '<div class="rc-title">' + escHtml(d.description) + '</div>';
-  html += '<div class="rc-grid">';
-  html += cell('&#128205;', zone);                       /* 📍 */
-  html += cell('&#128100;', d.responsible);              /* 👤 */
-  html += cell('&#127919;', d.pillar);                   /* 🎯 */
-  html += cell('&#128197;', d.targetDate && ('Target ' + d.targetDate)); /* 📅 */
-  html += cell('&#128202;', d.scoreGiven != null && d.scoreGiven !== '' && ('Score ' + d.scoreGiven)); /* 📊 */
-  html += '</div>';
 
-  var rca = para('Root Cause:', d.rootCause) + para('Corrective:', d.correctiveAction) + para('Preventive:', d.preventiveAction);
-  if (rca) html += '<div class="rc-section">Root Cause Analysis</div>' + rca;
+  /* THE FINDING — what was observed. Leads because it is the reason the record
+     exists; everything below is context or response. */
+  var score = (d.scoreGiven === null || d.scoreGiven === undefined || d.scoreGiven === '')
+                ? '' : (d.scoreGiven + ' / 4');
+  html += section_('The finding',
+    '<dl class="rc-fields">' +
+      /* Rows created before v250 stored the PILLAR in the criterion column, so
+         both fields render the same value ("S1 / S1"). Show Criterion only when
+         it is a real criterion id (S1-C2), otherwise fall through to Pillar. */
+      field_('Criterion', /-/.test(d.criterionId || '') ? d.criterionId : '', { mono: true }) +
+      field_('Pillar', d.pillar) +
+      field_('Score', score) +
+      field_('Due', fmtDate_(d.targetDate)) +
+    '</dl>');
 
-  var auditCells =
-    cell('&#128373;', d.auditor && ('By ' + d.auditor)) +      /* 🕵 */
-    cell('&#128197;', d.auditDate && ('Audit ' + d.auditDate)) +
-    cell('&#10133;',  d.createdDate && ('Created ' + d.createdDate)) +  /* ➕ */
-    cell('&#9989;',   d.closureDate && ('Closed ' + d.closureDate)) +   /* ✅ */
-    cell('&#128100;', d.verifiedBy && ('Verified by ' + d.verifiedBy));
-  var remarks = para('Remarks:', d.verificationRemarks);
-  if (auditCells || remarks) {
-    html += '<div class="rc-section">Audit &amp; Verification</div>';
-    if (auditCells) html += '<div class="rc-grid">' + auditCells + '</div>';
-    html += remarks;
+  if (d.zoneId && d.auditDate) {
+    /* The session token lives only in the page URL — this page keeps no copy —
+       so it is read back from there and carried forward, otherwise the gated
+       audit page bounces to login. Inside the GAS sandbox the top frame holds
+       the real /exec URL, so read that and fall back to our own. */
+    var tok = '';
+    try {
+      var href = (window.top !== window ? document.referrer : location.href) || location.href;
+      var m = href.match(/[?&]token=([^&#]+)/);
+      if (m) tok = m[1];
+    } catch (e) {}
+    var auditHref = '?v2=1&action=audithistory&zone=' + encodeURIComponent(d.zoneId) +
+      (tok ? '&token=' + tok : '');
+    html += '<div class="rc-src"><a href="' + escHtml(auditHref) + '" target="_top">' +
+      '&#128203; View source audit &middot; ' + escHtml(d.zoneId) + ' &middot; ' +
+      escHtml(fmtDate_(d.auditDate)) + '</a></div>';
   }
 
+  /* EVIDENCE — the NC path fetches its own detail and never rendered photos,
+     which is why images attached to an NC were invisible while the same photos
+     showed fine on Tasks and Red Tags. */
+  html += photoStrip_(d.photoUrls);
+
+  /* THE RESPONSE — what is being done about it. */
+  html += section_('Root cause analysis',
+    para('Root cause', d.rootCause) +
+    para('Corrective action', d.correctiveAction) +
+    para('Preventive action', d.preventiveAction));
+
+  /* THE TRAIL — who and when. Dates formatted, every value labelled. */
+  html += section_('Audit & verification',
+    '<dl class="rc-fields">' +
+      field_('Raised by', d.auditor) +
+      field_('Audit date', fmtDate_(d.auditDate)) +
+      field_('Created', fmtDate_(d.createdDate)) +
+      field_('Closed', fmtDate_(d.closureDate)) +
+      field_('Verified by', d.verifiedBy) +
+    '</dl>' + para('Remarks', d.verificationRemarks));
+
   var ncAction = { type: 'NC', id: d.id, title: d.description, status: d.status, zone: zone };
-  html += '<div class="ah-card__actions" style="border-top:1px solid var(--border-light);margin-top:2px;padding:10px 0 0">' + buildActionBtns(ncAction) + '</div>';
+  html += '<div class="ah-card__actions">' + buildActionIcons(ncAction) + '</div>';
   body.innerHTML = html;
 }
 
@@ -2045,22 +2768,17 @@ function buildTaskDetailBody_(item) {
     return '<div class="rc-cell' + (wide ? ' wide' : '') + '"><span class="rc-ic">' + icon +
       '</span><span class="rc-v">' + escHtml(String(val)) + '</span></div>';
   }
-  var emoji = item.type === 'RED_TAG' ? '&#128308;' : '&#128203;'; /* 🔴 / 📋 */
-  var badges = '';
-  if (item.status) badges += '<span class="status-lbl ' + escHtml(item.status) + '">' + escHtml(statusLabel(item.status)) + '</span>';
-  if (item.priority) badges += '<span class="pri-badge ' + escHtml(item.priority) + '">' + escHtml(item.priority) + '</span>';
-  var h = '<div class="rc-hero"><span class="rc-emoji">' + emoji + '</span>' +
-    '<span class="rc-id">' + escHtml(item.id) + '</span>' +
-    '<span class="rc-badges">' + badges + '</span></div>';
-  if (item.title) h += '<div class="rc-title">' + escHtml(item.title) + '</div>';
-  h += '<div class="rc-grid">';
-  h += cell('&#128205;', item.zone);        /* 📍 */
-  h += cell('&#128100;', item.owner);       /* 👤 */
-  h += cell('&#128197;', item.dueDate && ('Due ' + item.dueDate)); /* 📅 */
-  h += cell('&#128336;', item.ageDays != null && (item.ageDays + 'd old')); /* 🕐 */
-  h += '</div>';
+  /* The expander sits DIRECTLY under its row, which already shows title, zone,
+     owner, due, age, priority and status. Repeating all of that was the bulk
+     of the redundancy — so this renders only what the row cannot: the record
+     id, the description, and the actions. */
+  var h = '<div class="rc-hero"><span class="rc-id">' + escHtml(item.id) + '</span></div>';
+
   if (item.description) h += '<div class="rc-desc">' + escHtml(item.description) + '</div>';
-  h += '<div class="ah-card__actions" style="border-top:1px solid var(--border-light);margin-top:2px;padding:10px 0 0">' + buildActionBtns(item) + '</div>';
+
+  h += photoStrip_(item.photos);
+
+  h += '<div class="ah-card__actions">' + buildActionIcons(item) + '</div>';
   return h;
 }
 
@@ -2089,7 +2807,12 @@ function openRcaModal(ncId) {
   _rcaPendingId = ncId;
   document.getElementById('rcaRootCause').value = '';
   document.getElementById('rcaCorrectiveAction').value = '';
-  document.getElementById('rcaCounter').textContent = '0 / 50 chars';
+  document.getElementById('rcaCounter').textContent = '50 more characters needed';
+  document.getElementById('rcaOwner').value = '';
+  document.getElementById('rcaTarget').value = '';
+  document.getElementById('rcaPhotoNote').textContent = '';
+  _rcaPhotos = [];
+  rcaRenderPhotos();
   document.getElementById('rcaCounter').className = 'rca-counter';
   document.getElementById('rcaSubmitBtn').disabled = true;
   document.getElementById('rcaModal').classList.add('open');
@@ -2106,10 +2829,47 @@ function closeRcaModal() {
 function onRcaInput() {
   var len = document.getElementById('rcaRootCause').value.length;
   var counter = document.getElementById('rcaCounter');
-  counter.textContent = len + ' / 50 chars';
+  /* Only speak up while the server's 50-char minimum is unmet; once satisfied
+     the counter has nothing useful left to say. */
+  counter.textContent = (len >= 50) ? '' : (50 - len) + ' more characters needed';
   counter.className = 'rca-counter' + (len >= 50 ? ' ok' : '');
   document.getElementById('rcaSubmitBtn').disabled = (len < 50);
 }
+
+/* Evidence at START, not only at closure: the "before" photo is the one that
+   proves the finding, and it can only be taken while the problem still exists.
+   Same pipeline as everywhere else — compress, annotate, upload to the zone
+   folder under yyyy/MM. */
+var _rcaPhotos = [];
+
+function rcaPickPhoto() {
+  if (_rcaPhotos.length >= AC_MAX_PHOTOS) return;
+  document.getElementById('rcaPhotoInput').click();
+}
+
+function rcaOnPhotoPicked(input) {
+  acHandleMediaPick_(input, _rcaPhotos, rcaRenderPhotos, 'rcaPhotoNote', function() {
+    return {
+      zone: '',
+      auditor: document.getElementById('rcaOwner').value ||
+               (typeof CURRENT_USER !== 'undefined' ? CURRENT_USER : ''),
+      date: new Date().toISOString().slice(0, 10)
+    };
+  });
+}
+
+function rcaRenderPhotos() {
+  document.getElementById('rcaPhotoStrip').innerHTML = _rcaPhotos.map(function(ph, i) {
+    return acThumb_(ph, i, 'rcaRemovePhoto');
+  }).join('');
+  var add = document.getElementById('rcaPhotoAdd');
+  add.disabled = _rcaPhotos.length >= AC_MAX_PHOTOS;
+  var kb = _rcaPhotos.reduce(function(n, ph) { return n + pmDataUrlKB(ph.dataUrl); }, 0);
+  document.getElementById('rcaPhotoNote').textContent =
+    _rcaPhotos.length ? _rcaPhotos.length + ' photo(s) \u00b7 ' + kb + ' KB total' : '';
+}
+
+function rcaRemovePhoto(i) { _rcaPhotos.splice(i, 1); rcaRenderPhotos(); }
 
 function submitRca() {
   if (!_rcaPendingId) return;
@@ -2126,6 +2886,11 @@ function submitRca() {
   btn.textContent = '…';
 
   var id = _rcaPendingId;
+  /* Who started it and when — the audit trail records the remark, so this is
+     where "done by / on" is captured for the START of the CAPA. */
+  var owner = document.getElementById('rcaOwner').value.trim();
+  var startRemark = 'Started ' + new Date().toISOString().slice(0, 10) +
+                    (owner ? ' by ' + owner : '');
   google.script.run
     .withSuccessHandler(function(result) {
       btn.disabled = false;
@@ -2133,7 +2898,7 @@ function submitRca() {
       if (result && result.success) {
         showToast('NC started.', 'success');
         closeRcaModal();
-        fetchAndRender();
+        fetchAndRender(false, true);
       } else {
         showToast((result && result.message) || 'Failed to start NC.', 'error');
       }
@@ -2143,72 +2908,289 @@ function submitRca() {
       btn.textContent = 'Submit & Start';
       showToast(friendlyError_(e), 'error');
     })
-    .updateCAPAStatus(id, 'IN_PROGRESS', '', '', { root_cause: rootCause, corrective_action: correctiveAction });
+    .updateCAPAStatus(id, 'IN_PROGRESS', '', startRemark, {
+      root_cause: rootCause,
+      corrective_action: correctiveAction,
+      responsible: document.getElementById('rcaOwner').value.trim(),
+      target_date: document.getElementById('rcaTarget').value,
+      start_photos_b64: _rcaPhotos.map(acMediaPayload_).filter(Boolean)
+    });
 }
 
-/* ── NC close ── */
+/* ── NC close / verification ──────────────────────────────────────────────
+   Opens the verification form instead of closing silently. The NC's existing
+   root cause and corrective action are fetched first so the verifier sees the
+   plan they are signing off against, and the corrective-action box is
+   pre-filled with what was planned (editable - what was DONE may differ). */
+var _ncvPendingId = null;
+var _ncvPhotos = [];
+
 function doNcClose(id, btn) {
-  var remarks = '';
-  disableBtn(btn, '…');
+  _ncvPendingId = id;
+  _ncvPhotos = [];
+  disableBtn(btn, '\u2026');
+  google.script.run
+    .withSuccessHandler(function(d) {
+      enableBtn(btn, '\u2713 Close');
+      openNcVerifyModal(id, d || {});
+    })
+    .withFailureHandler(function(e) {
+      enableBtn(btn, '\u2713 Close');
+      showToast(friendlyError_(e), 'error');
+    })
+    .getNcDetail(id);
+}
+
+function openNcVerifyModal(id, d) {
+  var miss = function(v, label) {
+    return v ? escHtml(v) : '<span class="ncv-missing">' + label + '</span>';
+  };
+  document.getElementById('ncvRecap').innerHTML =
+    '<div><b>' + escHtml(id) + '</b> &middot; ' + escHtml(d.zoneId || '') +
+      (d.zoneName ? ' ' + escHtml(d.zoneName) : '') + '</div>' +
+    '<div style="margin-top:6px"><b>Issue:</b> ' + miss(d.description, 'no description') + '</div>' +
+    '<div><b>Root cause:</b> ' + miss(d.rootCause, 'not recorded') + '</div>' +
+    '<div><b>Responsible:</b> ' + miss(d.responsible, 'unassigned') + '</div>';
+
+  document.getElementById('ncvCorrective').value = d.correctiveAction || '';
+  document.getElementById('ncvPreventive').value = d.preventiveAction || '';
+  document.getElementById('ncvVerifiedBy').value = '';
+  document.getElementById('ncvRemarks').value = '';
+  document.getElementById('ncvDate').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('ncvPhotoNote').textContent = '';
+  _ncvRaisedBy = String(d.responsible || '');
+  ncvRenderPhotos();
+  onNcvInput();
+
+  document.getElementById('ncvModal').classList.add('open');
+  document.getElementById('ncvBackdrop').classList.add('open');
+  document.getElementById('ncvCorrective').focus();
+}
+
+function closeNcVerifyModal() {
+  document.getElementById('ncvModal').classList.remove('open');
+  document.getElementById('ncvBackdrop').classList.remove('open');
+  _ncvPendingId = null;
+  _ncvPhotos = [];
+}
+
+var _ncvRaisedBy = '';
+
+/* Enables submit only when the three required fields are filled, and warns
+   BEFORE submission if the verifier looks like the person responsible - the
+   server enforces 4-eyes and would otherwise reject after a round trip. */
+function onNcvInput() {
+  var corrective = document.getElementById('ncvCorrective').value.trim();
+  var preventive = document.getElementById('ncvPreventive').value.trim();
+  var verifier   = document.getElementById('ncvVerifiedBy').value.trim();
+  var hint = document.getElementById('ncvFourEyes');
+  var clash = verifier && _ncvRaisedBy &&
+              verifier.toLowerCase() === String(_ncvRaisedBy).toLowerCase();
+  hint.textContent = clash
+    ? '4-eyes: the person responsible cannot verify their own NC.'
+    : '';
+  hint.className = 'ncv-hint' + (clash ? ' warn' : '');
+  document.getElementById('ncvSubmitBtn').disabled =
+    !(corrective && preventive && verifier) || clash;
+}
+
+function ncvPickPhoto() {
+  if (_ncvPhotos.length >= AC_MAX_PHOTOS) return;
+  document.getElementById('ncvPhotoInput').click();
+}
+
+function ncvOnPhotoPicked(input) {
+  acHandleMediaPick_(input, _ncvPhotos, ncvRenderPhotos, 'ncvPhotoNote', function() {
+    return {
+      zone:    '',
+      auditor: document.getElementById('ncvVerifiedBy').value ||
+               (typeof CURRENT_USER !== 'undefined' ? CURRENT_USER : ''),
+      date:    document.getElementById('ncvDate').value || ''
+    };
+  });
+}
+
+function ncvRenderPhotos() {
+  document.getElementById('ncvPhotoStrip').innerHTML = _ncvPhotos.map(function(ph, i) {
+    return acThumb_(ph, i, 'ncvRemovePhoto');
+  }).join('');
+  var add = document.getElementById('ncvPhotoAdd');
+  add.disabled = _ncvPhotos.length >= AC_MAX_PHOTOS;
+  var kb = _ncvPhotos.reduce(function(n, ph) { return n + pmDataUrlKB(ph.dataUrl); }, 0);
+  document.getElementById('ncvPhotoNote').textContent =
+    _ncvPhotos.length ? _ncvPhotos.length + ' photo(s) \u00b7 ' + kb + ' KB total' : '';
+}
+
+function ncvRemovePhoto(i) { _ncvPhotos.splice(i, 1); ncvRenderPhotos(); }
+
+function submitNcVerify() {
+  if (!_ncvPendingId) return;
+  var id         = _ncvPendingId;
+  var corrective = document.getElementById('ncvCorrective').value.trim();
+  var preventive = document.getElementById('ncvPreventive').value.trim();
+  var verifier   = document.getElementById('ncvVerifiedBy').value.trim();
+  var vdate      = document.getElementById('ncvDate').value;
+  var remarks    = document.getElementById('ncvRemarks').value.trim();
+  if (!corrective || !preventive || !verifier) {
+    showToast('Corrective action, preventive action and verifier are required.', 'error');
+    return;
+  }
+  var btn = document.getElementById('ncvSubmitBtn');
+  btn.disabled = true; btn.textContent = 'Closing\u2026';
+
+  /* The verification date is carried in the remark rather than a column of its
+     own: NC_CAPA has closure_date (stamped server-side) and
+     verification_remarks, but no verification_date field. Keeping it in the
+     remark means it survives without a schema migration. */
+  var fullRemarks = (vdate ? 'Verified ' + vdate + (remarks ? ' \u2014 ' : '') : '') + remarks;
+
   google.script.run
     .withSuccessHandler(function(result) {
-      enableBtn(btn, '✓ Close');
+      btn.disabled = false; btn.textContent = '\u2713 Verify & Close';
       if (result && result.success) {
-        showToast('NC closed.', 'success');
-        closeAllDetailModals_(); fetchAndRender();
+        showToast('NC closed and verified.', 'success');
+        closeNcVerifyModal();
+        closeAllDetailModals_(); fetchAndRender(false, true);
       } else {
         showToast((result && result.message) || 'Failed to close NC.', 'error');
       }
     })
     .withFailureHandler(function(e) {
-      enableBtn(btn, '✓ Close');
+      btn.disabled = false; btn.textContent = '\u2713 Verify & Close';
       showToast(friendlyError_(e), 'error');
     })
-    .updateCAPAStatus(id, 'CLOSED', '', remarks);
+    .updateCAPAStatus(id, 'CLOSED', verifier, fullRemarks, {
+      corrective_action: corrective,
+      preventive_action: preventive,
+      closure_photos_b64: _ncvPhotos.map(acMediaPayload_).filter(Boolean)
+    });
+}
+
+/* ── Optimistic status updates ────────────────────────────────────────────
+   A status button used to: disable itself, wait for the write (~9s, of which
+   ~6s was an external DWM/Telegram call), then blank the whole list to
+   "Loading…" and wait again for a full re-fetch (~5s). 14s of dead time for a
+   one-field change, and the list you were reading disappeared meanwhile.
+
+   Now the row is updated in place immediately and the write goes out in the
+   background. The server response only confirms; on failure the row is rolled
+   back to exactly what it was and the error is shown.
+
+   Rollback is IDENTITY-based (find the row by data-id), never index-based: a
+   background refresh may have reordered the list by the time the reply lands.
+   The slow notifications were moved server-side into 09b_DeferredNotify.js. */
+var _pendingOps = 0;
+
+/** The <tr> for a record id, or null if it is no longer on screen. @private */
+function rowFor_(id) {
+  return document.querySelector('.ah-tr[data-id="' + String(id).replace(/"/g, '\\"') + '"]');
+}
+
+/** Repaints one row's status pill + action buttons without a re-fetch. @private */
+function paintRowStatus_(id, status, rawStatus) {
+  var tr = rowFor_(id);
+  if (!tr) return null;
+  var before = tr.innerHTML;
+  var cell = tr.querySelector('[data-label="Status"]');
+  if (cell) {
+    cell.innerHTML = '<span class="status-lbl ' + escHtml(status) + '">' +
+      escHtml(statusLabel(status)) + '</span>';
+  }
+  /* Closed/done records stop being overdue - clear the rail and the Due flag. */
+  if (status === 'CLOSED') {
+    tr.removeAttribute('data-overdue');
+    var due = tr.querySelector('.ah-due-late');
+    if (due) due.parentNode.removeChild(due);
+  }
+  tr.classList.add('ah-tr-pending');
+  return before;
+}
+
+/** Restores a row after a failed write. @private */
+function rollbackRow_(id, html) {
+  var tr = rowFor_(id);
+  if (tr && html != null) {
+    tr.innerHTML = html;
+    tr.classList.remove('ah-tr-pending');
+    tr.classList.remove('ah-tr-leaving');
+  }
+}
+
+/**
+ * Runs a status change optimistically.
+ * @param {Object} o {id, status, rawStatus, fn, args, okMsg, failMsg}
+ */
+function optimisticStatus_(o) {
+  var snapshot = paintRowStatus_(o.id, o.status, o.rawStatus);
+  _pendingOps++;
+  closeAllDetailModals_();
+
+  /* A started record leaves the Open tab, which looked like the row had simply
+     vanished. Mark it as departing so it visibly slides out rather than being
+     yanked, and name its destination in the toast. */
+  var leavingTab = (_filters.status && _filters.status !== o.status);
+  if (leavingTab) {
+    var tr = rowFor_(o.id);
+    if (tr) tr.classList.add('ah-tr-leaving');
+  }
+
+  google.script.run
+    .withSuccessHandler(function(result) {
+      _pendingOps--;
+      var ok = result && (result.success || result.ok);
+      if (ok) {
+        var tr = rowFor_(o.id);
+        if (tr) tr.classList.remove('ah-tr-pending');
+        showToast(o.okMsg + (leavingTab ? ' Moved to ' + statusLabel(o.status) + '.' : ''),
+                  'success');
+        /* Reconcile quietly once the queue is idle: counts/badges and any
+           server-side derived fields still need to catch up, but the user is
+           no longer waiting on it. */
+        if (_pendingOps === 0) scheduleQuietRefresh_();
+      } else {
+        rollbackRow_(o.id, snapshot);
+        showToast((result && result.message) || o.failMsg, 'error');
+      }
+    })
+    .withFailureHandler(function(e) {
+      _pendingOps--;
+      var back = rowFor_(o.id);
+      if (back) back.classList.remove('ah-tr-leaving');
+      rollbackRow_(o.id, snapshot);
+      showToast(friendlyError_(e), 'error');
+    })[o.fn].apply(null, o.args);
+}
+
+/* Refresh without blanking the list: the old path replaced #ahContent with a
+   "Loading…" spinner, so a reconcile threw away whatever the user was reading. */
+var _quietTimer = null;
+function scheduleQuietRefresh_() {
+  clearTimeout(_quietTimer);
+  _quietTimer = setTimeout(function() { fetchAndRender(true, true); }, 400);
 }
 
 /* ── TASK status ── */
 function doTaskStatus(id, newStatus, btn) {
-  var origText = btn.textContent;
-  disableBtn(btn, '…');
-  google.script.run
-    .withSuccessHandler(function(result) {
-      enableBtn(btn, origText);
-      if (result && result.success) {
-        showToast('Task updated.', 'success');
-        closeAllDetailModals_(); fetchAndRender();
-      } else {
-        showToast((result && result.message) || 'Failed to update task.', 'error');
-      }
-    })
-    .withFailureHandler(function(e) {
-      enableBtn(btn, origText);
-      showToast(friendlyError_(e), 'error');
-    })
-    .updateTaskStatus(id, newStatus, '');
+  optimisticStatus_({
+    id: id,
+    status: (newStatus === 'DONE') ? 'CLOSED' : newStatus,
+    rawStatus: newStatus,
+    fn: 'updateTaskStatus', args: [id, newStatus, ''],
+    okMsg: (newStatus === 'DONE') ? 'Task done.' : 'Task started.',
+    failMsg: 'Failed to update task.'
+  });
 }
 
 /* ── RED TAG phase ── */
 function doRedTagPhase(id, toPhase, btn) {
-  var origText = btn.innerHTML;
-  disableBtn(btn, '…');
-  google.script.run
-    .withSuccessHandler(function(result) {
-      btn.innerHTML = origText;
-      enableBtn(btn, origText);
-      if (result && result.success) {
-        showToast('Red Tag advanced.', 'success');
-        closeAllDetailModals_(); fetchAndRender();
-      } else {
-        showToast((result && result.message) || 'Failed to advance Red Tag.', 'error');
-      }
-    })
-    .withFailureHandler(function(e) {
-      btn.innerHTML = origText;
-      enableBtn(btn, origText);
-      showToast(friendlyError_(e), 'error');
-    })
-    .advanceRedTagPhase(id, toPhase, '');
+  optimisticStatus_({
+    id: id,
+    status: (toPhase === 'CLOSED') ? 'CLOSED' : 'IN_PROGRESS',
+    rawStatus: toPhase,
+    fn: 'advanceRedTagPhase', args: [id, toPhase, ''],
+    okMsg: 'Red Tag advanced.',
+    failMsg: 'Failed to advance Red Tag.'
+  });
 }
 
 /* ── btn helpers ── */
@@ -2292,6 +3274,9 @@ function openCreateModal() {
   document.getElementById('acRtCat').value = 'Equipment';
   document.getElementById('acRtReason').value = '';
   document.getElementById('acRtAction').value = '';
+  _acPhotos = [];
+  acRenderPhotos();
+  document.getElementById('acPhotoNote').textContent = '';
   // populate zone select from existing filter dropdown (reuse loadZones data)
   if (!_acZonesLoaded) {
     var src = document.getElementById('ahZoneSelect');
@@ -2306,6 +3291,15 @@ function openCreateModal() {
     }
     if (src.options.length > 1) { _acZonesLoaded = true; }
   }
+  /* Default to the zone the list is already filtered to. The select opened
+     blank every time, so submitting without noticing the dropdown produced
+     "Please select a zone." and looked like a broken Create button. When the
+     list shows all zones there is no safe default, so it stays blank and the
+     required-field guard still applies. */
+  var curZone = document.getElementById('ahZoneSelect');
+  var wanted = curZone ? curZone.value : '';
+  document.getElementById('acZone').value =
+    (wanted && wanted !== 'ALL') ? wanted : '';
   var btn = document.getElementById('acSubmitBtn');
   btn.disabled = false;
   btn.textContent = 'Create';
@@ -2334,9 +3328,157 @@ function _showCreateGroup(type) {
 
 var _pillarSqcdp = { S1:'S', S2:'Q', S3:'C', S4:'D', S5:'P' };
 
+/* ── Media evidence (images + short video) ────────────────────────────────
+   One handler serves the create modal, the RCA start form and the closure
+   form. Each picker passes its own state array and re-render function.
+
+   Images: compress -> annotate -> store as a data URL.
+   Video:  size-checked only. Re-encoding in-browser costs about the clip's own
+           duration and is unreliable on the phones in use, so clips are kept
+           small at CAPTURE time and anything over budget is refused with its
+           real size rather than silently uploaded or truncated. */
+function acHandleMediaPick_(input, store, rerender, noteId, stampFn) {
+  var files = Array.prototype.slice.call(input.files || []);
+  input.value = '';                       /* allow re-picking the same file */
+  if (!files.length) return;
+
+  var note = document.getElementById(noteId);
+  var room = AC_MAX_PHOTOS - store.length;
+  if (room <= 0) { note.textContent = 'Limit of ' + AC_MAX_PHOTOS + ' items reached.'; return; }
+
+  var queued = files.slice(0, room);
+  var skipped = files.length - queued.length;
+  var pending = queued.length, problems = [];
+
+  note.textContent = 'Processing ' + pending + ' file(s)\u2026';
+
+  function done(msg) {
+    if (msg) problems.push(msg);
+    if (--pending > 0) return;
+    rerender();
+    var tail = [];
+    if (skipped) tail.push(skipped + ' skipped (limit ' + AC_MAX_PHOTOS + ')');
+    if (problems.length) tail.push(problems.join(' '));
+    if (tail.length) note.textContent = tail.join(' \u00b7 ');
+  }
+
+  queued.forEach(function(file) {
+    if (pmIsVideo(file)) {
+      pmPrepareVideo(file, function(res) {
+        if (!res.ok) return done(res.error);
+        store.push({ dataUrl: res.dataUrl, isVideo: true, ext: pmMediaExt(file),
+                     label: res.mb + ' MB' });
+        done();
+      });
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      pmCompressImage(e.target.result, function(compressed) {
+        openAnnotatorFor_(compressed, stampFn(), function(annotated) {
+          store.push({ dataUrl: annotated || compressed, isVideo: false, ext: 'jpg' });
+          done();
+        });
+      });
+    };
+    reader.onerror = function() { done('Could not read ' + file.name + '.'); };
+    reader.readAsDataURL(file);
+  });
+}
+
+/* Thumbnail markup shared by every strip. Video shows a play badge instead of
+   a still, since a video data URL cannot be drawn into an <img>. */
+function acThumb_(item, i, removeFn) {
+  var inner = item.isVideo
+    ? '<div class="ac-vid"><span class="ac-vid-ic">&#9654;</span>' +
+      '<span class="ac-vid-sz">' + escHtml(item.label || 'video') + '</span></div>'
+    : '<img src="' + item.dataUrl + '" alt="Evidence ' + (i + 1) + '">';
+  return '<div class="ac-thumb">' + inner +
+    '<button type="button" class="ac-thumb-x" aria-label="Remove item ' + (i + 1) + '"' +
+    ' onclick="' + removeFn + '(' + i + ')">&times;</button></div>';
+}
+
+/* ── Photo evidence ───────────────────────────────────────────────────────
+   Every photo goes through the SAME pipeline the audit forms use:
+     pick -> pmCompressImage (1024px long edge, q0.70, one encode)
+          -> PMAnnot overlay (shared module, see PhotoAnnot.html)
+          -> base64 handed to the server, which writes it to the zone's Drive
+             folder under yyyy/MM via uploadPhotoToDrive().
+   Compression happens BEFORE annotation so the annotator canvas is already
+   bounded; the annotator's own save re-encodes once at 0.78, which is the
+   same two-pass budget QuickAudit uses. Result lands in the 5-50 KB band. */
+/* Raised from 3: a finding often needs several angles, and evidence is now
+   images OR short clips. The ceiling is a practical one — each item crosses the
+   google.script.run bridge as base64, and the measured upload budget is ~6 MB
+   per file. */
+var AC_MAX_PHOTOS = 8;
+var _acPhotos = [];          /* [{ dataUrl }] - annotated, compressed, ready to send */
+
+function acPickPhoto() {
+  if (_acPhotos.length >= AC_MAX_PHOTOS) return;
+  document.getElementById('acPhotoInput').click();
+}
+
+function acOnPhotoPicked(input) {
+  acHandleMediaPick_(input, _acPhotos, acRenderPhotos, 'acPhotoNote', function() {
+    return {
+      zone:    document.getElementById('acZone').value || '',
+      auditor: (typeof CURRENT_USER !== 'undefined' ? CURRENT_USER : ''),
+      date:    new Date().toISOString().slice(0, 10)
+    };
+  });
+}
+
+function acRenderPhotos() {
+  var strip = document.getElementById('acPhotoStrip');
+  strip.innerHTML = _acPhotos.map(function(ph, i) {
+    return acThumb_(ph, i, 'acRemovePhoto');
+  }).join('');
+  var add = document.getElementById('acPhotoAdd');
+  add.disabled = _acPhotos.length >= AC_MAX_PHOTOS;
+  add.textContent = _acPhotos.length ? '\uD83D\uDCF7 Add another' : '\uD83D\uDCF7 Add photo';
+  var kb = _acPhotos.reduce(function(n, ph) { return n + pmDataUrlKB(ph.dataUrl); }, 0);
+  document.getElementById('acPhotoNote').textContent =
+    _acPhotos.length ? _acPhotos.length + ' photo(s) \u00b7 ' + kb + ' KB total' : '';
+}
+
+function acRemovePhoto(i) { _acPhotos.splice(i, 1); acRenderPhotos(); }
+
+function acEditPhoto(i) {
+  var ph = _acPhotos[i];
+  if (!ph) return;
+  openAnnotatorFor_(ph.dataUrl, {
+    zone:    document.getElementById('acZone').value || '',
+    auditor: (typeof CURRENT_USER !== 'undefined' ? CURRENT_USER : ''),
+    date:    new Date().toISOString().slice(0, 10)
+  }, function(annotated) {
+    if (annotated) { _acPhotos[i].dataUrl = annotated; acRenderPhotos(); }
+  });
+}
+
+/** Payload for one evidence item: "<ext>|<base64>". @private */
+function acMediaPayload_(item) {
+  var b64 = String(item.dataUrl).split(',')[1] || '';
+  if (!b64) return '';
+  return (item.ext || 'jpg') + '|' + b64;
+}
+
+/** Strips the data: prefix - the server expects raw base64. @private */
+function acPhotosB64_() {
+  return _acPhotos.map(acMediaPayload_).filter(Boolean);
+}
+
 function submitCreate() {
-  var zone = document.getElementById('acZone').value.trim();
-  if (!zone) { showToast('Please select a zone.', 'error'); return; }
+  var zoneEl = document.getElementById('acZone');
+  var zone = zoneEl.value.trim();
+  if (!zone) {
+    /* Scroll + focus the offending field: the toast alone read as "nothing
+       happened" when the modal was scrolled past the zone select. */
+    showToast('Please select a zone.', 'error');
+    zoneEl.scrollIntoView({ block: 'center' });
+    zoneEl.focus();
+    return;
+  }
 
   var btn = document.getElementById('acSubmitBtn');
 
@@ -2353,7 +3495,7 @@ function submitCreate() {
         if (ncId) {
           showToast('NC created: ' + escHtml(String(ncId)), 'success');
           closeCreateModal();
-          fetchAndRender();
+          fetchAndRender(false, true);
         } else {
           showToast('Server returned no NC ID. Please retry.', 'error');
         }
@@ -2362,7 +3504,7 @@ function submitCreate() {
         btn.disabled = false; btn.textContent = 'Create';
         showToast(friendlyError_(e), 'error');
       })
-      .createCAPA(zone, desc, 'NC', pillar, sqcdp, person, CURRENT_USER);
+      .createCAPA(zone, desc, 'NC', pillar, sqcdp, person, CURRENT_USER, '', acPhotosB64_());
 
   } else if (_acType === 'TASK') {
     var title = document.getElementById('acTaskTitle').value.trim();
@@ -2374,7 +3516,7 @@ function submitCreate() {
         if (result && result.success) {
           showToast('Task created: ' + escHtml(String(result.taskId || '')), 'success');
           closeCreateModal();
-          fetchAndRender();
+          fetchAndRender(false, true);
         } else {
           showToast((result && result.message) || 'Failed to create task.', 'error');
         }
@@ -2391,7 +3533,8 @@ function submitCreate() {
         assignedTo:  document.getElementById('acTaskAssigned').value.trim(),
         dueDate:     document.getElementById('acTaskDue').value,
         source:      'MANUAL',
-        createdBy:   CURRENT_USER
+        createdBy:   CURRENT_USER,
+        photosB64:   acPhotosB64_()
       });
 
   } else if (_acType === 'RED_TAG') {
@@ -2404,7 +3547,7 @@ function submitCreate() {
         if (result && (result.ok || result.success)) {
           showToast('Red Tag raised: ' + escHtml(String(result.tagNo || '')), 'success');
           closeCreateModal();
-          fetchAndRender();
+          fetchAndRender(false, true);
         } else {
           showToast((result && result.message) || 'Failed to raise Red Tag.', 'error');
         }
@@ -2421,7 +3564,8 @@ function submitCreate() {
         reason:   document.getElementById('acRtReason').value.trim(),
         action:   document.getElementById('acRtAction').value.trim(),
         taggedBy: CURRENT_USER,
-        createdBy: CURRENT_USER
+        createdBy: CURRENT_USER,
+        photosB64: acPhotosB64_()
       });
   }
 }
@@ -2455,5 +3599,6 @@ fetchAndRender();
 </div>
 
 <?!= include("CommonStyles") ?>
+<?!= include("PhotoAnnot") ?>
 </body>
 </html>

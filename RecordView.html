@@ -307,8 +307,13 @@ function doQuickAction_(action, btn){
     .publicRecordAction(apiType, ID, action, name);
 }
 
+/* Server-inlined record (see serveRecordViewFast_). Null when the preload was
+   skipped or threw - we then fall back to the original round trip. */
+var PRELOAD = <?!= (typeof preload !== 'undefined' ? preload : 'null') ?>;
+
 function load(){
   if(!TYPE || !ID){ document.getElementById('rec').innerHTML = '<div class="err">Missing record type or id.</div>'; return; }
+  if (PRELOAD) { render(PRELOAD); return; }   // no round trip: already have it
   google.script.run
     .withSuccessHandler(render)
     .withFailureHandler(function(e){ document.getElementById('rec').innerHTML = '<div class="err">Could not load record: ' + esc(e && e.message || '') + '</div>'; })

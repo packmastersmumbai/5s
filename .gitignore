@@ -6,6 +6,7 @@ auth-gas.json
 # Claude / tooling internals
 .claude/
 .superpowers/
+.impeccable/
 .playwright-cli/
 MEMORY.md
 

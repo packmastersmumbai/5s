@@ -468,9 +468,23 @@ function runAllTests() {
         }
       });
 
-    // Triggers
+    // Triggers — the real invariant is NO DUPLICATE HANDLERS, not a global cap.
+    // This used to assert triggers.length <= 1, which encoded the bug it was
+    // meant to guard: masterOrchestrator (daily rollups) and telegramPoll are
+    // both legitimately scheduled, so a cap of 1 meant installing either one
+    // had to evict the other. Measured 2026-09-02: only telegramPoll survived,
+    // so the Summary rollup feeding analytics had been frozen since 2026-06.
     var triggers = ScriptApp.getProjectTriggers();
-    assert("Trigger count ≤ 1", triggers.length <= 1, "Found " + triggers.length);
+    var byHandler = {};
+    triggers.forEach(function(t) {
+      var h = t.getHandlerFunction();
+      byHandler[h] = (byHandler[h] || 0) + 1;
+    });
+    var dupes = Object.keys(byHandler).filter(function(h) { return byHandler[h] > 1; });
+    assert("No duplicate trigger handlers", dupes.length === 0,
+      dupes.length ? "Duplicated: " + dupes.join(", ") : "");
+    assert("masterOrchestrator trigger installed", !!byHandler["masterOrchestrator"],
+      "Daily rollups (Summary/analytics) will not run without it");
 
     // Drive folders
     try {

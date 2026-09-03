@@ -43,10 +43,12 @@ function handleV2Route_(params) {
         break;
 
       // Restricted to ZONE_LEAD+: Can manage tasks, red tags, kaizen
+      // 'kaizen' (the idea-submission form) is deliberately NOT here — it is a
+      // worker route reached from the zone selector with no login. Reviewing
+      // ideas on 'kaizenboard' still requires ZONE_LEAD+.
       case "taskboard":
       case "redtag":
       case "redtagboard":
-      case "kaizen":
       case "kaizenboard":
       case "gembawalk":
       case "gembaboard":
@@ -251,6 +253,25 @@ function serveV2Page_(templateFile, params) {
 function serveRecordViewFast_(params) {
   var template = HtmlService.createTemplateFromFile("RecordView");
   template.params = params || {};
+  // Preload the record server-side. The page previously painted, THEN issued a
+  // google.script.run round trip for its data, so the viewer watched a spinner
+  // for the full latency of a second GAS invocation on top of the page load.
+  // Measured 2026-09-02: the lookup itself is only 0.7-1.3s cold / 4ms warm, so
+  // the wait was almost entirely the extra hop. Inlining it means the record is
+  // already in the HTML. Failure is non-fatal: preload stays null and the client
+  // falls back to its original fetch, so a preload bug degrades to the old speed
+  // rather than an empty page.
+  template.preload = "null";
+  try {
+    var _t = String((params && params.type) || "").replace(/[^a-zA-Z]/g, "");
+    var _i = String((params && params.id) || "").replace(/[^a-zA-Z0-9\-_]/g, "");
+    if (_t && _i) {
+      var _rec = getPublicRecord(_t, _i);
+      if (_rec) template.preload = JSON.stringify(_rec);
+    }
+  } catch (e) {
+    Logger.log("RecordView preload failed (client will fetch): " + e.message);
+  }
   // This is the page Telegram 'Open record' links land on, so its own
   // deployUrl must resolve DEPLOY_ID first — the old order preferred the
   // service URL and pointed onward links at a dead deployment.

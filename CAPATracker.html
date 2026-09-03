@@ -29,6 +29,11 @@
     .filter-bar{display:flex;gap:var(--sp-2);margin-bottom:var(--sp-4);flex-wrap:wrap;}
     .filter-btn{padding:6px 12px;border-radius:16px;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--bg-card);cursor:pointer;color:var(--text-secondary);}
     .filter-btn.active{background:var(--pm-primary);color:white;border-color:var(--pm-primary);}
+    .facet-row{display:flex;gap:var(--sp-2);align-items:center;flex-wrap:wrap;margin-bottom:var(--sp-2);}
+    .facet-label{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text-secondary);min-width:56px;}
+    .facet-btn{min-height:44px;padding:6px 12px;border-radius:16px;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--bg-card);cursor:pointer;color:var(--text-secondary);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .facet-btn.active{background:var(--pm-primary);color:#fff;border-color:var(--pm-primary);}
+    .facet-btn:focus-visible{outline:3px solid var(--border-focus);outline-offset:2px;}
     .update-modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;z-index:200;padding:20px;}
     .update-modal.visible{display:flex;}
     .update-modal__content{background:white;border-radius:12px;padding:20px;width:100%;max-width:400px;max-height:90vh;overflow-y:auto;}
@@ -55,6 +60,7 @@
     <div class="dash-grid" id="summaryGrid" style="margin-bottom:var(--sp-4);"></div>
     <!-- Filters -->
     <div class="filter-bar" id="filterBar"></div>
+    <div id="facetBar"></div>
     <!-- CAPA List -->
     <div id="capaList"><div class="skeleton" style="height:80px;margin-bottom:8px;"></div><div class="skeleton" style="height:80px;margin-bottom:8px;"></div></div>
   </div>
@@ -94,6 +100,8 @@
       var filterZone=SERVER_DATA.zoneId||'';
       var allCapas=[];
       var currentFilter='all';
+      // Facet filters - AND-combined with each other and with the status filter.
+      var facets={zone:'',owner:'',criterion:''};
 
       document.getElementById('headerSub').textContent=filterZone?'Zone: '+filterZone:'All Zones';
 
@@ -112,8 +120,49 @@
         allCapas=data||[];
         renderSummary();
         renderFilters();
+        renderFacets();
         renderList();
       }
+
+      function esc(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+
+      /* Facet values are drawn from the rows currently passing every OTHER
+         active filter, so a facet never offers a value that would yield an
+         empty list. */
+      function matches(c,skip){
+        if(skip!=='status'&&currentFilter!=='all'&&s(c)!==currentFilter)return false;
+        if(skip!=='zone'&&facets.zone&&String(c.zone_name||c.zone_id||'')!==facets.zone)return false;
+        if(skip!=='owner'&&facets.owner&&String(c.responsible_person||'')!==facets.owner)return false;
+        if(skip!=='criterion'&&facets.criterion&&String(c.criterion_label||'')!==facets.criterion)return false;
+        return true;
+      }
+
+      function renderFacets(){
+        var defs=[{k:'zone',l:'Zone',get:function(c){return c.zone_name||c.zone_id||'';}},
+                  {k:'owner',l:'Owner',get:function(c){return c.responsible_person||'';}},
+                  {k:'criterion',l:'Finding',get:function(c){return c.criterion_label||'';}}];
+        var html='';
+        defs.forEach(function(d){
+          var counts={};
+          allCapas.forEach(function(c){
+            if(!matches(c,d.k))return;
+            var v=String(d.get(c)).trim(); if(!v)return;
+            counts[v]=(counts[v]||0)+1;
+          });
+          var vals=Object.keys(counts).sort();
+          if(vals.length<2&&!facets[d.k])return;   // a single choice filters nothing
+          html+='<div class="facet-row"><span class="facet-label">'+d.l+'</span>';
+          html+='<button class="facet-btn'+(facets[d.k]===''?' active':'')+'" onclick="setFacet(\''+d.k+'\',\'\')">Any</button>';
+          vals.forEach(function(v){
+            html+='<button class="facet-btn'+(facets[d.k]===v?' active':'')+'" onclick="setFacet(\''+d.k+'\',this.dataset.v)" data-v="'+esc(v)+'" title="'+esc(v)+'">'+esc(v.length>28?v.slice(0,27)+'\u2026':v)+'<span class="count-badge">'+counts[v]+'</span></button>';
+          });
+          html+='</div>';
+        });
+        document.getElementById('facetBar').innerHTML=html;
+      }
+
+      window.setFacet=function(k,v){facets[k]=(facets[k]===v?'':v);renderFilters();renderFacets();renderList();};
+      window.clearFacets=function(){facets={zone:'',owner:'',criterion:''};currentFilter='all';renderFilters();renderFacets();renderList();};
 
       function renderSummary(){
         var open=allCapas.filter(function(c){return s(c)==='OPEN';}).length;
@@ -129,8 +178,9 @@
       }
 
       function renderFilters(){
-        var counts={all:allCapas.length,OPEN:0,IN_PROGRESS:0,OVERDUE:0,CLOSED:0,REPEAT_NC:0};
-        allCapas.forEach(function(c){var st=s(c);if(counts[st]!==undefined)counts[st]++;});
+        var pool=allCapas.filter(function(c){return matches(c,'status');});
+        var counts={all:pool.length,OPEN:0,IN_PROGRESS:0,OVERDUE:0,CLOSED:0,REPEAT_NC:0};
+        pool.forEach(function(c){var st=s(c);if(counts[st]!==undefined)counts[st]++;});
         var html='';
         [{k:'all',l:'All'},{k:'OPEN',l:'Open'},{k:'IN_PROGRESS',l:'Progress'},{k:'OVERDUE',l:'Overdue'},{k:'CLOSED',l:'Closed'},{k:'REPEAT_NC',l:'Repeat'}].forEach(function(f){
           html+='<button class="filter-btn'+(currentFilter===f.k?' active':'')+'" onclick="setFilter(\''+f.k+'\')">'+f.l;
@@ -141,9 +191,12 @@
       }
 
       function renderList(){
-        var filtered=currentFilter==='all'?allCapas:allCapas.filter(function(c){return s(c)===currentFilter;});
+        var filtered=allCapas.filter(function(c){return matches(c,null);});
         if(filtered.length===0){
-          document.getElementById('capaList').innerHTML='<div style="text-align:center;padding:40px;color:var(--text-secondary);">No CAPAs found.</div>';
+          var anyFilter=currentFilter!=='all'||facets.zone||facets.owner||facets.criterion;
+          document.getElementById('capaList').innerHTML='<div style="text-align:center;padding:40px;color:var(--text-secondary);">'+
+            (allCapas.length===0?'No CAPAs found.':'No CAPAs match these filters.'+
+              (anyFilter?'<br><button class="facet-btn" style="margin-top:12px;" onclick="clearFacets()">Clear all filters</button>':''))+'</div>';
           return;
         }
         var html='';
@@ -154,17 +207,17 @@
           var daysCls=days<0?'overdue':'ok';
           html+='<div class="capa-card capa-card--'+st+'">'+
             '<div style="display:flex;justify-content:space-between;align-items:center;">'+
-            '<span class="capa-id">'+c.nc_id+'</span>'+
+            '<span class="capa-id">'+esc(c.nc_id)+'</span>'+
             '<span class="capa-status capa-status--'+st+'">'+s(c)+'</span></div>'+
-            '<div class="capa-criterion">'+c.criterion_label+'</div>'+
+            '<div class="capa-criterion">'+esc(c.criterion_label)+'</div>'+
             '<div class="capa-meta">'+
-            '<span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:2px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'+(c.zone_name||c.zone_id)+'</span>'+
-            '<span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:2px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'+c.responsible_person+'</span>'+
+            '<span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:2px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'+esc(c.zone_name||c.zone_id)+'</span>'+
+            '<span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:2px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>'+esc(c.responsible_person)+'</span>'+
             (s(c)!=='CLOSED'?'<span class="capa-days '+daysCls+'">'+daysText+'</span>':'')+
             '</div>';
           if(s(c)!=='CLOSED'){
             html+='<div class="capa-actions">'+
-              '<button style="background:var(--pm-primary);color:white;" onclick="openUpdate(\''+c.nc_id+'\')">Update</button></div>';
+              '<button style="background:var(--pm-primary);color:white;" onclick="openUpdate(\''+esc(c.nc_id)+'\')">Update</button></div>';
           }
           html+='</div>';
         });

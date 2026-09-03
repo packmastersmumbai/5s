@@ -78,7 +78,16 @@ function generateNCId_() {
  * @param {string} auditorEmail — Auditor email
  * @returns {string} The generated NC ID
  */
-function createCAPA(zoneId, description, type, pillar, sqcdpDim, responsiblePerson, createdBy, targetDateOverride, photosB64) {
+/**
+ * @param {Object} [origin] Provenance of an audit-raised NC:
+ *        { criterionId, criterionLabel, score, submissionId, auditor }.
+ *        Without it the NC records no criterion and no score — which is why
+ *        every row on the live sheet read criterion_id "undefined" and a blank
+ *        score: the audit path HAD these values but the signature could not
+ *        carry them.
+ */
+function createCAPA(zoneId, description, type, pillar, sqcdpDim, responsiblePerson, createdBy, targetDateOverride, photosB64, origin) {
+  origin = origin || {};
   var ss = (typeof v2GetSpreadsheet_ === 'function') ? v2GetSpreadsheet_() : SpreadsheetApp.getActiveSpreadsheet();
   var capaSheet = ss.getSheetByName("NC_CAPA");
   if (!capaSheet) {
@@ -104,6 +113,12 @@ function createCAPA(zoneId, description, type, pillar, sqcdpDim, responsiblePers
   // verified_by(16),verification_remarks(17),is_repeat_nc(18),repeat_count(19)
   var zoneConfig = getZoneConfig()[zoneId] || {};
 
+  // An unowned NC is nobody's job. When the raiser leaves the field blank the
+  // zone leader owns it by default — every zone has one — rather than the
+  // record entering the system unassigned. Measured 2026-09-02: 29 of 79 live
+  // NCs had no responsible person at all.
+  var ncOwner = String(responsiblePerson || "").trim() || String(zoneConfig.leader || "").trim();
+
   // Optional evidence photos (array of base64 strings, up to a few) — uploaded
   // to the zone's Drive folder and stored comma-joined, mirroring how
   // TaskBoard/RedTagRegister/AuditLineItems already store multi-photo evidence.
@@ -125,14 +140,16 @@ function createCAPA(zoneId, description, type, pillar, sqcdpDim, responsiblePers
     zoneId,                     // 2: zone_id
     zoneConfig.name || "",      // 3: zone_name
     auditDateStr,               // 4: audit_date
-    pillar || "",               // 5: criterion_id (e.g. S1-C1)
-    description || "",          // 6: criterion_label
-    "",                         // 7: score_given
-    v2SafeCell_(responsiblePerson),  // 8: auditor_email
+    // criterion_id is the CRITERION, not the pillar. Writing `pillar` here
+    // meant an NC could never be traced back to the audit line that raised it.
+    origin.criterionId || "",   // 5: criterion_id (e.g. S1-C1)
+    origin.criterionLabel || description || "",   // 6: criterion_label
+    (origin.score === 0 || origin.score) ? origin.score : "",  // 7: score_given
+    v2SafeCell_(origin.auditor || createdBy || responsiblePerson),  // 8: auditor_email
     "",                         // 9: root_cause
     "",                         // 10: corrective_action
     "",                         // 11: preventive_action
-    v2SafeCell_(responsiblePerson),  // 12: responsible_person
+    v2SafeCell_(ncOwner),      // 12: responsible_person (falls back to zone leader)
     targetDateStr,              // 13: target_date
     "OPEN",                     // 14: status (uppercase — matches STATUS enum & all comparisons)
     "",                         // 15: closure_date
@@ -209,7 +226,16 @@ function createCAPAFromAudit_(data, zone, auditorEmail, dateStr) {
           if (sqdcp[dims[di]]) { sqcdpDim = dims[di]; break; }
         }
         var description = (criterion.labelEn || criterion.id) + ' (score: ' + score + ')';
-        var ncId = createCAPA(zone.id, description, 'NC', criterion.pillar || '', sqcdpDim, zone.leader || '');
+        // The criterion, its score and the auditor are all in hand here — pass
+        // them so the NC can be traced back to the audit that produced it.
+        var ncId = createCAPA(zone.id, description, 'NC', criterion.pillar || '', sqcdpDim,
+          zone.leader || '', auditorEmail, '', null, {
+            criterionId:    criterion.id,
+            criterionLabel: criterion.labelEn || criterion.id,
+            score:          score,
+            auditor:        auditorEmail,
+            submissionId:   data.submissionId || ''
+          });
         ncIds.push(ncId);
       } catch (e) {
         Logger.log("  ⚠️ Could not create CAPA for " + criterion.id + ": " + e.message);
@@ -311,15 +337,67 @@ function updateCAPAStatus(ncId, newStatus, verifiedBy, remarks, additionalFields
   // verification_date=14, root_cause=12, corrective_action=7
   var updates = {};
   updates[NC_COL.STATUS] = newStatus;
-  updates[NC_COL.VERIFIED_BY] = verifiedBy || actorEmail;
+  // verified_by is a CLOSURE fact. This used to be written on EVERY status
+  // change, so merely starting an NC stamped a verifier — the record then
+  // claimed it had been verified by someone who had only opened it, which is
+  // exactly the signature the 4-eyes rule exists to protect.
+  if (newStatus === "CLOSED" && (verifiedBy || actorEmail)) {
+    updates[NC_COL.VERIFIED_BY] = verifiedBy || actorEmail;
+  }
 
   if (newStatus === "CLOSED") {
     updates[NC_COL.CLOSURE_DATE] = Utilities.formatDate(new Date(), "Asia/Kolkata", "yyyy-MM-dd");
   }
 
+  if (remarks) updates[NC_COL.VERIFICATION_REMARKS] = remarks;
+
   if (additionalFields) {
     if (additionalFields.root_cause)        updates[NC_COL.ROOT_CAUSE] = additionalFields.root_cause;
     if (additionalFields.corrective_action) updates[NC_COL.CORRECTIVE_ACTION] = additionalFields.corrective_action;
+    // preventive_action was accepted by the closure UI but never written, so
+    // every closed NC had a blank preventive action — the field an ISO auditor
+    // asks for first, since it is what stops the finding recurring.
+    if (additionalFields.preventive_action) updates[NC_COL.PREVENTIVE_ACTION] = additionalFields.preventive_action;
+    // Accountability captured when the CAPA is STARTED: who owns the action and
+    // by when. Previously the start form collected neither, so an in-progress
+    // NC had no owner or deadline until someone edited it separately.
+    if (additionalFields.responsible)  updates[NC_COL.RESPONSIBLE] = additionalFields.responsible;
+    if (additionalFields.target_date)  updates[NC_COL.TARGET_DATE] = additionalFields.target_date;
+
+    // "Before" evidence, attached at start. Appends like closure photos do, so
+    // a record ends up holding both the finding and the fix.
+    if (Array.isArray(additionalFields.start_photos_b64) && additionalFields.start_photos_b64.length) {
+      var startUrls = String(rowData[NC_COL.PHOTO_URL] || "").split(",").filter(Boolean);
+      var startIds  = String(rowData[NC_COL.PHOTO_FILE_ID] || "").split(",").filter(Boolean);
+      additionalFields.start_photos_b64.forEach(function (b64, pIdx) {
+        if (!b64) return;
+        try {
+          var sname = zoneId + "_" + ncId + "_start" + (pIdx ? "_" + (pIdx + 1) : "") + ".jpg";
+          var sres = uploadPhotoToDrive(b64, sname, zoneId);
+          if (sres && sres.thumbnailUrl) { startUrls.push(sres.thumbnailUrl); startIds.push(sres.fileId); }
+        } catch (e) { Logger.log("NC start photo skipped (" + ncId + " #" + pIdx + "): " + e.message); }
+      });
+      updates[NC_COL.PHOTO_URL] = startUrls.join(",");
+      updates[NC_COL.PHOTO_FILE_ID] = startIds.join(",");
+    }
+
+    // Closure evidence: append to any photos captured when the NC was raised,
+    // so the record keeps both the "before" and the "after" proof. An upload
+    // failure never blocks the closure.
+    if (Array.isArray(additionalFields.closure_photos_b64) && additionalFields.closure_photos_b64.length) {
+      var existingUrls = String(rowData[NC_COL.PHOTO_URL] || "").split(",").filter(Boolean);
+      var existingIds  = String(rowData[NC_COL.PHOTO_FILE_ID] || "").split(",").filter(Boolean);
+      additionalFields.closure_photos_b64.forEach(function (b64, pIdx) {
+        if (!b64) return;
+        try {
+          var pname = zoneId + "_" + ncId + "_closure" + (pIdx ? "_" + (pIdx + 1) : "") + ".jpg";
+          var pres = uploadPhotoToDrive(b64, pname, zoneId);
+          if (pres && pres.thumbnailUrl) { existingUrls.push(pres.thumbnailUrl); existingIds.push(pres.fileId); }
+        } catch (e) { Logger.log("NC closure photo skipped (" + ncId + " #" + pIdx + "): " + e.message); }
+      });
+      updates[NC_COL.PHOTO_URL] = existingUrls.join(",");
+      updates[NC_COL.PHOTO_FILE_ID] = existingIds.join(",");
+    }
   }
 
   v2BatchUpdateRow_(capaSheet, targetRow, updates, rowData);
@@ -343,13 +421,18 @@ function updateCAPAStatus(ncId, newStatus, verifiedBy, remarks, additionalFields
   }
 
   if (typeof invalidateZoneMapCache_ === "function") invalidateZoneMapCache_();
-  if (typeof DWM !== "undefined") {
-    DWM.syncTaskSafe({ title: "CAPA: " + String(rowData[NC_COL.DESCRIPTION] || ncId), ref: ncId,
-      status: (newStatus === "CLOSED" ? "completed" : newStatus === "IN_PROGRESS" ? "in-progress" : "open") });
-  }
-  if (newStatus === "CLOSED" && typeof tg5sBroadcast_ === "function") {
-    tg5sBroadcast_("🟢 <b>NC closed</b> " + ncId + " · " + zoneId + " by " + actorEmail,
-      [{ text: "📋 Open record", url: _tg5sDeep_('?v2=1&action=record&type=nc&id=' + ncId) }]);
+  // Queued rather than sent inline — see 09b_DeferredNotify.js. These are
+  // notifications; blocking the Close button on two external HTTP calls added
+  // ~6s to every status change.
+  if (typeof deferNotify_ === "function") {
+    deferNotify_({ kind: "dwm", payload: {
+      title: "CAPA: " + String(rowData[NC_COL.DESCRIPTION] || ncId), ref: ncId,
+      status: (newStatus === "CLOSED" ? "completed" : newStatus === "IN_PROGRESS" ? "in-progress" : "open") } });
+    if (newStatus === "CLOSED") {
+      deferNotify_({ kind: "telegram", payload: {
+        text: "🟢 <b>NC closed</b> " + ncId + " · " + zoneId + " by " + actorEmail,
+        buttons: [{ text: "📋 Open record", url: _tg5sDeep_('?v2=1&action=record&type=nc&id=' + ncId) }] } });
+    }
   }
   return { success: true, message: ncId + " updated to " + newStatus };
 }
@@ -697,6 +780,33 @@ function areConsecutiveMonths_(month1, month2) {
  * @param {string} zoneId — Zone ID
  * @returns {Object[]} Array of CAPA objects
  */
+/**
+ * Builds a CAPA row object safe for google.script.run serialisation.
+ *
+ * Two hazards in the raw NC_CAPA row, both measured 2026-09-02 on Z-18:
+ *  - a trailing blank header produced the key "" — an invalid identifier that
+ *    made the whole payload fail to serialise, so the client's success handler
+ *    received nothing and CAPATracker rendered "No CAPAs found." while the
+ *    server was returning 5 rows.
+ *  - Date cells cross the bridge inconsistently; ISO strings are what every
+ *    consumer (CAPATracker, dashboards) already formats from.
+ *
+ * @param {Array} headers  — header row
+ * @param {Array} row      — data row
+ * @returns {Object}
+ * @private
+ */
+function _capaRowToObj_(headers, row) {
+  var obj = {};
+  headers.forEach(function (h, i) {
+    var key = String(h).trim();
+    if (!key) return;                       // drop blank trailing columns
+    var v = row[i];
+    obj[key] = (v instanceof Date) ? v.toISOString() : v;
+  });
+  return obj;
+}
+
 function getCAPAsByZone(zoneId) {
   var ss = (typeof v2GetSpreadsheet_ === 'function') ? v2GetSpreadsheet_() : SpreadsheetApp.getActiveSpreadsheet();
   var capaSheet = ss.getSheetByName("NC_CAPA");
@@ -708,11 +818,7 @@ function getCAPAsByZone(zoneId) {
 
   for (var r = 1; r < data.length; r++) {
     if (String(data[r][2]).trim() === zoneId) {
-      var obj = {};
-      headers.forEach(function(h, i) {
-        obj[String(h).trim()] = data[r][i];
-      });
-      results.push(obj);
+      results.push(_capaRowToObj_(headers, data[r]));
     }
   }
   return results;
@@ -785,10 +891,7 @@ function getOpenCAPAs() {
     var status = String(data[r][14]).trim().toUpperCase();
     if (status === "DELETED" || status === "DELETED ") continue;
     if (status === "OPEN" || status === "IN_PROGRESS" || status === "OVERDUE" || status === "REPEAT_NC") {
-      var obj = {};
-      headers.forEach(function(h, i) {
-        obj[String(h).trim()] = data[r][i];
-      });
+      var obj = _capaRowToObj_(headers, data[r]);
 
       // Add computed days overdue/remaining
       var targetDate;

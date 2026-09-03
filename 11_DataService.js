@@ -1236,9 +1236,18 @@ function getNcDetail(ncId) {
       zoneId:               String(r[NC_COL.ZONE_ID]),
       zoneName:             String(r[NC_COL.ZONE_NAME]),
       auditDate:            toIso(r[NC_COL.AUDIT_DATE]),
-      pillar:               String(r[NC_COL.PILLAR]),
+      // Column 5 is criterion_id in the sheet header. It was being surfaced as
+      // "pillar" because createCAPA wrote the pillar into it; both names are
+      // returned so the detail view can show the criterion AND derive the
+      // pillar from its prefix (S1-C2 -> S1) for older rows.
+      criterionId:          String(r[NC_COL.PILLAR] || ""),
+      pillar:               String(r[NC_COL.PILLAR] || "").split("-")[0],
       description:          String(r[NC_COL.DESCRIPTION]),
-      scoreGiven:           Number(r[NC_COL.SCORE_GIVEN]) || 0,
+      // A blank cell means "not recorded", not "scored zero" — 41 of 79 live
+      // rows were blank and every one of them displayed as 0, which reads as a
+      // total failure on a 0-4 scale.
+      scoreGiven:           (r[NC_COL.SCORE_GIVEN] === "" || r[NC_COL.SCORE_GIVEN] === null ||
+                             r[NC_COL.SCORE_GIVEN] === undefined) ? null : Number(r[NC_COL.SCORE_GIVEN]),
       auditor:              String(r[NC_COL.AUDITOR]),
       rootCause:            String(r[NC_COL.ROOT_CAUSE]),
       correctiveAction:     String(r[NC_COL.CORRECTIVE_ACTION]),
@@ -1434,9 +1443,14 @@ function publicRecordAction(type, id, action, actorName) {
  * Returns a merged, normalised list of NCs, Tasks, and Red Tags for the
  * Actions page, plus count breakdowns for tab badges.
  *
- * NOTE ON COUNTS: byType / byStatus / byPriority are computed over the full
- * zone-filtered set — BEFORE type / status / priority filters — so tab badges
- * always reflect total numbers regardless of the active tab/filter.
+ * NOTE ON COUNTS: each breakdown is computed over the pool MINUS its own
+ * dimension, so a badge always answers "how many would I get if I clicked
+ * this?" and never contradicts the list below it:
+ *   byStatus / byTypeStatus — respect zone + type + priority, ignore status
+ *   byPriority              — respects zone + type, ignores priority
+ *   byType                  — respects zone + priority
+ * Ignoring priority everywhere used to make the status tabs read "Closed 42"
+ * while a HIGH-filtered list showed 3 rows.
  *
  * @param {Object} [filters]
  * @param {string} [filters.zoneId]   — exact zone match; omit for all zones
@@ -1495,6 +1509,14 @@ function getUnifiedActionList(filters) {
 
   var PRIORITY_RANK = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
 
+  /* Photo columns hold comma-joined Drive thumbnail URLs. Kept as a small
+     array so the client can show a count and render thumbnails without a
+     second round trip per record. */
+  function _splitPhotos_(v) {
+    return String(v || "").split(",").map(function (x) { return x.trim(); })
+                          .filter(function (x) { return x.indexOf("http") === 0; });
+  }
+
   // ── read each source defensively ─────────────────────────────────────────
 
   var ncItems = [];
@@ -1524,7 +1546,8 @@ function getUnifiedActionList(filters) {
           ageDays:     age,
           daysPastDue: overdue ? daysPastDue(nc.targetDate) : 0,
           isOverdue:   overdue,
-          createdDate: nc.createdDate || ""
+          createdDate: nc.createdDate || "",
+          photos:      _splitPhotos_(nc.photoUrl)
         });
       }
     }
@@ -1561,7 +1584,8 @@ function getUnifiedActionList(filters) {
           ageDays:     tAge,
           daysPastDue: tOver ? daysPastDue(tDue) : 0,
           isOverdue:   tOver,
-          createdDate: t.createdDate || ""
+          createdDate: t.createdDate || "",
+          photos:      _splitPhotos_(t.photoUrl)
         });
       }
     }
@@ -1597,7 +1621,8 @@ function getUnifiedActionList(filters) {
           ageDays:     rtAge,
           daysPastDue: rtOver ? daysPastDue(rtDue) : 0,
           isOverdue:   rtOver,
-          createdDate: rt.createdDate || ""
+          createdDate: rt.createdDate || "",
+          photos:      _splitPhotos_(rt.photoUrl)
         });
       }
     }
@@ -1608,7 +1633,17 @@ function getUnifiedActionList(filters) {
   // ── full zone-filtered pool (used for counts) ─────────────────────────────
   var pool = ncItems.concat(taskItems).concat(rtItems);
 
-  // ── compute counts over zone-filtered pool (before type/status/pri filters)
+  // ── counts pool ──────────────────────────────────────────────────────────
+  // Counts deliberately IGNORE the status filter (each tab must show how many
+  // records it holds) but they now RESPECT type and priority. Previously they
+  // ignored those too, so filtering to HIGH showed "Closed 42" on the tab while
+  // the list underneath held 3 rows — which reads as the filter being broken.
+  var countPool = pool.filter(function(item) {
+    if (typeFilter     !== "ALL" && item.type     !== typeFilter)     return false;
+    if (priorityFilter !== "ALL" && item.priority !== priorityFilter) return false;
+    return true;
+  });
+
   var counts = {
     byType:     { NC: 0, TASK: 0, RED_TAG: 0 },
     byStatus:   { OPEN: 0, IN_PROGRESS: 0, CLOSED: 0 },
@@ -1618,14 +1653,27 @@ function getUnifiedActionList(filters) {
       RED_TAG: { OPEN: 0, IN_PROGRESS: 0, CLOSED: 0 }
     },
     byPriority: { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 },
-    total:      pool.length
+    total:      countPool.length
   };
-  for (var c = 0; c < pool.length; c++) {
-    var item = pool[c];
-    if (counts.byType[item.type]     !== undefined) counts.byType[item.type]++;
+  for (var c = 0; c < countPool.length; c++) {
+    var item = countPool[c];
     if (counts.byStatus[item.status] !== undefined) counts.byStatus[item.status]++;
     if (counts.byTypeStatus[item.type] && counts.byTypeStatus[item.type][item.status] !== undefined) counts.byTypeStatus[item.type][item.status]++;
-    if (counts.byPriority[item.priority] !== undefined) counts.byPriority[item.priority]++;
+  }
+  // byPriority must NOT be narrowed by the priority filter — it feeds the
+  // priority chips themselves, and a chip cannot show how many records it would
+  // match if it only ever counted the one already selected. Count it over the
+  // type/zone-filtered pool instead.
+  for (var pc = 0; pc < pool.length; pc++) {
+    var pItem = pool[pc];
+    // byPriority: everything except the priority filter itself
+    if (typeFilter === "ALL" || pItem.type === typeFilter) {
+      if (counts.byPriority[pItem.priority] !== undefined) counts.byPriority[pItem.priority]++;
+    }
+    // byType: everything except the type filter itself
+    if (priorityFilter === "ALL" || pItem.priority === priorityFilter) {
+      if (counts.byType[pItem.type] !== undefined) counts.byType[pItem.type]++;
+    }
   }
 
   // ── apply type / status / priority filters ───────────────────────────────
@@ -1658,6 +1706,40 @@ function getUnifiedActionList(filters) {
  *   byUser: [{ owner, total, open, inProgress, closed, byType:{NC,TASK,RED_TAG} }]
  *   byZone: [{ zoneId, zoneName, total, open, inProgress, closed, byType:{...} }]
  */
+/**
+ * Canonical display name for an owner string.
+ *
+ * The owner field is free text typed by whoever raised the record, so the same
+ * person arrives many ways. Measured on live data 2026-09-02: 38 "users" for
+ * roughly a dozen real people - Shikha / Mrs. Shikha / shikha / Shikhar,
+ * Khushi / khushi / Mrs. Khushi Paswan, Santosh / santosh / Mr. Santosh Maurya,
+ * TBM / tbm, plus raw e-mail addresses alongside display names. That made the
+ * Summary tab unreadable: the counts were split across near-duplicate rows.
+ *
+ * Rules, in order:
+ *  - an e-mail becomes its local part (deepak.joshi@x -> Deepak Joshi)
+ *  - honorifics (Mr./Mrs./Ms./Shri/Smt) are dropped
+ *  - case and inner whitespace are normalised, then Title Cased
+ *  - a joint owner ("Khushi and Shikha") is NOT split: it is a real, distinct
+ *    assignment, and silently reassigning it to one person would misstate who
+ *    owns the work. It is normalised as its own bucket.
+ *
+ * @param {string} raw
+ * @returns {string} canonical label, or '' when there is no owner
+ * @private
+ */
+function _canonOwner_(raw) {
+  var v = String(raw == null ? '' : raw).trim();
+  if (!v) return '';
+  if (v.indexOf('@') > 0) v = v.slice(0, v.indexOf('@')).replace(/[._-]+/g, ' ');
+  v = v.replace(/^(mr|mrs|ms|miss|shri|smt|dr)\.?\s+/i, '');
+  v = v.replace(/\s+/g, ' ').trim();
+  if (!v) return '';
+  return v.replace(/\S+/g, function (w) {
+    return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+  });
+}
+
 function getActionsSummary(filters) {
   return v2SafeExecute_(function() {
     var pool = getUnifiedActionList(filters || {}).items;
@@ -1675,7 +1757,8 @@ function getActionsSummary(filters) {
 
     for (var i = 0; i < pool.length; i++) {
       var it = pool[i];
-      var u = bucket(users, it.owner || "Unassigned", it.owner || "Unassigned");
+      var canon = _canonOwner_(it.owner) || "Unassigned";
+      var u = bucket(users, canon, canon);
       var z = bucket(zones, it.zoneId || "—", (it.zoneId || "—") + (it.zone ? " — " + it.zone : ""), it.zoneId);
       [u, z].forEach(function(b) {
         b.total++;

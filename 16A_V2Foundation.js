@@ -31,6 +31,16 @@ var NC_COL = {
   VERIFIED_BY: 16, VERIFICATION_REMARKS: 17, IS_REPEAT: 18, RECURRENCE_COUNT: 19,
   PHOTO_URL: 20, PHOTO_FILE_ID: 21
 };
+/* Aliases. Four files address these columns by the names TASK_COL/RT_COL use
+   (CREATED) or by their sheet-header names (CRITERION_ID, CRITERION_LABEL,
+   SCORE). Those keys did not exist here, and `array[undefined]` is undefined
+   rather than an error — so the reads failed silently: every NC reported age 0
+   with a blank created date, and criterion/score reads returned nothing.
+   Aliasing is safer than renaming call sites: one definition, no site missed. */
+NC_COL.CREATED         = NC_COL.CREATED_DATE;   // 1
+NC_COL.CRITERION_ID    = NC_COL.PILLAR;         // 5 — sheet header is criterion_id
+NC_COL.CRITERION_LABEL = NC_COL.DESCRIPTION;    // 6 — sheet header is criterion_label
+NC_COL.SCORE           = NC_COL.SCORE_GIVEN;    // 7
 
 /** TaskBoard sheet column indices (V2 schema: 18 columns) */
 var TASK_COL = {

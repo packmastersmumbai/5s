@@ -85,12 +85,18 @@ const { launch, loginAdmin, gotoAction, makeRunner } = require('./e2e-lib-5s');
   await t.check('5 SQCDP checkboxes', () => (dimBoxes === 5) || (dimBoxes));
 
   // 7. Used ids are locked so a rename cannot orphan audit history.
-  await page.waitForTimeout(2500);
-  const note = await fr.locator('#zcIdNote').textContent();
+  // countCriterionUsage is async; wait for the note to be filled in.
+  let note = '';
+  for (let i = 0; i < 30; i++) {
+    note = (await fr.locator('#zcIdNote').textContent()) || '';
+    if (/Locked|Not yet used/.test(note)) break;
+    await page.waitForTimeout(500);
+  }
   const disabled = await fr.locator('#zcfId').isDisabled();
   await t.check('in-use id locked with reason', () => (disabled && /Locked/.test(note)) || (note));
 
-  // 8. Media panel present.
+  // 8. Media panel present (rendered after getWDGLLPhotos returns).
+  await fr.locator('.zc-addmedia').waitFor({ state: 'visible', timeout: 20000 });
   const addMedia = await fr.locator('.zc-addmedia').count();
   await t.check('media add control present', () => (addMedia === 1) || (addMedia));
 
@@ -100,6 +106,11 @@ const { launch, loginAdmin, gotoAction, makeRunner } = require('./e2e-lib-5s');
   await t.check('drawer closes', () => (drawerGone === 0) || (drawerGone));
 
   // 9. Retire is optimistic: the row dims immediately, well before the write.
+  // A previous aborted run can leave the first row retired, so restore first.
+  if (await fr.locator('.zc-row').first().locator('button', { hasText: 'Restore' }).count()) {
+    await fr.locator('.zc-row').first().locator('button', { hasText: 'Restore' }).click();
+    await page.waitForTimeout(2500);
+  }
   const tRetire = Date.now();
   await fr.locator('.zc-row').first().locator('button', { hasText: 'Retire' }).click();
   await fr.locator('.zc-row.retired').first().waitFor({ state: 'visible', timeout: 3000 });
@@ -111,6 +122,12 @@ const { launch, loginAdmin, gotoAction, makeRunner } = require('./e2e-lib-5s');
   await page.waitForTimeout(3000);
   const stillRetired = await fr.locator('.zc-row.retired').count();
   await t.check('restore clears retired state', () => (stillRetired === 0) || (stillRetired));
+
+  // Leave Z-01 as found: the retire/restore checks mutate real config.
+  if (await fr.locator('.zc-row').first().locator('button', { hasText: 'Restore' }).count()) {
+    await fr.locator('.zc-row').first().locator('button', { hasText: 'Restore' }).click();
+    await page.waitForTimeout(2500);
+  }
 
   t.report();
   await browser.close();

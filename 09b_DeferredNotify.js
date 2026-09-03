@@ -112,6 +112,10 @@ function flushDeferredNotifications() {
         DWM.syncTaskSafe(job.payload);
       } else if (job.kind === 'telegram' && typeof tg5sBroadcast_ === 'function') {
         tg5sBroadcast_(job.payload.text, job.payload.buttons, job.payload.photos);
+      } else if (job.kind === 'trend' && typeof refreshTrendForMonth === 'function') {
+        // 7.3s rollup. Nothing the auditor does next reads the trend, so it
+        // does not belong inside the submit request.
+        refreshTrendForMonth();
       }
       processed++;
     } catch (e) {

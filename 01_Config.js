@@ -115,6 +115,19 @@ function initScriptProperties() {
   var props = PropertiesService.getScriptProperties();
   var ss = SpreadsheetApp.getActiveSpreadsheet();
 
+  // Criteria are edited in ZONE_CONFIG by the criteria master page, but this
+  // function rebuilds ZONE_CONFIG from the 01b_ZoneData defaults -- which would
+  // silently discard every edit. Carry the live criteria across the rebuild.
+  var liveCriteria = {};
+  try {
+    var existing = JSON.parse(props.getProperty("ZONE_CONFIG") || "{}");
+    Object.keys(existing).forEach(function(zid) {
+      if (existing[zid] && existing[zid].criteria && existing[zid].criteria.length) {
+        liveCriteria[zid] = existing[zid].criteria;
+      }
+    });
+  } catch (e) {}
+
   // Attempt to read from Zones sheet; fall back to defaults
   var zoneConfig = getDefaultZoneConfig_();
   var zonesSheet = ss.getSheetByName("Zones");
@@ -162,7 +175,15 @@ function initScriptProperties() {
         });
       }
     }
-    if (customCriteria.length > 0) {
+    // ChecklistSchema is the retired global 20-criterion schema (S1-C1 style).
+    // Zones now carry their own criteria (S1-1 style) with helper text, SQCDP
+    // and trigger, none of which this sheet has columns for. Applying it would
+    // flatten all 28 zones back to the old list, so it is used only as a
+    // fallback when no zone has criteria of its own.
+    var anyZoneCriteria = Object.keys(zoneConfig).some(function(zid) {
+      return zoneConfig[zid].criteria && zoneConfig[zid].criteria.length > 0;
+    });
+    if (customCriteria.length > 0 && !anyZoneCriteria) {
       checklistSchema.criteria = customCriteria;
       checklistSchema.totalCriteria = customCriteria.length;
       checklistSchema.maxTotalScore = customCriteria.reduce(function(sum, c) { return sum + c.maxScore; }, 0);
@@ -172,6 +193,10 @@ function initScriptProperties() {
       checklistSchema.pillars = Object.keys(pillarSet).sort();
     }
   }
+
+  Object.keys(liveCriteria).forEach(function(zid) {
+    if (zoneConfig[zid]) zoneConfig[zid].criteria = liveCriteria[zid];
+  });
 
   // Store everything in ScriptProperties
   props.setProperties({
@@ -320,22 +345,33 @@ function updateZoneFolderIds(folderIdMap) {
 }
 
 /**
- * Refreshes each zone's criteria in the live ZONE_CONFIG from the defaults in
- * 01b_ZoneData.js (getDefaultZoneCriteria_) WITHOUT touching folder IDs, names,
- * leaders or any other runtime field. Run this after editing the zone criteria
- * so the deployed audit forms pick up the new labels. Idempotent.
- * @returns {Object} { zones: N, updated: N }
+ * DESTRUCTIVE. Resets every zone's criteria in ZONE_CONFIG to the hardcoded
+ * defaults in 01b_ZoneData.js, discarding anything entered in the criteria
+ * master page. Criteria are now edited in the UI (saveZoneCriteria), so this is
+ * a factory reset, not a refresh -- it is no longer the way to publish edits.
+ * Folder IDs, names and leaders are left untouched.
+ * @returns {Object} { zones: N, updated: N, backupKey: string }
  */
 function reseedZoneCriteria() {
   var config = getZoneConfig();
   var defaults = getDefaultZoneCriteria_();
   var updated = 0;
+  // Snapshot what is about to be discarded, so a mistaken reset is recoverable.
+  var backupKey = 'CRITERIA_BACKUP_' + Utilities.formatDate(new Date(), TZ, 'yyyyMMdd-HHmm');
+  var snapshot = {};
+  Object.keys(config).forEach(function (zid) {
+    if (config[zid].criteria) snapshot[zid] = config[zid].criteria;
+  });
+  try {
+    PropertiesService.getScriptProperties().setProperty(backupKey, JSON.stringify(snapshot));
+  } catch (e) { backupKey = '(backup failed: ' + e.message + ')'; }
+
   Object.keys(defaults).forEach(function (zid) {
     if (config[zid]) { config[zid].criteria = defaults[zid]; updated++; }
   });
   PropertiesService.getScriptProperties().setProperty("ZONE_CONFIG", JSON.stringify(config));
-  logAdminAction_("reseedZoneCriteria", "Refreshed criteria for " + updated + " zones from defaults.");
-  return { zones: Object.keys(config).length, updated: updated };
+  logAdminAction_("reseedZoneCriteria", "RESET criteria for " + updated + " zones to defaults. Backup: " + backupKey);
+  return { zones: Object.keys(config).length, updated: updated, backupKey: backupKey };
 }
 
 
@@ -621,4 +657,29 @@ function getAllZoneCriteria() {
     total += c.length;
   });
   return { zones: out, totalCriteria: total };
+}
+
+/**
+ * Restores zone criteria from a CRITERIA_BACKUP_* snapshot written by
+ * reseedZoneCriteria(). Pass the key it returned.
+ * @param {string} backupKey
+ * @returns {{success:boolean, message:string, restored:number}}
+ */
+function restoreZoneCriteria(backupKey) {
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var raw = props.getProperty(backupKey);
+    if (!raw) return { success: false, message: 'No backup found for key ' + backupKey, restored: 0 };
+    var snapshot = JSON.parse(raw);
+    var config = getZoneConfig();
+    var n = 0;
+    Object.keys(snapshot).forEach(function (zid) {
+      if (config[zid]) { config[zid].criteria = snapshot[zid]; n++; }
+    });
+    props.setProperty('ZONE_CONFIG', JSON.stringify(config));
+    logAdminAction_('restoreZoneCriteria', 'Restored ' + n + ' zones from ' + backupKey);
+    return { success: true, message: 'Restored criteria for ' + n + ' zones.', restored: n };
+  } catch (e) {
+    return { success: false, message: 'Restore failed: ' + e.message, restored: 0 };
+  }
 }

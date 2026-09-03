@@ -645,7 +645,11 @@ function submitQuickAudit(auditData) {
     // the trend only moved when the 07:30 rollup ran, which is why analytics
     // looked static. refreshTrendForMonth never throws — a failure here must
     // not fail the submission, and the nightly rollup remains the backstop.
-    if (typeof refreshTrendForMonth === "function") refreshTrendForMonth();
+    if (typeof deferNotify_ === "function") {
+      deferNotify_({ kind: 'trend', payload: {} });
+    } else if (typeof refreshTrendForMonth === "function") {
+      refreshTrendForMonth();
+    }
 
     return {
       success: true,

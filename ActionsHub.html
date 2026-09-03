@@ -185,9 +185,13 @@ body {
   font-size: 9px; font-weight: 700;
 }
 
-/* ── FILTER ROW (collapsed by default; toggled via .open) ── */
+/* ── FILTER ROW ──
+   Open by default on desktop: the priority chips and zone dropdown were a
+   click away behind Filters, which hid them from anyone who did not think to
+   look. Still collapsed on narrow screens, where the row would push the list
+   itself below the fold. Toggled via .open / .hidden either way. */
 .ah-filter-row {
-  display: none;
+  display: flex;
   gap: 8px;
   padding: 10px 16px;
   background: var(--bg-card);
@@ -197,7 +201,12 @@ body {
   animation: ahFilterDrop .16s ease;
 }
 .ah-filter-row.open { display: flex; }
+.ah-filter-row.collapsed { display: none; }
 .ah-filter-row.hidden { display: none !important; }
+@media (max-width: 760px) {
+  .ah-filter-row { display: none; }
+  .ah-filter-row.open { display: flex; }
+}
 
 /* ── collapsible type sections ── */
 .ah-sec { margin-bottom: 10px; }
@@ -1868,7 +1877,12 @@ function toggleFilterRow() {
   var row = document.querySelector('.ah-filter-row');
   var btn = document.getElementById('ahFilterToggle');
   if (!row || !btn) return;
-  var open = row.classList.toggle('open');
+  // Desktop starts open with no .open class, so a bare toggle('open') would
+  // need two clicks to hide. Decide from what is actually on screen.
+  var visible = row.offsetParent !== null;
+  var open = !visible;
+  row.classList.toggle('open', open);
+  row.classList.toggle('collapsed', !open);
   btn.classList.toggle('on', open);
 }
 function updateFilterCount_() {

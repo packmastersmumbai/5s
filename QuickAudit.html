@@ -1064,7 +1064,7 @@ function submitCardCreate(idx) {
       google.script.run
         .withSuccessHandler(function(r){ if (r && r.success) { okIds.push('Task ' + r.taskId); mark('TASK', true); } else { errors.push('Task failed'); mark('TASK', false); } next(); })
         .withFailureHandler(function(e){ errors.push('Task: ' + e.message); mark('TASK', false); next(); })
-        .createTask({ title: taskTitle, zoneId: zone, description: link_('Raised from QuickAudit — ' + c.labelEn), priority: 'MEDIUM',
+        .createTask({ title: taskTitle, zoneId: zone, description: link_('Raised from QuickAudit — ' + (c.label || c.labelEn || '')), priority: 'MEDIUM',
                       assignedTo: cfVal_(idx, 'task_resp') || who, dueDate: cfVal_(idx, 'task_due'),
                       source: 'AUDIT', sourceRefId: linkRef || c.criterionId || '', createdBy: who,
                       photosB64: recPhotosB64_(idx, 'TASK') });

@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PackMasters 5S — Criteria Master</title>
+<?!= include('CommonStyles') ?>
+<style>
+  body { min-height: 100vh; background: var(--bg-page); }
+  .zc-hdr {
+    position: sticky; top: 0; z-index: 30; display: flex; align-items: center; gap: 10px;
+    padding: 11px 14px; background: var(--bg-header); border-bottom: 2px solid var(--pm-accent);
+  }
+  .zc-back {
+    width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center; color: var(--text-secondary);
+    text-decoration: none; flex-shrink: 0; font-size: 18px;
+  }
+  .zc-title { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+  .zc-wrap { max-width: 1100px; margin: 0 auto; padding: 14px; }
+
+  .zc-bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px; }
+  .zc-bar select {
+    padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border);
+    font-size: 14px; font-weight: 600; background: #fff; color: var(--text-primary); min-width: 240px;
+  }
+  .zc-meta { font-size: 12px; color: var(--text-secondary); }
+  .zc-save-state { font-size: 12px; font-weight: 600; margin-left: auto; }
+  .zc-save-state.ok { color: var(--pm-green, #15803d); }
+  .zc-save-state.err { color: var(--pm-red, #b91c1c); }
+
+  .zc-pillar { border: 1px solid var(--border); border-radius: 10px; background: #fff; margin-bottom: 12px; overflow: hidden; }
+  .zc-pillar-hd {
+    display: flex; align-items: center; gap: 10px; padding: 10px 13px; cursor: pointer;
+    background: var(--bg-subtle, #f8fafc); border-bottom: 1px solid var(--border);
+  }
+  .zc-pillar-hd h3 { margin: 0; font-size: 13px; font-weight: 700; color: var(--text-primary); }
+  .zc-pillar-count { font-size: 11px; color: var(--text-secondary); margin-left: auto; }
+  .zc-pillar-body { padding: 4px 0; }
+  .zc-pillar.collapsed .zc-pillar-body { display: none; }
+
+  .zc-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 13px; border-bottom: 1px solid var(--border-light, #f1f5f9); }
+  .zc-row:last-child { border-bottom: 0; }
+  .zc-row.retired { opacity: .5; }
+  .zc-grip { cursor: grab; color: var(--text-tertiary, #94a3b8); font-size: 15px; padding-top: 2px; user-select: none; }
+  .zc-row.dragging { background: var(--bg-subtle, #f8fafc); }
+  .zc-main { flex: 1; min-width: 0; }
+  .zc-id { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-secondary); }
+  .zc-lbl { font-size: 13px; font-weight: 600; color: var(--text-primary); margin: 1px 0; }
+  .zc-lbl-hi { font-size: 12px; color: var(--text-secondary); }
+  .zc-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; align-items: center; }
+  .zc-dim { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 5px; background: var(--bg-subtle, #eef2f7); color: var(--text-secondary); }
+  .zc-trig { font-size: 10px; color: var(--text-tertiary, #94a3b8); }
+  .zc-media { font-size: 11px; color: var(--text-secondary); }
+  .zc-acts { display: flex; gap: 6px; flex-shrink: 0; }
+  .zc-btn {
+    padding: 5px 10px; border-radius: 7px; border: 1px solid var(--border);
+    background: #fff; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--text-primary);
+  }
+  .zc-btn:hover { background: var(--bg-subtle, #f8fafc); }
+  .zc-btn-add { margin: 8px 13px; }
+  .zc-badge-retired { font-size: 10px; font-weight: 700; color: var(--pm-red, #b91c1c); }
+
+  /* Drawer */
+  .zc-scrim { position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: 60; }
+  .zc-drawer {
+    position: fixed; top: 0; right: 0; bottom: 0; width: min(460px, 100%); z-index: 61;
+    background: #fff; box-shadow: -4px 0 24px rgba(0,0,0,.18);
+    display: flex; flex-direction: column;
+  }
+  .zc-drawer-hd { display: flex; align-items: center; padding: 13px 16px; border-bottom: 1px solid var(--border); }
+  .zc-drawer-hd h3 { margin: 0; font-size: 14px; font-weight: 700; }
+  .zc-drawer-bd { flex: 1; overflow-y: auto; padding: 16px; }
+  .zc-drawer-ft { display: flex; gap: 10px; justify-content: flex-end; padding: 12px 16px; border-top: 1px solid var(--border); }
+  .zc-fld { margin-bottom: 14px; }
+  .zc-fld label { display: block; font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .4px; }
+  .zc-fld input[type=text], .zc-fld textarea, .zc-fld select {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 7px;
+    font-size: 13px; font-family: inherit; color: var(--text-primary); box-sizing: border-box;
+  }
+  .zc-fld textarea { min-height: 62px; resize: vertical; }
+  .zc-fld-note { font-size: 11px; color: var(--text-tertiary, #94a3b8); margin-top: 3px; }
+  .zc-dims { display: flex; flex-wrap: wrap; gap: 12px; }
+  .zc-dims label { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; text-transform: none; letter-spacing: 0; }
+  .zc-row2 { display: flex; gap: 12px; }
+  .zc-row2 > * { flex: 1; }
+  .zc-thumbs { display: flex; flex-wrap: wrap; gap: 8px; }
+  .zc-thumb { position: relative; width: 72px; height: 72px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+  .zc-thumb img, .zc-thumb video { width: 100%; height: 100%; object-fit: cover; }
+  .zc-thumb button {
+    position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border-radius: 50%;
+    border: 0; background: rgba(15,23,42,.75); color: #fff; font-size: 11px; cursor: pointer; line-height: 1;
+  }
+  .zc-addmedia {
+    width: 72px; height: 72px; border-radius: 8px; border: 1px dashed var(--border);
+    background: #fff; cursor: pointer; font-size: 11px; color: var(--text-secondary);
+  }
+  .zc-empty { padding: 40px; text-align: center; color: var(--text-secondary); font-size: 13px; }
+  @media (max-width: 640px) {
+    .zc-drawer { width: 100%; }
+    .zc-acts { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<div class="zc-hdr">
+  <a class="zc-back" href="#" onclick="zcBack(event)">&#8592;</a>
+  <div class="zc-title">5S Criteria Master</div>
+</div>
+
+<div class="zc-wrap">
+  <div class="zc-bar">
+    <select id="zcZone" onchange="zcRender()"></select>
+    <span class="zc-meta" id="zcMeta"></span>
+    <span class="zc-save-state" id="zcState"></span>
+  </div>
+  <div id="zcBody"><div class="zc-empty">Loading criteria&hellip;</div></div>
+</div>
+
+<script>
+/* Criteria master. The whole plant loads once; switching zones, editing,
+   reordering and retiring are all client-side. Only saves touch the server,
+   and they are optimistic — the UI repaints first and rolls back by criterion
+   id if the write fails. */
+var ZC = { zones: {}, dirtyZone: null };
+var PILLAR_NAMES = { S1:'Sort (Seiri)', S2:'Set in Order (Seiton)', S3:'Shine (Seiso)',
+                     S4:'Standardize (Seiketsu)', S5:'Sustain (Shitsuke)' };
+var DIMS = ['S','Q','C','D','P'];
+var DIM_NAMES = { S:'Safety', Q:'Quality', C:'Cost', D:'Delivery', P:'People' };
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) {
+    return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+  });
+}
+function zcBack(e) {
+  e.preventDefault();
+  // target="_blank" and plain assignment are both blocked in the GAS sandbox;
+  // navigate the top frame the way ActionsHub does.
+  var url = '<?!= v2WebAppUrl_("?v2=1&action=home") ?>';
+  try { window.top.location.href = url; } catch (err) { window.location.href = url; }
+}
+function zcState(msg, cls) {
+  var el = document.getElementById('zcState');
+  el.textContent = msg || '';
+  el.className = 'zc-save-state ' + (cls || '');
+  if (cls === 'ok') setTimeout(function(){ if (el.textContent === msg) el.textContent = ''; }, 2200);
+}
+
+google.script.run
+  .withSuccessHandler(function(res) {
+    ZC.zones = res.zones || {};
+    var sel = document.getElementById('zcZone');
+    sel.innerHTML = Object.keys(ZC.zones).map(function(z) {
+      return '<option value="' + esc(z) + '">' + esc(z) + ' &middot; ' + esc(ZC.zones[z].name) + '</option>';
+    }).join('');
+    zcRender();
+  })
+  .withFailureHandler(function(e) {
+    document.getElementById('zcBody').innerHTML =
+      '<div class="zc-empty">Could not load criteria: ' + esc(e.message) + '</div>';
+  })
+  .getAllZoneCriteria();
+
+function zcZone() { return document.getElementById('zcZone').value; }
+function zcList() { return (ZC.zones[zcZone()] || {}).criteria || []; }
+
+function zcRender() {
+  var list = zcList(), zid = zcZone();
+  var active = list.filter(function(c){ return c.active !== false; });
+  var maxScore = active.reduce(function(n, c){ return n + (parseInt(c.maxScore,10) || 4); }, 0);
+  document.getElementById('zcMeta').textContent =
+    active.length + ' criteria · max score ' + maxScore +
+    (list.length > active.length ? ' · ' + (list.length - active.length) + ' retired' : '');
+
+  var byPillar = {};
+  list.forEach(function(c, i) {
+    var p = c.pillar || String(c.id || '').split('-')[0] || 'S1';
+    (byPillar[p] = byPillar[p] || []).push({ c: c, i: i });
+  });
+
+  var order = Object.keys(byPillar).sort();
+  if (!order.length) {
+    document.getElementById('zcBody').innerHTML =
+      '<div class="zc-empty">No criteria for ' + esc(zid) + '.</div>';
+    return;
+  }
+
+  document.getElementById('zcBody').innerHTML = order.map(function(p) {
+    var rows = byPillar[p], n = rows.filter(function(r){ return r.c.active !== false; }).length;
+    return '<div class="zc-pillar" data-pillar="' + esc(p) + '">' +
+      '<div class="zc-pillar-hd" onclick="this.parentNode.classList.toggle(\'collapsed\')">' +
+        '<h3>' + esc(p) + ' · ' + esc(PILLAR_NAMES[p] || p) + '</h3>' +
+        '<span class="zc-pillar-count">' + n + ' criteria</span>' +
+      '</div>' +
+      '<div class="zc-pillar-body">' +
+        rows.map(function(r){ return zcRow(r.c, r.i); }).join('') +
+        '<button class="zc-btn zc-btn-add" onclick="zcAdd(\'' + esc(p) + '\')">+ Add criterion to ' + esc(p) + '</button>' +
+      '</div></div>';
+  }).join('');
+
+  zcBindDrag();
+}
+
+function zcRow(c, i) {
+  var retired = c.active === false;
+  var sq = c.sqdcp || {};
+  var dims = DIMS.filter(function(d){ return sq[d]; });
+  return '<div class="zc-row' + (retired ? ' retired' : '') + '" draggable="true" data-idx="' + i + '" data-id="' + esc(c.id) + '">' +
+    '<span class="zc-grip">⠿</span>' +
+    '<div class="zc-main">' +
+      '<span class="zc-id">' + esc(c.id) + '</span>' +
+      (retired ? ' <span class="zc-badge-retired">RETIRED</span>' : '') +
+      '<div class="zc-lbl">' + esc(c.labelEn) + '</div>' +
+      (c.labelHi ? '<div class="zc-lbl-hi">' + esc(c.labelHi) + '</div>' : '') +
+      '<div class="zc-tags">' +
+        (dims.length ? '<span class="zc-dim">' + dims.join(' · ') + '</span>' : '') +
+        (c.trigger ? '<span class="zc-trig">' + esc(c.trigger) + '</span>' : '') +
+        '<span class="zc-trig">/' + (parseInt(c.maxScore,10) || 4) + '</span>' +
+        '<span class="zc-media" id="zcm-' + esc(c.id) + '"></span>' +
+      '</div>' +
+    '</div>' +
+    '<div class="zc-acts">' +
+      '<button class="zc-btn" onclick="zcEdit(' + i + ')">Edit</button>' +
+      '<button class="zc-btn" onclick="zcToggle(' + i + ')">' + (retired ? 'Restore' : 'Retire') + '</button>' +
+    '</div></div>';
+}
+
+/* ── Reorder (drag within a pillar) ─────────────────────────────────── */
+function zcBindDrag() {
+  var dragEl = null;
+  document.querySelectorAll('.zc-row').forEach(function(row) {
+    row.addEventListener('dragstart', function(){ dragEl = row; row.classList.add('dragging'); });
+    row.addEventListener('dragend',   function(){ row.classList.remove('dragging'); dragEl = null; });
+    row.addEventListener('dragover',  function(e){ e.preventDefault(); });
+    row.addEventListener('drop', function(e) {
+      e.preventDefault();
+      if (!dragEl || dragEl === row) return;
+      var from = parseInt(dragEl.dataset.idx, 10), to = parseInt(row.dataset.idx, 10);
+      var list = zcList();
+      list.splice(to, 0, list.splice(from, 1)[0]);
+      zcRender();
+      zcSave();
+    });
+  });
+}
+
+/* ── Edit drawer ────────────────────────────────────────────────────── */
+var ZC_EDIT = null;
+
+function zcAdd(pillar) {
+  var list = zcList();
+  var n = 1;
+  list.forEach(function(c) {
+    var m = /^([A-Z0-9]+)-(\d+)$/.exec(c.id || '');
+    if (m && m[1] === pillar && parseInt(m[2],10) >= n) n = parseInt(m[2],10) + 1;
+  });
+  list.push({ id: pillar + '-' + n, pillar: pillar, labelEn: '', labelHi: '',
+              helperEn: '', helperHi: '', sqdcp: {}, trigger: '', maxScore: 4, active: true });
+  zcRender();
+  zcEdit(list.length - 1);
+}
+
+function zcToggle(i) {
+  var c = zcList()[i];
+  c.active = (c.active === false);
+  zcRender();
+  zcSave();
+}
+
+function zcEdit(i) {
+  ZC_EDIT = { idx: i, media: [] };
+  var c = zcList()[i], sq = c.sqdcp || {};
+  var host = document.createElement('div');
+  host.id = 'zcDrawerHost';
+  host.innerHTML =
+    '<div class="zc-scrim" onclick="zcClose()"></div>' +
+    '<div class="zc-drawer">' +
+      '<div class="zc-drawer-hd"><h3>Edit criterion</h3></div>' +
+      '<div class="zc-drawer-bd">' +
+        '<div class="zc-row2">' +
+          '<div class="zc-fld"><label>ID</label><input type="text" id="zcfId" value="' + esc(c.id) + '">' +
+            '<div class="zc-fld-note" id="zcIdNote"></div></div>' +
+          '<div class="zc-fld"><label>Pillar</label><select id="zcfPillar">' +
+            Object.keys(PILLAR_NAMES).map(function(p) {
+              return '<option value="' + p + '"' + (p === c.pillar ? ' selected' : '') + '>' + p + '</option>';
+            }).join('') + '</select></div>' +
+        '</div>' +
+        '<div class="zc-fld"><label>Label (English)</label><input type="text" id="zcfLblEn" value="' + esc(c.labelEn) + '"></div>' +
+        '<div class="zc-fld"><label>Label (हिन्दी)</label><input type="text" id="zcfLblHi" value="' + esc(c.labelHi) + '"></div>' +
+        '<div class="zc-fld"><label>Helper text — English</label><textarea id="zcfHlpEn">' + esc(c.helperEn) + '</textarea></div>' +
+        '<div class="zc-fld"><label>Helper text — हिन्दी</label><textarea id="zcfHlpHi">' + esc(c.helperHi) + '</textarea></div>' +
+        '<div class="zc-fld"><label>SQCDP dimensions</label><div class="zc-dims">' +
+          DIMS.map(function(d) {
+            return '<label><input type="checkbox" class="zcfDim" value="' + d + '"' + (sq[d] ? ' checked' : '') + '> ' + d + ' &middot; ' + DIM_NAMES[d] + '</label>';
+          }).join('') + '</div></div>' +
+        '<div class="zc-row2">' +
+          '<div class="zc-fld"><label>Trigger</label><select id="zcfTrig">' +
+            ['', 'redtag', 'task'].map(function(t) {
+              return '<option value="' + t + '"' + (t === (c.trigger||'') ? ' selected' : '') + '>' + (t || 'none') + '</option>';
+            }).join('') + '</select></div>' +
+          '<div class="zc-fld"><label>Max score</label><input type="text" id="zcfMax" value="' + (parseInt(c.maxScore,10) || 4) + '"></div>' +
+        '</div>' +
+        '<div class="zc-fld"><label>Reference media (what good looks like)</label>' +
+          '<div class="zc-thumbs" id="zcThumbs"></div>' +
+          '<div class="zc-fld-note">Photo or video · video max 6 MB</div>' +
+          '<input type="file" id="zcFile" accept="image/*,video/*" multiple hidden onchange="zcPickMedia(this)">' +
+        '</div>' +
+      '</div>' +
+      '<div class="zc-drawer-ft">' +
+        '<button class="zc-btn" onclick="zcClose()">Cancel</button>' +
+        '<button class="zc-btn" onclick="zcApply()">Apply</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(host);
+  zcLoadMedia(c.id);
+  zcCheckIdLock(c.id);
+}
+
+function zcCheckIdLock(id) {
+  google.script.run.withSuccessHandler(function(n) {
+    var note = document.getElementById('zcIdNote');
+    if (!note) return;
+    if (n > 0) {
+      document.getElementById('zcfId').disabled = true;
+      note.textContent = 'Locked — used by ' + n + ' audit record' + (n === 1 ? '' : 's');
+    } else {
+      note.textContent = 'Not yet used — safe to rename';
+    }
+  }).withFailureHandler(function(){}).countCriterionUsage(zcZone(), id);
+}
+
+function zcLoadMedia(id) {
+  google.script.run.withSuccessHandler(function(rows) {
+    ZC_EDIT.media = (rows || []).filter(function(r){ return r.criterionId === id; });
+    zcRenderThumbs();
+  }).withFailureHandler(function(){ zcRenderThumbs(); }).getWDGLLPhotos(zcZone());
+}
+
+function zcRenderThumbs() {
+  var box = document.getElementById('zcThumbs');
+  if (!box) return;
+  box.innerHTML = ZC_EDIT.media.map(function(m, i) {
+    var isVid = typeof pmIsVideo === 'function' ? pmIsVideo(m.photoUrl) : /#v$/.test(m.photoUrl || '');
+    var tag = isVid ? '<video src="' + esc(m.photoUrl) + '"></video>' : '<img src="' + esc(m.photoUrl) + '">';
+    return '<div class="zc-thumb">' + tag + '<button onclick="zcDropMedia(' + i + ')">&times;</button></div>';
+  }).join('') +
+  '<button class="zc-addmedia" onclick="document.getElementById(\'zcFile\').click()">+ Add</button>';
+}
+
+function zcPickMedia(input) {
+  var files = Array.prototype.slice.call(input.files || []);
+  input.value = '';
+  files.forEach(function(f) {
+    if (/^video\//.test(f.type) && f.size > 6 * 1024 * 1024) {
+      zcState('Video ' + (f.size / 1048576).toFixed(1) + ' MB exceeds the 6 MB limit', 'err');
+      return;
+    }
+    var fr = new FileReader();
+    fr.onload = function() {
+      var b64 = String(fr.result).split(',')[1];
+      var ext = (f.name.split('.').pop() || 'jpg').toLowerCase();
+      var id = document.getElementById('zcfId').value.trim();
+      zcState('Uploading…');
+      google.script.run
+        .withSuccessHandler(function(r) {
+          if (r && r.success) { zcState('Media added', 'ok'); zcLoadMedia(id); }
+          else zcState((r && r.message) || 'Upload failed', 'err');
+        })
+        .withFailureHandler(function(e){ zcState(e.message, 'err'); })
+        .addWDGLLPhoto({ zoneId: zcZone(), criterionId: id, photoUrl: ext + '|' + b64, description: '' });
+    };
+    fr.readAsDataURL(f);
+  });
+}
+
+function zcDropMedia(i) {
+  var m = ZC_EDIT.media[i];
+  if (!m) return;
+  ZC_EDIT.media.splice(i, 1);
+  zcRenderThumbs();
+  google.script.run
+    .withFailureHandler(function(e){ zcState('Could not remove media: ' + e.message, 'err'); })
+    .retireWDGLLPhoto(m.wdgllId);
+}
+
+function zcClose() {
+  var h = document.getElementById('zcDrawerHost');
+  if (h) h.parentNode.removeChild(h);
+  ZC_EDIT = null;
+}
+
+function zcApply() {
+  var c = zcList()[ZC_EDIT.idx];
+  var id = document.getElementById('zcfId').value.trim();
+  if (!id) { zcState('ID is required', 'err'); return; }
+  var dup = zcList().some(function(x, i){ return i !== ZC_EDIT.idx && x.id === id; });
+  if (dup) { zcState('Duplicate criterion id: ' + id, 'err'); return; }
+
+  c.id       = id;
+  c.pillar   = document.getElementById('zcfPillar').value;
+  c.labelEn  = document.getElementById('zcfLblEn').value;
+  c.labelHi  = document.getElementById('zcfLblHi').value;
+  c.helperEn = document.getElementById('zcfHlpEn').value;
+  c.helperHi = document.getElementById('zcfHlpHi').value;
+  c.trigger  = document.getElementById('zcfTrig').value;
+  c.maxScore = parseInt(document.getElementById('zcfMax').value, 10) || 4;
+  c.sqdcp = {};
+  document.querySelectorAll('.zcfDim').forEach(function(cb) { c.sqdcp[cb.value] = cb.checked; });
+
+  zcClose();
+  zcRender();
+  zcSave();
+}
+
+/* Optimistic save: the list is already repainted. On failure restore the
+   snapshot taken before the write and repaint again, so the UI never claims a
+   change that did not land. */
+function zcSave() {
+  var zid = zcZone();
+  var snapshot = JSON.stringify(ZC.zones[zid].criteria);
+  zcState('Saving…');
+  google.script.run
+    .withSuccessHandler(function(r) {
+      if (r && r.success) zcState('Saved', 'ok');
+      else {
+        ZC.zones[zid].criteria = JSON.parse(snapshot);
+        zcRender();
+        zcState((r && r.message) || 'Save failed', 'err');
+      }
+    })
+    .withFailureHandler(function(e) {
+      ZC.zones[zid].criteria = JSON.parse(snapshot);
+      zcRender();
+      zcState('Save failed: ' + e.message, 'err');
+    })
+    .saveZoneCriteria(zid, ZC.zones[zid].criteria);
+}
+</script>
+</body>
+</html>

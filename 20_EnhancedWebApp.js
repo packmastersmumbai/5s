@@ -77,6 +77,7 @@ function handleV2Route_(params) {
       // Restricted to ADMIN: Setup wizard
       case "setupwizard":
       case "dataimport":
+      case "zonecriteria":
         if (userRoles.indexOf(ROLES.ADMIN) < 0) {
           throw new Error("Admin role required");
         }
@@ -94,6 +95,7 @@ function handleV2Route_(params) {
     case "actionlist":   return serveV2Page_("ActionsHub", params);
     case "quickaudit":   return serveV2Page_("QuickAudit", params);
     case "zonematrix":   return serveV2Page_("ZoneMatrix", params);
+    case "zonecriteria": return serveV2Page_("ZoneCriteria", params);
     case "handover":     return serveV2Page_("ShiftHandover", params);
     case "tierdash":     return serveV2Page_("TierDashboard_Full", params);
     case "mrmpack":      return serveV2Page_("MRMReportPack_Full", params);

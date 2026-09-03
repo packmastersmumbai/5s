@@ -822,6 +822,41 @@ function getWDGLLPhotos(zoneId) {
   }, "getWDGLLPhotos", [], "low");
 }
 
+/**
+ * How many audit line items reference a criterion. The editor locks an id that
+ * is already in use, so a rename cannot orphan history.
+ */
+function countCriterionUsage(zoneId, criterionId) {
+  return v2SafeExecute_(function() {
+    if (!criterionId) return 0;
+    var ss = v2GetSpreadsheet_(), data = v2LoadSheet_(ss, "AuditLineItems");
+    var n = 0;
+    for (var r = 1; r < data.length; r++) {
+      if (String(data[r][5] || "").trim() !== criterionId) continue;
+      if (zoneId && String(data[r][1] || "").trim() !== zoneId) continue;
+      n++;
+    }
+    return n;
+  }, "countCriterionUsage", 0, "low");
+}
+
+/** Soft-delete a WDGLL reference photo (is_active = false). */
+function retireWDGLLPhoto(wdgllId) {
+  return v2SafeExecute_(function() {
+    if (!wdgllId) return { success: false, message: "WDGLL id required." };
+    var ss = v2GetSpreadsheet_(), sheet = ss.getSheetByName("WDGLL_Library");
+    if (!sheet) return { success: false, message: "WDGLL_Library sheet not found." };
+    var data = sheet.getDataRange().getValues();
+    for (var r = 1; r < data.length; r++) {
+      if (String(data[r][WD_COL.WD_ID]) === String(wdgllId)) {
+        sheet.getRange(r + 1, WD_COL.IS_ACTIVE + 1).setValue(false);
+        return { success: true, message: "Media removed." };
+      }
+    }
+    return { success: false, message: "WDGLL id not found." };
+  }, "retireWDGLLPhoto", { success: false, message: "Server error." });
+}
+
 function addTrainingRecord(trData) {
   return v2SafeExecute_(function() {
     var v = v2ValidateInput_(trData, {

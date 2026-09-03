@@ -59,10 +59,14 @@ function getCAPAKanbanData(filters) {
       var targetDate = data[r][NC_COL.TARGET_DATE] instanceof Date ? data[r][NC_COL.TARGET_DATE] : null;
       var isOverdue = targetDate && targetDate < now && status !== STATUS.CLOSED;
       if (filters.showOverdueOnly && !isOverdue) continue;
+      // NC_COL.CREATED does not exist — the field is CREATED_DATE. Indexing an
+      // array with `undefined` yields undefined, so this check always failed:
+      // every NC reported age 0 with an empty createdDate. Tasks and Red Tags
+      // were unaffected because TASK_COL/RT_COL genuinely define CREATED.
       var ageDays = 0;
-      if (data[r][NC_COL.CREATED] instanceof Date) ageDays = Math.floor((now - data[r][NC_COL.CREATED]) / 86400000);
+      if (data[r][NC_COL.CREATED_DATE] instanceof Date) ageDays = Math.floor((now - data[r][NC_COL.CREATED_DATE]) / 86400000);
       results.push({
-        ncId: String(data[r][NC_COL.NC_ID]), createdDate: v2FormatDate_(data[r][NC_COL.CREATED]),
+        ncId: String(data[r][NC_COL.NC_ID]), createdDate: v2FormatDate_(data[r][NC_COL.CREATED_DATE]),
         zoneId: zoneId, zoneName: String(data[r][NC_COL.ZONE_NAME] || ""),
         pillar: pillar, criterionId: criterionId,
         criterionLabel: String(data[r][NC_COL.CRITERION_LABEL] || ""),
@@ -70,6 +74,11 @@ function getCAPAKanbanData(filters) {
         targetDate: v2FormatDate_(targetDate), status: status,
         rootCause: String(data[r][NC_COL.ROOT_CAUSE] || ""),
         correctiveAction: String(data[r][NC_COL.CORRECTIVE_ACTION] || ""),
+        // Evidence has been written to this column since v237 (raise / start /
+        // closure photos) but was never read back, so the Actions list had no
+        // photo field at all and the attachments were invisible everywhere
+        // except the public record page.
+        photoUrl: String(data[r][NC_COL.PHOTO_URL] || ""),
         ageDays: ageDays, isOverdue: isOverdue
       });
     }
@@ -217,14 +226,20 @@ function updateTaskStatus(taskId, newStatus, remarks) {
         if (remarks) updates[TASK_COL.REMARKS] = remarks;
         v2BatchUpdateRow_(sheet, r + 1, updates, data[r]);
         try { var c = CacheService.getScriptCache(), z = String(data[r][TASK_COL.ZONE_ID]).trim(); c.remove("pm5s_tasks_ALL_ALL"); c.remove("pm5s_tasks_" + z + "_ALL"); } catch(e) {}
-        if (typeof DWM !== "undefined") {
-          DWM.syncTaskSafe({ title: String(data[r][TASK_COL.TITLE] || "Task"), ref: taskId,
-            status: (newStatus === STATUS.DONE ? "completed" : newStatus === STATUS.IN_PROGRESS ? "in-progress" : "open") });
-        }
-        if (newStatus === STATUS.DONE && typeof tg5sBroadcast_ === "function") {
-          tg5sBroadcast_("✔️ <b>Task done</b> · " + String(data[r][TASK_COL.ZONE_ID]).trim() +
-            " — " + String(data[r][TASK_COL.TITLE] || taskId) + " by " + v2GetCurrentUser_(),
-            [{ text: "🗒️ Open record", url: _tg5sDeep_('?v2=1&action=record&type=task&id=' + taskId) }]);
+        // DWM sync (measured 5.5s) and the Telegram card are notifications —
+        // nothing the operator does next depends on them, so they are queued
+        // and drained out-of-band instead of blocking the button. See
+        // 09b_DeferredNotify.js.
+        if (typeof deferNotify_ === "function") {
+          deferNotify_({ kind: "dwm", payload: {
+            title: String(data[r][TASK_COL.TITLE] || "Task"), ref: taskId,
+            status: (newStatus === STATUS.DONE ? "completed" : newStatus === STATUS.IN_PROGRESS ? "in-progress" : "open") } });
+          if (newStatus === STATUS.DONE) {
+            deferNotify_({ kind: "telegram", payload: {
+              text: "✔️ <b>Task done</b> · " + String(data[r][TASK_COL.ZONE_ID]).trim() +
+                " — " + String(data[r][TASK_COL.TITLE] || taskId) + " by " + v2GetCurrentUser_(),
+              buttons: [{ text: "🗒️ Open record", url: _tg5sDeep_('?v2=1&action=record&type=task&id=' + taskId) }] } });
+          }
         }
         return { success: true, message: "Task " + taskId + " → " + newStatus };
       }
@@ -310,7 +325,8 @@ function getTaskBoardData(filters) {
         zoneId: z, zoneName: String(data[r][TASK_COL.ZONE_NAME] || ""), title: String(data[r][TASK_COL.TITLE] || ""),
         description: String(data[r][TASK_COL.DESCRIPTION] || ""), priority: String(data[r][TASK_COL.PRIORITY] || PRIORITY.MEDIUM),
         source: String(data[r][TASK_COL.SOURCE] || ""), assignedTo: String(data[r][TASK_COL.ASSIGNED_TO] || ""),
-        dueDate: v2FormatDate_(data[r][TASK_COL.DUE_DATE]), status: s, remarks: String(data[r][TASK_COL.REMARKS] || "") });
+        dueDate: v2FormatDate_(data[r][TASK_COL.DUE_DATE]), status: s, remarks: String(data[r][TASK_COL.REMARKS] || ""),
+        photoUrl: String(data[r][TASK_COL.PHOTO_URL] || "") });
     }
     try { CacheService.getScriptCache().put(cacheKey, JSON.stringify(results), 300); } catch(e) {}
     return results;

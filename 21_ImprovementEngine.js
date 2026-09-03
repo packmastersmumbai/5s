@@ -639,6 +639,14 @@ function submitQuickAudit(auditData) {
     });
 
     if (typeof invalidateZoneMapCache_ === "function") invalidateZoneMapCache_();
+
+    // Re-roll THIS month's Summary rows and drop the analytics caches, so the
+    // audit just submitted shows up in the charts within seconds. Without this
+    // the trend only moved when the 07:30 rollup ran, which is why analytics
+    // looked static. refreshTrendForMonth never throws — a failure here must
+    // not fail the submission, and the nightly rollup remains the backstop.
+    if (typeof refreshTrendForMonth === "function") refreshTrendForMonth();
+
     return {
       success: true,
       submissionId: submissionId,

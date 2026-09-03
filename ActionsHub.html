@@ -203,6 +203,13 @@ body {
 .ah-filter-row.open { display: flex; }
 .ah-filter-row.collapsed { display: none; }
 .ah-filter-row.hidden { display: none !important; }
+@media (max-width: 480px) {
+  /* Three labelled controls do not fit one row on a handset; the first was
+     wrapping to "Multi-/select". Keep the icons, drop the words. */
+  #ahSelectLabel { position: absolute; width: 1px; height: 1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .ah-filter-toggle { padding-left: 10px; padding-right: 10px; white-space: nowrap; }
+}
 @media (max-width: 760px) {
   .ah-filter-row { display: none; }
   .ah-filter-row.open { display: flex; }
@@ -283,7 +290,13 @@ body {
 .ah-chip.low.active   { background: var(--text-muted); border-color: var(--text-muted); }
 
 /* Zone dropdown */
-.ah-zone-select {
+/* Hidden, not removed: the Create dialog builds its zone list from this
+   select's options. The visible zone filter is the tab strip above, which
+   shows live counts; offering the same filter twice in two idioms ten pixels
+   apart made neither authoritative. */
+.ah-zone-select { position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; }
+.ah-zone-select-OLD {
   padding: 5px 10px;
   border-radius: 8px;
   border: 1.5px solid var(--border);
@@ -464,9 +477,17 @@ body {
 .ah-tr.HIGH     { border-left-color: var(--score-amber); }
 .ah-tr.MEDIUM   { border-left-color: #F59E0B; }
 .ah-tr.LOW      { border-left-color: var(--text-muted); }
-.ah-tr[data-overdue] { border-left-color: var(--score-red); border-left-width: 5px; background: var(--score-red-bg); }
-.ah-tr[data-overdue]:hover { background: var(--score-red-bg); filter: brightness(.98); }
+/* Overdue was signalled four times on one row: left border, red date, warning
+   glyph and a pink row wash. With most rows overdue the wash became the page
+   background and stopped meaning anything, while making the black title text
+   sit on a tinted ground. The date and its glyph carry it; the border stays at
+   the priority width. */
+.ah-tr[data-overdue] { border-left-color: var(--score-red); }
 .ah-ttl-txt { display: block; }
+.ah-ttl-id {
+  display: block; font-family: var(--font-mono); font-size: 10.5px;
+  color: var(--text-muted); margin-top: 2px; letter-spacing: .3px;
+}
 .ah-td { padding: 9px 12px; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; }
 .ah-td.title {
   cursor: pointer; font-weight: 600; color: var(--pm-primary); line-height: 1.3;
@@ -640,7 +661,7 @@ body {
   .ah-tr.HIGH     { border-left-color: var(--score-amber); }
   .ah-tr.MEDIUM   { border-left-color: #F59E0B; }
   .ah-tr.LOW      { border-left-color: var(--text-muted); }
-  .ah-tr[data-overdue] { border-left-color: var(--score-red); background: var(--score-red-bg); }
+  .ah-tr[data-overdue] { border-left-color: var(--score-red); }
   .ah-td { padding: 2px 0; overflow: visible; white-space: normal; }
   .ah-td.title { font-size: 15px; -webkit-line-clamp: 3; margin-bottom: 6px; }
   /* meta cells: label + value inline, muted */
@@ -663,6 +684,9 @@ body {
 }
 
 /* ── LOADING / EMPTY ────────────────────── */
+/* A badge showing 0 before the fetch returns asserts "no work". Show a dash,
+   dimmed, until the count is real. */
+.tab-badge.is-pending { opacity: .4; }
 .ah-loading {
   text-align: center;
   padding: 60px;
@@ -1349,7 +1373,7 @@ body {
 
 <!-- VIEW TABS (record types are collapsible sections in the list itself) -->
 <div class="ah-type-tabs" id="ahTypeTabs">
-  <button class="ah-type-tab active" data-type="ALL"     onclick="setTypeTab(this)">Records <span class="tab-badge" id="cntAll">0</span></button>
+  <button class="ah-type-tab active" data-type="ALL"     onclick="setTypeTab(this)">Records <span class="tab-badge is-pending" id="cntAll">–</span></button>
   <button class="ah-type-tab"        data-type="AUDITS"  onclick="setTypeTab(this)">Audits</button>
   <button class="ah-type-tab"        data-type="SUMMARY" onclick="setTypeTab(this)">Summary</button>
 </div>
@@ -1366,9 +1390,9 @@ body {
      Closed records. They used to sit inside .ah-filter-row (display:none until
      the Filters toggle was pressed), which made those two views unreachable. -->
 <div class="ah-status-tabs" id="ahStatusTabs">
-  <button class="ah-status-tab active" data-status="OPEN"        onclick="setStatusTab(this)">Open        <span class="tab-badge" id="cntOPEN">0</span></button>
-  <button class="ah-status-tab"        data-status="IN_PROGRESS" onclick="setStatusTab(this)">In Progress <span class="tab-badge" id="cntIN_PROGRESS">0</span></button>
-  <button class="ah-status-tab"        data-status="CLOSED"      onclick="setStatusTab(this)">Closed      <span class="tab-badge" id="cntCLOSED">0</span></button>
+  <button class="ah-status-tab active" data-status="OPEN"        onclick="setStatusTab(this)">Open        <span class="tab-badge is-pending" id="cntOPEN">–</span></button>
+  <button class="ah-status-tab"        data-status="IN_PROGRESS" onclick="setStatusTab(this)">In Progress <span class="tab-badge is-pending" id="cntIN_PROGRESS">–</span></button>
+  <button class="ah-status-tab"        data-status="CLOSED"      onclick="setStatusTab(this)">Closed      <span class="tab-badge is-pending" id="cntCLOSED">–</span></button>
 </div>
 
 <div class="ah-filter-row">
@@ -2152,7 +2176,12 @@ function updateBadges(counts) {
   var total = counts.total || 0;
 
   /* per-type counts now live on the collapsible section headers, not tabs */
-  var setTxt = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+  var setTxt = function(id, v) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = v;
+    el.classList.remove('is-pending');   // real number now; stop dimming it
+  };
   setTxt('cntAll', total);
 
   // Status badges reflect the selected type tab (fall back to all-types totals)
@@ -2269,7 +2298,8 @@ function buildTable_(rows) {
       ' onclick="toggleRowDetail(' + openArgs + ',this)"' +
       ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleRowDetail(' + openArgs + ',this);}"' +
       ' title="' + escHtml(a.title) + '">' +
-      '<span class="ah-ttl-txt">' + escHtml(a.title) + '</span></td>';
+      '<span class="ah-ttl-txt">' + escHtml(rowTitle_(a)) + '</span>' +
+      '<span class="ah-ttl-id">' + escHtml(a.id || '') + '</span></td>';
     html += '<td class="ah-td muted hide-sm" data-label="Zone">' + escHtml(a.zone || '') + '</td>';
     html += '<td class="ah-td muted hide-sm" data-label="Owner">' + escHtml(a.owner || '—') + '</td>';
     html += '<td class="ah-td hide-sm" data-label="Due">' + dueCell_(a, overdue) + '</td>';
@@ -2287,6 +2317,17 @@ function buildTable_(rows) {
     html += '</tr>';
   });
   return html + '</tbody></table></div>';
+}
+
+/* The list groups by type, so "Non-conformance:" on every row inside the NC
+   section is ~22 characters of label the grouping already provides. And three
+   rows can share a title, zone, owner and due date -- real repeat findings that
+   looked like the same record drawn three times. The id disambiguates them. */
+function rowTitle_(a) {
+  var t = String(a.title || '');
+  if (a.type === 'NC')   t = t.replace(/^Non-conformance:\s*/i, '');
+  if (a.type === 'TASK') t = t.replace(/^Action:\s*/i, '');
+  return t || String(a.title || '');
 }
 
 /* collapse state persists across re-renders */

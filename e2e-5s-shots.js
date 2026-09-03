@@ -25,7 +25,14 @@ const OUT = process.env.SHOT_DIR || '.';
     console.log('shot: ' + name);
   }
 
+  await fr.locator('.ah-table').first().waitFor({ state: 'visible', timeout: 30000 });
   await shot('01-records');
+  // Narrow viewport: the factory uses handsets and wall tablets.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(1500);
+  await shot('04-records-390');
+  await page.setViewportSize({ width: 1500, height: 950 });
+  await page.waitForTimeout(1200);
 
   const tabs = await fr.locator('.ah-type-tab').allTextContents();
   console.log('tabs: ' + JSON.stringify(tabs));

@@ -1553,7 +1553,7 @@ function getUnifiedActionList(filters) {
           description: nc.rootCause || nc.correctiveAction || "",
           zone:        nc.zoneName,
           zoneId:      nc.zoneId,
-          owner:       nc.responsible,
+          owner:       _displayOwner_(nc.responsible),
           dueDate:     nc.targetDate || "",
           rawStatus:   nc.status,
           status:      uStatus,
@@ -1591,7 +1591,7 @@ function getUnifiedActionList(filters) {
           description: t.description,
           zone:        t.zoneName,
           zoneId:      t.zoneId,
-          owner:       t.assignedTo,
+          owner:       _displayOwner_(t.assignedTo),
           dueDate:     tDue,
           rawStatus:   t.status,
           status:      tStatus,
@@ -1628,7 +1628,7 @@ function getUnifiedActionList(filters) {
           description: rt.proposedAction || "",
           zone:        rt.zoneName,
           zoneId:      rt.zoneId,
-          owner:       rt.owner || rt.taggedBy || "",
+          owner:       _displayOwner_(rt.owner || rt.taggedBy),
           dueDate:     rtDue,
           rawStatus:   rt.status,
           status:      rtStatus,
@@ -1743,6 +1743,16 @@ function getUnifiedActionList(filters) {
  * @returns {string} canonical label, or '' when there is no owner
  * @private
  */
+/**
+ * Owner as shown in a record list. _canonOwner_ returns "" for automation and
+ * test accounts; surface that as "Unassigned" rather than an empty cell, so an
+ * unowned record reads as unowned instead of looking like a rendering bug.
+ * @private
+ */
+function _displayOwner_(raw) {
+  return _canonOwner_(raw) || "Unassigned";
+}
+
 function _canonOwner_(raw) {
   var v = String(raw == null ? '' : raw).trim();
   if (!v) return '';

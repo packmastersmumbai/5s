@@ -208,7 +208,9 @@ function createTask(taskData) {
       }), [{ text: "🗒️ Open record", url: _tg5sDeep_('?v2=1&action=record&type=task&id=' + taskId) }],
         taskPhotoUrls.join(","));
     }
-    return { success: true, taskId: taskId, message: "Task created." };
+    /* Return the stored evidence URL so callers (the Gemba walk) can attach
+       the same photos to their own record without re-uploading. */
+    return { success: true, taskId: taskId, photoUrl: taskPhotoUrls.join(","), message: "Task created." };
   }, "createTask", { success: false, taskId: "", message: "Server error." });
 }
 
@@ -740,14 +742,21 @@ function submitGembaWalk(walkData) {
     walkRow[GW_COL.NO_COUNT] = noCount; walkRow[GW_COL.NA_COUNT] = naCount; walkRow[GW_COL.COMPLIANCE_PCT] = compliancePct;
     walkSheet.appendRow(walkRow);
     // Batch-create tasks (Fix F-17)
-    var actionItems = walkData.actionItems || [], taskIds = [];
+    var actionItems = walkData.actionItems || [], taskIds = [], taskError = "";
+    var walkPhotoUrls = [];
 
     // Auto-create a synced task for every "No" answer — routes through createTask
     // so each one gets DWM sync + Telegram post + cache invalidation (actionable).
     try {
       if (typeof createTask === "function") {
         var qmap = {};
-        (getGembaWalkQuestions(d.walkType) || []).forEach(function (q) { qmap[q.questionId] = q.text; });
+        /* Carry the SQCDP dimension and category with each question so a Gemba
+           finding lands on a board leg the plant already reviews. */
+        var qmeta = {};
+        (getGembaWalkQuestions(d.walkType) || []).forEach(function (q) {
+          qmap[q.questionId] = q.text;
+          qmeta[q.questionId] = { sqcdp: q.sqcdp || "", category: q.category || "" };
+        });
         var walkerEmail = v2ResolveUser_(d.walkerEmail);
         /* A "No" used to become a task whose description just restated that a
            non-conformance existed. The walker is standing in front of it, so
@@ -774,10 +783,19 @@ function submitGembaWalk(walkData) {
             sqcdp: m.sqcdp || "",
             photosB64: Array.isArray(f.photosB64) ? f.photosB64 : []
           });
-          if (tr && tr.taskId) taskIds.push(tr.taskId);
+          if (tr && tr.taskId) {
+            taskIds.push(tr.taskId);
+            if (tr.photoUrl) walkPhotoUrls.push(tr.photoUrl);
+          }
         });
       }
-    } catch (e) { Logger.log("Gemba No->task skipped: " + e.message); }
+    } catch (e) {
+      /* This used to swallow the error and let the walk report success with no
+         actions raised -- the worst possible failure for an audit record. The
+         walk is already saved, so surface the problem instead of hiding it. */
+      Logger.log("Gemba auto-task FAILED for " + walkId + ": " + e.message);
+      taskError = e.message;
+    }
 
     if (actionItems.length > 0) {
       var taskSheet = ss.getSheetByName("TaskBoard");
@@ -800,7 +818,23 @@ function submitGembaWalk(walkData) {
       }
     }
     if (taskIds.length > 0) walkSheet.getRange(walkSheet.getLastRow(), GW_COL.TASK_IDS_JSON + 1).setValue(JSON.stringify(taskIds));
-    return { success: true, walkId: walkId, taskIds: taskIds, message: "Walk submitted." };
+
+    /* Roll the finding photos onto the walk row too. An auditor asks for the
+       walk's evidence, not for the evidence of each task it happened to spawn. */
+    if (walkPhotoUrls.length) {
+      walkSheet.getRange(walkSheet.getLastRow(), GW_COL.PHOTO_URLS + 1)
+        .setValue(walkPhotoUrls.join(","));
+    }
+
+    var expectedNo = noCount;
+    return {
+      success: true, walkId: walkId, taskIds: taskIds,
+      expectedActions: expectedNo,
+      taskError: taskError,
+      message: taskError
+        ? "Walk saved, but " + expectedNo + " action(s) could not be raised: " + taskError
+        : "Walk submitted."
+    };
   }, "submitGembaWalk", { success: false, walkId: "", taskIds: [], message: "Server error." });
 }
 

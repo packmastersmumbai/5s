@@ -411,8 +411,11 @@ function renderQ() {
 
   var ansHtml;
   if (isAsk) {
-    ansHtml = '<textarea class="gw-say" id="gwSay" placeholder="What did they say? Write it in their words." ' +
-      'oninput="answers[' + JSON.stringify(q.questionId) + ']=this.value;renderDots();gwGate()">' + esc(a || '') + '</textarea>';
+    /* JSON.stringify emits double quotes inside this double-quoted attribute,
+       which broke the handler and silently discarded every dialogue answer.
+       Bind in JS after render instead of inlining the id. */
+    ansHtml = '<textarea class="gw-say" id="gwSay" placeholder="What did they say? Write it in their words.">' +
+      esc(a || '') + '</textarea>';
   } else {
     ansHtml = '<div class="gw-ans">' +
       '<button type="button" class="gw-yes' + (a === 'yes' ? ' on' : '') + '" onclick="gwAnswer(\'yes\')"><span class="ic">&#10003;</span>Yes</button>' +
@@ -436,6 +439,16 @@ function renderQ() {
     (findings[q.questionId] && findings[q.questionId].note
       ? '<div class="gw-find" style="margin-top:12px"><div class="gw-find-q">Finding recorded</div>' +
         '<div class="gw-find-m">' + esc(findings[q.questionId].note) + '</div></div>' : '');
+
+  if (isAsk) {
+    var say = el('gwSay');
+    if (say) {
+      say.addEventListener('input', function () {
+        answers[q.questionId] = this.value;
+        renderDots(); gwGate();
+      });
+    }
+  }
 
   el('gwPrev').disabled = qIndex === 0;
   el('gwNext').textContent = qIndex === questions.length - 1 ? 'Finish' : 'Next';
@@ -573,7 +586,7 @@ function renderSummary() {
   var yes = 0, no = 0, na = 0, asked = 0;
   questions.forEach(function (q) {
     var a = answers[q.questionId];
-    if (q.responseType === 'ask') { if (a) asked++; return; }
+    if (q.responseType === 'ask') { if (String(a || '').trim()) asked++; return; }
     if (a === 'yes') yes++; else if (a === 'no') no++; else if (a === 'na') na++;
   });
   var scored = yes + no;
@@ -643,11 +656,24 @@ function submitWalk() {
     .withSuccessHandler(function (r) {
       if (r && r.success) {
         el('gwNav').hidden = true;
-        el('gwBody').innerHTML = '<div class="gw-done"><div style="font-size:40px">&#9989;</div>' +
+        /* Never claim "no actions were needed" when findings were recorded --
+           that is the one message an auditor must not be shown falsely. */
+        var raised = (r.taskIds || []).length;
+        var expected = r.expectedActions || 0;
+        var body, ico = '&#9989;';
+        if (r.taskError || (expected > 0 && raised < expected)) {
+          ico = '&#9888;';
+          body = '<b>' + raised + ' of ' + expected + ' actions were raised.</b><br>' +
+                 'The walk is saved. Report reference ' + esc(r.walkId) + ' to your administrator' +
+                 (r.taskError ? ': ' + esc(r.taskError) : '.');
+        } else if (raised) {
+          body = raised + ' action' + (raised === 1 ? '' : 's') + ' raised and assigned.';
+        } else {
+          body = 'No findings — nothing to raise.';
+        }
+        el('gwBody').innerHTML = '<div class="gw-done"><div style="font-size:40px">' + ico + '</div>' +
           '<h2>Walk submitted</h2>' +
-          '<p>' + ((r.taskIds || []).length
-            ? (r.taskIds.length + ' action' + (r.taskIds.length === 1 ? '' : 's') + ' raised and assigned.')
-            : 'No actions were needed.') + '</p>' +
+          '<p>' + body + '</p>' +
           '<div class="gw-done-id">' + esc(r.walkId) + '</div>' +
           '<div style="margin-top:22px"><button type="button" onclick="location.reload()" ' +
             'style="min-height:44px;padding:0 18px;border-radius:9px;border:1px solid var(--border);background:var(--bg-card);font:inherit;font-weight:600;cursor:pointer">Start another walk</button></div>' +

@@ -1786,6 +1786,64 @@ function pmDataUrlKB(dataUrl) {
   var i = String(dataUrl).indexOf(',');
   return Math.round((String(dataUrl).length - i - 1) * 0.75 / 1024);
 }
+
+/* ============================================================
+   VIDEO EVIDENCE — pmCompressVideo
+
+   Budget, measured against the real upload path on 2026-09-02:
+     500 KB -> 4.2s, 2 MB -> 6.6s, 6 MB -> 10.7s
+   A base64 payload also inflates by ~33% in transit, so the cap is set at
+   6 MB of encoded video. Anything larger is rejected up front with a clear
+   message rather than timing out mid-upload on a shop-floor connection.
+
+   Re-encoding video in-browser needs MediaRecorder + a canvas pipeline, which
+   costs roughly the clip's own duration and is unreliable across the phones on
+   this floor. Instead we CONSTRAIN capture: `capture="environment"` plus a
+   short duration limit keeps clips small at the source, and anything still
+   over budget is refused with the actual size shown. That is the honest
+   trade — we do not silently upload a 40 MB clip.
+   ============================================================ */
+var PM_VIDEO_MAX_MB      = 6;      // hard ceiling (upload path measured OK)
+var PM_VIDEO_TARGET_SECS = 15;     // guidance shown to the user
+
+/**
+ * Validates a picked video and hands back a data URL if it is within budget.
+ *
+ * @param {File} file
+ * @param {function(Object)} cb  receives { ok, dataUrl?, mb, name, error? }
+ */
+function pmPrepareVideo(file, cb) {
+  var mb = file.size / (1024 * 1024);
+  if (mb > PM_VIDEO_MAX_MB) {
+    cb({ ok: false, mb: Math.round(mb * 10) / 10, name: file.name,
+         error: 'Video is ' + (Math.round(mb * 10) / 10) + ' MB. Keep clips under ' +
+                PM_VIDEO_MAX_MB + ' MB (about ' + PM_VIDEO_TARGET_SECS +
+                ' seconds) — record a shorter clip.' });
+    return;
+  }
+  var reader = new FileReader();
+  reader.onload = function (e) {
+    cb({ ok: true, dataUrl: e.target.result, mb: Math.round(mb * 10) / 10, name: file.name });
+  };
+  reader.onerror = function () {
+    cb({ ok: false, mb: Math.round(mb * 10) / 10, name: file.name,
+         error: 'Could not read that video.' });
+  };
+  reader.readAsDataURL(file);
+}
+
+/** True when a picked File is a video rather than an image. */
+function pmIsVideo(file) {
+  return !!(file && (/^video\//.test(file.type) ||
+         /\.(mp4|webm|mov|m4v|3gp)$/i.test(file.name || '')));
+}
+
+/** Extension for the stored file, so the server can set the right MIME type. */
+function pmMediaExt(file) {
+  var m = String(file && file.name || '').match(/\.([a-z0-9]+)$/i);
+  if (m) return m[1].toLowerCase();
+  return pmIsVideo(file) ? 'mp4' : 'jpg';
+}
 </script>
 
 <!-- Plan G: OfflineQueueService (IndexedDB) -->

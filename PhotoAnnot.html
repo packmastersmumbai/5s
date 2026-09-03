@@ -1,0 +1,194 @@
+<!--
+  ============================================================================
+  PhotoAnnot.html — shared photo annotator (extracted from QuickAudit)
+  ============================================================================
+
+  QuickAudit already had a complete annotator: draw / arrow / circle / text,
+  colour, undo, a zone+auditor watermark strip, and a single JPEG encode on
+  save. ActionsHub needs exactly that for NC / Task / Red Tag evidence, so the
+  module is SHARED here rather than reimplemented - one annotator, one set of
+  behaviours, one place to fix bugs.
+
+  Include with:  <?!= include("PhotoAnnot") ?>
+
+  The overlay markup mounts itself on first use, so an including page owns no
+  markup and nothing can rebuild the node out from under the module (the bug
+  that made QuickAudit re-resolve #annotatorOverlay by id every time).
+
+  API:
+    PMAnnot.open(dataUrl, {zone, auditor, date}, function(annotatedDataUrl){})
+  ============================================================================
+-->
+<style>
+
+.pma-bar { flex:0 0 auto; display:flex; gap:6px; padding:10px; background:#1a1a1a; flex-wrap:wrap; align-items:center; }
+  .pma-bar button, .pma-bar select { padding:8px 10px; border:1px solid #444; border-radius:8px; background:#2a2a2a;
+    color:#eee; font-size:13px; font-weight:600; cursor:pointer; }
+  .pma-bar button.on { background:#2563eb; border-color:#2563eb; }
+  .pma-stage { flex:1 1 auto; min-height:0; min-width:0; display:flex; align-items:center; justify-content:center; overflow:auto; padding:8px; }
+  #pmaCanvas { max-width:100%; max-height:100%; touch-action:none; background:#000; }
+  .pma-foot { flex:0 0 auto; display:flex; gap:10px; padding:12px; background:#1a1a1a; }
+  .pma-foot button { flex:1; padding:13px; border:none; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; }
+  .pma-cancel { background:#3a3a3a; color:#eee; }
+  .pma-save { background:#27ae60; color:#fff; }
+
+#annotatorOverlay { display: none; }
+</style>
+
+<script>
+(function mountAnnotatorOverlay_() {
+  if (document.getElementById('annotatorOverlay')) return;
+  var d = document.createElement('div');
+  d.id = 'annotatorOverlay';
+  d.style.cssText = 'display:none;position:fixed;inset:0;z-index:9999;background:#000;flex-direction:column';
+  d.innerHTML =
+    '<div class="pma-bar">' +
+      '<button type="button" id="pma-draw" class="on" onclick="PMAnnot.tool(\'draw\')">&#9998; Pen</button>' +
+      '<button type="button" id="pma-arrow" onclick="PMAnnot.tool(\'arrow\')">&#10142; Arrow</button>' +
+      '<button type="button" id="pma-circle" onclick="PMAnnot.tool(\'circle\')">&#9711; Circle</button>' +
+      '<button type="button" id="pma-text" onclick="PMAnnot.tool(\'text\')">T Text</button>' +
+      '<button type="button" id="pma-undo" onclick="PMAnnot.undo()" title="Undo last">&#8630; Undo</button>' +
+      '<select id="pmaColor" onchange="PMAnnot.color(this.value)">' +
+        '<option value="#e74c3c">Red</option><option value="#f39c12">Yellow</option>' +
+        '<option value="#27ae60">Green</option><option value="#2980b9">Blue</option>' +
+        '<option value="#ffffff">White</option>' +
+      '</select>' +
+    '</div>' +
+    '<div class="pma-stage"><canvas id="pmaCanvas"></canvas></div>' +
+    '<div class="pma-foot">' +
+      '<button type="button" class="pma-cancel" onclick="PMAnnot.cancel()">Cancel</button>' +
+      '<button type="button" class="pma-save" onclick="PMAnnot.save()">Save</button>' +
+    '</div>';
+  (document.body || document.documentElement).appendChild(d);
+})();
+
+
+var PMAnnot = (function() {
+  var overlay, canvas, ctx, baseImg = null, strokes = [], cur = null;
+  var tool = 'draw', color = '#e74c3c', lineW = 5, stamp = {}, onSave = null;
+
+  function el(id) { return document.getElementById(id); }
+
+  function drawStrip() {
+    if (!baseImg) return;
+    var stripH = canvas.height - baseImg.height;
+    if (stripH <= 0 || (!stamp.zone && !stamp.auditor)) return;
+    var fs = Math.max(12, Math.round(stripH * 0.52));
+    ctx.fillStyle = '#1a1a2e'; ctx.fillRect(0, baseImg.height, canvas.width, stripH);
+    ctx.font = 'bold ' + fs + 'px Arial'; ctx.textBaseline = 'middle';
+    var midY = baseImg.height + stripH / 2;
+    ctx.fillStyle = '#fff'; ctx.fillText((stamp.zone || '') + '  |  ' + (stamp.auditor || ''), 10, midY);
+    var right = (stamp.date || '') + (stamp.zoom ? '  |  zoom ' + stamp.zoom + 'x' : '');
+    ctx.fillStyle = '#a0aec0'; ctx.fillText(right, canvas.width - ctx.measureText(right).width - 10, midY);
+  }
+
+  function drawOne(s) {
+    ctx.strokeStyle = s.color; ctx.fillStyle = s.color; ctx.lineWidth = s.lineW;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    if (s.type === 'draw') {
+      ctx.beginPath();
+      s.pts.forEach(function(p, i) { i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); });
+      ctx.stroke();
+    } else if (s.type === 'circle') {
+      ctx.beginPath();
+      ctx.ellipse((s.sx + s.ex) / 2, (s.sy + s.ey) / 2, Math.abs(s.ex - s.sx) / 2, Math.abs(s.ey - s.sy) / 2, 0, 0, 2 * Math.PI);
+      ctx.stroke();
+    } else if (s.type === 'arrow') {
+      ctx.beginPath(); ctx.moveTo(s.sx, s.sy); ctx.lineTo(s.ex, s.ey); ctx.stroke();
+      var a = Math.atan2(s.ey - s.sy, s.ex - s.sx), h = 8 + s.lineW * 2;
+      ctx.beginPath(); ctx.moveTo(s.ex, s.ey);
+      ctx.lineTo(s.ex - h * Math.cos(a - 0.4), s.ey - h * Math.sin(a - 0.4));
+      ctx.lineTo(s.ex - h * Math.cos(a + 0.4), s.ey - h * Math.sin(a + 0.4));
+      ctx.closePath(); ctx.fill();
+    } else if (s.type === 'text') {
+      /* Scale with the image so text stays legible on large photos, and back it
+         with a dark plate so light-coloured labels remain readable on any photo. */
+      var tf = s.fontPx || 24;
+      ctx.font = 'bold ' + tf + 'px Arial';
+      ctx.textBaseline = 'top';
+      var tw = ctx.measureText(s.text).width, pad = Math.round(tf * 0.28);
+      ctx.fillStyle = 'rgba(0,0,0,.55)';
+      ctx.fillRect(s.sx - pad, s.sy - pad, tw + pad * 2, tf + pad * 2);
+      ctx.fillStyle = s.color;
+      ctx.fillText(s.text, s.sx, s.sy);
+    }
+  }
+
+  function redraw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (baseImg) ctx.drawImage(baseImg, 0, 0);
+    drawStrip();
+    strokes.forEach(drawOne);
+    if (cur) drawOne(cur);
+  }
+
+  function pos(ev) {
+    var r = canvas.getBoundingClientRect();
+    var t = ev.touches && ev.touches[0] ? ev.touches[0] : ev;
+    return { x: (t.clientX - r.left) * (canvas.width / r.width), y: (t.clientY - r.top) * (canvas.height / r.height) };
+  }
+  function down(ev) {
+    ev.preventDefault(); var p = pos(ev);
+    /* Text is placed by a single tap, not a drag — prompt, then commit at that point. */
+    if (tool === 'text') {
+      var t = window.prompt('Label text:');
+      if (t && t.trim()) {
+        strokes.push({ type: 'text', color: color, text: t.trim(), sx: p.x, sy: p.y,
+                       fontPx: Math.max(18, Math.round((baseImg ? baseImg.width : 800) * 0.035)) });
+        redraw();
+      }
+      return;
+    }
+    cur = (tool === 'draw') ? { type: 'draw', color: color, lineW: lineW, pts: [p] }
+                            : { type: tool, color: color, lineW: lineW, sx: p.x, sy: p.y, ex: p.x, ey: p.y }; }
+  function move(ev) { if (!cur) return; ev.preventDefault(); var p = pos(ev);
+    if (cur.type === 'draw') cur.pts.push(p); else { cur.ex = p.x; cur.ey = p.y; } redraw(); }
+  function up() { if (cur) { strokes.push(cur); cur = null; redraw(); } }
+
+  function open(dataUrl, stmp, cb) {
+    stamp = stmp || {}; onSave = cb || null; strokes = []; cur = null; tool = 'draw';
+    overlay = el('annotatorOverlay'); canvas = el('pmaCanvas'); ctx = canvas.getContext('2d');
+    var img = new Image();
+    img.onload = function() {
+      baseImg = img;
+      var stripH = Math.max(28, Math.round(img.height * 0.045));
+      canvas.width = img.width; canvas.height = img.height + stripH;
+      redraw();
+      overlay.style.display = 'flex';
+    };
+    img.src = dataUrl;
+    if (!canvas._wired) {
+      canvas._wired = true;
+      canvas.addEventListener('mousedown', down); canvas.addEventListener('mousemove', move);
+      window.addEventListener('mouseup', up);
+      canvas.addEventListener('touchstart', down, { passive: false });
+      canvas.addEventListener('touchmove', move, { passive: false });
+      canvas.addEventListener('touchend', up);
+    }
+  }
+
+  return {
+    open: open,
+    tool: function(t) { tool = t; ['draw', 'arrow', 'circle', 'text'].forEach(function(x) { var b = el('pma-' + x); if (b) b.classList.toggle('on', x === t); }); },
+    undo: function() { strokes.pop(); redraw(); },
+    color: function(c) { color = c; },
+    undo: function() { strokes.pop(); redraw(); },
+    /* Resolve the overlay from the DOM every time: #annotatorOverlay lives inside
+       the card markup, which render() rebuilds, so a cached reference can point at
+       a detached node — hiding that leaves the live overlay covering the page at
+       z-index 9999 and swallowing every click. */
+    cancel: function() { var o = el('annotatorOverlay'); if (o) o.style.display = 'none'; },
+    save: function() {
+      var o = el('annotatorOverlay'); if (o) o.style.display = 'none';
+      /* Canvas is already downscaled (source is the watermarked image). Encode at
+         a slightly higher quality than the first pass so the unavoidable second
+         encode does not compound artefacts — size is already bounded by the
+         1024px cap applied upstream. */
+      var d = canvas.toDataURL('image/jpeg', 0.78); if (onSave) onSave(d);
+    }
+  };
+})();
+
+
+function openAnnotatorFor_(dataUrl, stamp, cb) { PMAnnot.open(dataUrl, stamp, cb); }
+</script>

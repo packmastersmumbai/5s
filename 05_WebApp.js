@@ -99,7 +99,11 @@ function doGet(e) {
     // ═════════════════════════════════════════════════════════
 
     // Actions that floor workers can access without logging in
-    var WORKER_ACTIONS = ['quickaudit', 'daily', 'weeklyaudit', 'sw', 'manifest', 'photoannotate', 'photoannotator', 'record'];
+    // 'kaizen' is a worker route for the same reason as 'quickaudit': the zone
+    // selector offers it with no login, and an improvement idea from the floor
+    // is worthless if it needs a PIN. The FORM is open; KaizenBoard (reviewing
+    // and approving ideas) stays role-gated below.
+    var WORKER_ACTIONS = ['quickaudit', 'daily', 'weeklyaudit', 'sw', 'manifest', 'photoannotate', 'photoannotator', 'record', 'kaizen'];
 
     var isLoginAction  = action === "login";
     var isWorkerAction = WORKER_ACTIONS.indexOf(action) >= 0;
@@ -168,7 +172,7 @@ function doGet(e) {
     // 'daily' and 'weeklyaudit' are deliberately NOT here — they have no v2
     // form (identical 66394b landing page either way); the landing page is
     // their intended destination.
-    var V2_ALWAYS = ["record", "photoannotate", "photoannotator", "quickaudit"];
+    var V2_ALWAYS = ["record", "photoannotate", "photoannotator", "quickaudit", "kaizen"];
     var forceV2 = V2_ALWAYS.indexOf(action) >= 0;
     if ((params.v2 === "1" || forceV2) && typeof handleV2Route_ === "function") {
       var v2Result = handleV2Route_(params);
@@ -645,9 +649,23 @@ function uploadPhotoToDrive(base64Data, fileName, zoneId) {
       return { error: "No Drive folder configured for zone: " + zoneId };
     }
 
-    // Decode base64
+    // Payload may be "<ext>|<base64>" so the caller can say what it sent
+    // (a clip must not be stored as .jpg). A bare base64 string — what every
+    // pre-existing caller sends — keeps the filename it was given.
+    var pipe = String(base64Data).indexOf("|");
+    if (pipe > 0 && pipe <= 5) {
+      var ext = String(base64Data).slice(0, pipe).toLowerCase();
+      base64Data = String(base64Data).slice(pipe + 1);
+      if (/^[a-z0-9]{2,5}$/.test(ext)) {
+        fileName = String(fileName).replace(/\.[^.]+$/, "") + "." + ext;
+      }
+    }
+
+    // The MIME type is derived from the file extension rather than hardcoded to
+    // image/jpeg: video evidence stored as image/jpeg gets a broken thumbnail
+    // and will not play inline in Drive.
     var decodedData = Utilities.base64Decode(base64Data);
-    var blob = Utilities.newBlob(decodedData, "image/jpeg", fileName);
+    var blob = Utilities.newBlob(decodedData, _mimeForFile_(fileName), fileName);
 
     // Save to zone folder, nested by year/month (canonical structure)
     var zoneFolder = DriveApp.getFolderById(folderId);
@@ -661,12 +679,20 @@ function uploadPhotoToDrive(base64Data, fileName, zoneId) {
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
 
     var url = file.getUrl();
-    var thumbnailUrl = "https://drive.google.com/thumbnail?id=" + file.getId() + "&sz=w400";
+    var isVideo = _mimeForFile_(fileName).indexOf("video/") === 0;
+    // Drive generates poster frames for video too, so the same thumbnail URL
+    // serves both. The "#v" marker is what lets a viewer tell them apart:
+    // only the file id survives into the stored URL, so without it a clip
+    // would open in an image lightbox and render nothing.
+    var thumbnailUrl = "https://drive.google.com/thumbnail?id=" + file.getId() + "&sz=w400" +
+                       (isVideo ? "#v" : "");
 
     return {
       url: url,
       fileId: file.getId(),
       thumbnailUrl: thumbnailUrl,
+      previewUrl: "https://drive.google.com/file/d/" + file.getId() + "/preview",
+      isVideo: isVideo,
       fileName: file.getName()
     };
 
@@ -674,6 +700,28 @@ function uploadPhotoToDrive(base64Data, fileName, zoneId) {
     Logger.log("Photo upload error: " + error.message);
     return { error: "Upload failed: " + error.message };
   }
+}
+
+/**
+ * MIME type for an upload, derived from its extension.
+ *
+ * Evidence is now images OR short video clips, and the blob's type decides
+ * whether Drive can generate a poster frame and play the file inline. Unknown
+ * extensions fall back to JPEG, matching the previous behaviour.
+ *
+ * @param {string} fileName
+ * @returns {string}
+ * @private
+ */
+function _mimeForFile_(fileName) {
+  var ext = String(fileName || "").split(".").pop().toLowerCase();
+  var MAP = {
+    jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png",
+    gif: "image/gif",  webp: "image/webp", heic: "image/heic",
+    mp4: "video/mp4",  webm: "video/webm", mov: "video/quicktime",
+    m4v: "video/mp4",  "3gp": "video/3gpp"
+  };
+  return MAP[ext] || "image/jpeg";
 }
 
 /** Return an existing child folder by name, or create it. */

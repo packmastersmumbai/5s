@@ -681,9 +681,33 @@ function buildSidebar_(deployUrl, action, token, zone, zoneConfig) {
   // Build sidebar HTML
   var html = '<aside class="sidebar" id="pm5s-sidebar">\n';
 
-  // Zone switcher pill (always visible at top)
-  html += '  <div class="sidebar-zone-switcher" id="pm5s-zone-switcher">\n';
-  html += '    <span id="pm5s-zone-label">' + (zone || "Z-01") + '</span>\n';
+  /* Zone selector, above Home.
+     This was a static span that printed "Z-01" whether or not a zone had been
+     chosen -- it looked like a selection but was a hardcoded default, and the
+     zone picked on the landing page was invisible and unchangeable from here.
+     A real select keeps the working zone visible on every page and switchable
+     in one action, which is what audits, kaizen and new records all key off. */
+  var zc = zoneConfig || {};
+  var zoneIds = Object.keys(zc).sort();
+  var current = zone || "";
+
+  html += '  <div class="sidebar-zone-switcher" id="pm5s-zone-switcher" title="Working zone">\n';
+  if (zoneIds.length) {
+    html += '    <select id="pm5s-zone-select" aria-label="Working zone">\n';
+    /* No zone yet: say so rather than implying Z-01 was chosen. */
+    if (!current) html += '      <option value="">--</option>\n';
+    for (var z = 0; z < zoneIds.length; z++) {
+      var zid = zoneIds[z];
+      var zname = String((zc[zid] || {}).name || zid).replace(/["<>]/g, "");
+      html += '      <option value="' + zid + '"' + (zid === current ? ' selected' : '') +
+              ' title="' + zid + ' \u2014 ' + zname + '">' + zid + '</option>\n';
+    }
+    html += '    </select>\n';
+    html += '    <span class="sidebar-zone-name">' +
+            String((zc[current] || {}).name || "Select zone").replace(/["<>]/g, "") + '</span>\n';
+  } else {
+    html += '    <span id="pm5s-zone-label">' + (current || "--") + '</span>\n';
+  }
   html += '  </div>\n';
 
   // Menu items
@@ -706,6 +730,38 @@ function buildSidebar_(deployUrl, action, token, zone, zoneConfig) {
   // Sidebar state management script
   html += '<script>\n';
   html += '(function() {\n';
+  html += '  var zoneSel = document.getElementById("pm5s-zone-select");\n';
+  html += '  if (zoneSel) {\n';
+  html += '    /* Re-apply the remembered zone when a page is opened without ?zone=,\n';
+  html += '       so the zone chosen on the landing page survives navigation rather\n';
+  html += '       than the rail falling back to nothing. */\n';
+  html += '    if (!zoneSel.value) {\n';
+  html += '      var remembered = "";\n';
+  html += '      try { remembered = localStorage.getItem("pm5s_zone") || ""; } catch (e) {}\n';
+  html += '      if (remembered) {\n';
+  html += '        for (var oi = 0; oi < zoneSel.options.length; oi++) {\n';
+  html += '          if (zoneSel.options[oi].value !== remembered) continue;\n';
+  html += '          zoneSel.value = remembered;\n';
+  html += '          var nm = document.querySelector(".sidebar-zone-name");\n';
+  html += '          if (nm) nm.textContent = (zoneSel.options[oi].title.split("\u2014")[1] || remembered).trim();\n';
+  html += '          break;\n';
+  html += '        }\n';
+  html += '      }\n';
+  html += '    } else {\n';
+  html += '      try { localStorage.setItem("pm5s_zone", zoneSel.value); } catch (e) {}\n';
+  html += '    }\n';
+  html += '    zoneSel.addEventListener("change", function() {\n';
+  html += '      if (!this.value) return;\n';
+  html += '      try { localStorage.setItem("pm5s_zone", this.value); } catch (e) {}\n';
+  /* window.location.href inside the GAS sandbox is the googleusercontent
+     iframe URL, not the app's /exec, so rebuilding from it produced a
+     meaningless destination. Build from the deploy URL the sidebar already
+     has server-side. */
+  html += '      var dest = "' + deployUrl + '?v2=1&action=' + (action || "home") + tokenParam + '&zone=" + encodeURIComponent(this.value);\n';
+  html += '      try { window.top.location.href = dest; }\n';
+  html += '      catch (e) { window.location.href = dest; }\n';
+  html += '    });\n';
+  html += '  }\n';
   html += '  var sidebar = document.getElementById("pm5s-sidebar");\n';
   html += '  if (!sidebar) return;\n';
   html += '  var saved = localStorage.getItem("pm5s_sidebar_state");\n';

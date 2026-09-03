@@ -1109,7 +1109,44 @@ body.lang-en .criterion-label-hi { display: none; }
   width: 100%;
   padding-left: 12px;
   padding-right: 12px;
+  gap: 8px;
 }
+
+/* The working zone drives audits, kaizen and every record raised, so it is a
+   control on every page rather than a label that happened to say Z-01. */
+#pm5s-zone-select {
+  width: 44px;
+  min-height: 32px;
+  padding: 4px 2px;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  color: #fff;
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.28);
+  border-radius: 7px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+#pm5s-zone-select:hover { background: rgba(255,255,255,.2); border-color: rgba(255,255,255,.45); }
+#pm5s-zone-select:focus-visible { outline: 2px solid var(--pm-accent, #F59E0B); outline-offset: 2px; }
+/* The option list renders in the OS menu, which is light on every platform. */
+#pm5s-zone-select option { color: #0F172A; background: #fff; }
+
+/* The zone's name only fits once the rail is expanded. */
+.sidebar-zone-name {
+  display: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255,255,255,.75);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebar.expanded .sidebar-zone-name { display: block; }
+.sidebar.expanded #pm5s-zone-select { width: 62px; }
 
 /* Mobile Bottom Nav (5-tab bar) */
 .bottom-nav {

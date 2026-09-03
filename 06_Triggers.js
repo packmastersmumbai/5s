@@ -219,8 +219,13 @@ function masterOrchestrator() {
  * Fires daily between 07:00-08:00 IST.
  */
 function setupTrigger() {
-  // Delete all existing triggers
-  deleteTrigger();
+  // Remove only OUR handler's triggers. This used to call deleteTrigger(),
+  // which wipes EVERY project trigger — so installing this one removed the
+  // Telegram poller, and installing the Telegram poller removed this one.
+  // Measured 2026-09-02: the live project had ONLY 'telegramPoll', so
+  // masterOrchestrator had not run in months and the Summary rollup that feeds
+  // the analytics view was frozen at 2026-06 while real audits ran to 2026-09.
+  deleteTriggersFor_("masterOrchestrator");
 
   // Create new daily trigger
   ScriptApp.newTrigger("masterOrchestrator")
@@ -249,6 +254,39 @@ function deleteTrigger() {
     ScriptApp.deleteTrigger(trigger);
   });
   Logger.log("🗑️ Deleted " + triggers.length + " existing trigger(s).");
+}
+
+/**
+ * Deletes only the triggers bound to one handler, leaving every other
+ * trigger (notably the Telegram poller) untouched.
+ *
+ * @param {string} handlerName
+ * @returns {number} how many were removed
+ * @private
+ */
+function deleteTriggersFor_(handlerName) {
+  var n = 0;
+  ScriptApp.getProjectTriggers().forEach(function(t) {
+    if (t.getHandlerFunction() === handlerName) { ScriptApp.deleteTrigger(t); n++; }
+  });
+  Logger.log("Removed " + n + " existing '" + handlerName + "' trigger(s).");
+  return n;
+}
+
+/**
+ * Installs every scheduled trigger the system needs, without any of them
+ * evicting the others. Safe to re-run: each handler is de-duplicated
+ * individually. Returns the resulting trigger inventory.
+ */
+function setupAllTriggers() {
+  setupTrigger();                                   // masterOrchestrator, daily 07:30 IST
+  if (typeof telegramPoll === 'function') {         // Telegram poller, every minute
+    deleteTriggersFor_('telegramPoll');
+    ScriptApp.newTrigger('telegramPoll').timeBased().everyMinutes(1).create();
+  }
+  var have = ScriptApp.getProjectTriggers().map(function(t) { return t.getHandlerFunction(); });
+  Logger.log("Triggers now installed: " + have.join(", "));
+  return have;
 }
 
 /**

@@ -36,7 +36,8 @@
 
   /* ── Zone filter toolbar ── */
   .iv-toolbar{padding:8px 12px;background:#fff;border-bottom:1px solid var(--iv-line);display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-  .iv-filter-label{font-size:11px;font-weight:700;color:#5a6070;letter-spacing:.5px;flex-shrink:0}
+  .iv-updated { font-size: 11px; color: var(--text-muted); margin-left: 8px; white-space: nowrap; }
+.iv-filter-label{font-size:11px;font-weight:700;color:#5a6070;letter-spacing:.5px;flex-shrink:0}
   .iv-filter-btn{padding:3px 10px;border-radius:20px;border:1px solid #d0d4de;background:#fff;font-size:11px;font-family:'Plus Jakarta Sans',sans-serif;cursor:pointer;transition:all .12s;font-weight:500;white-space:nowrap;flex-shrink:0}
   .iv-filter-btn.active{background:var(--iv-ink);color:#fff;border-color:var(--iv-ink)}
 
@@ -188,6 +189,18 @@
   </div>
 </div>
 
+<div class="iv-toolbar">
+  <span class="iv-filter-label">PERIOD:</span>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;flex:1">
+    <button class="iv-filter-btn active" id="iv-per-month" onclick="setPeriod('month')">Monthly</button>
+    <button class="iv-filter-btn" id="iv-per-week" onclick="setPeriod('week')">Weekly</button>
+  </div>
+  <button class="iv-filter-btn" id="iv-refresh" onclick="refreshNow()" title="Reload from the sheet">
+    &#8635; Refresh
+  </button>
+  <span class="iv-updated" id="iv-updated"></span>
+</div>
+
 <div class="iv-body" id="iv-body">
   <div class="iv-loading"><div class="spin"></div></div>
 </div>
@@ -198,6 +211,12 @@ var _kpis     = null;
 var _trend    = null;
 var _sqcdp    = null;   // getSQCDPBoardData full result
 var _zoneFilter = 'ALL';
+/* Monthly is the reporting view; weekly is the operating view. A single day's
+   audits move a monthly average by ~1/30th, which is why the chart looked
+   inert even when the data underneath was current. */
+var _period      = 'month';
+var _trendMonth  = null;   // cached monthly series  (getPillarTrend)
+var _trendWeek   = null;   // cached weekly series   (getPillarTrendWeekly)
 var _paretoLoaded = {};   // {pillar: data}
 var _paretoActivePillar = 'S';
 
@@ -223,6 +242,54 @@ function getZones(){if(!_trend)return[];var z={};PILLARS.forEach(function(p){if(
 function getMonths(){if(!_trend)return[];var m={};PILLARS.forEach(function(p){if(!_trend[p])return;Object.values(_trend[p]).forEach(function(arr){arr.forEach(function(pt){m[pt.month]=1;});});});return Object.keys(m).sort().slice(-6);}
 function avgScore(pillar,months){if(!_trend[pillar])return null;var zones=_zoneFilter==='ALL'?Object.keys(_trend[pillar]):[_zoneFilter];var totals={},counts={};months.forEach(function(m){totals[m]=0;counts[m]=0;});zones.forEach(function(z){if(!_trend[pillar][z])return;_trend[pillar][z].forEach(function(pt){if(totals[pt.month]!==undefined){totals[pt.month]+=pt.score;counts[pt.month]++;}});});return months.map(function(m){return counts[m]?Math.round(totals[m]/counts[m]):null;});}
 function latestScore(pillar){if(!_trend[pillar])return null;var zones=_zoneFilter==='ALL'?Object.keys(_trend[pillar]):[_zoneFilter];var vals=[];zones.forEach(function(z){if(!_trend[pillar][z]||!_trend[pillar][z].length)return;var s=_trend[pillar][z].slice().sort(function(a,b){return a.month<b.month?1:-1;});vals.push(s[0].score);});if(!vals.length)return null;return Math.round(vals.reduce(function(s,v){return s+v;},0)/vals.length);}
+
+function setPeriod(p){
+  if(_period===p) return;
+  _period=p;
+  document.getElementById('iv-per-month').classList.toggle('active',p==='month');
+  document.getElementById('iv-per-week').classList.toggle('active',p==='week');
+  if(p==='week' && !_trendWeek){ loadWeeklyTrend(); return; }   // paints on arrival
+  _trend = (p==='week') ? _trendWeek : _trendMonth;
+  rerenderCharts();
+}
+
+function loadWeeklyTrend(){
+  var el=document.getElementById('iv-chart-section');
+  if(el) el.innerHTML='<div class="iv-loading"><div class="spin"></div><p style="margin-top:10px;font-size:12px">Loading weekly trend…</p></div>';
+  google.script.run
+    .withSuccessHandler(function(r){
+      _trendWeek=typeof r==='string'?JSON.parse(r):r;
+      if(_period==='week'){ _trend=_trendWeek; rerenderCharts(); }
+    })
+    .withFailureHandler(function(err){
+      if(el)el.innerHTML='<div class="iv-error">Weekly trend error: '+escHtml(err.message)+'</div>';
+    })
+    .getPillarTrendWeekly(12);
+}
+
+/* Re-render only the chart section; KPIs and SQCDP are unaffected by period. */
+function rerenderCharts(){
+  var el=document.getElementById('iv-chart-section');
+  if(!el||!_trend) return;
+  var months=getMonths();
+  el.innerHTML=renderPillarBars()+renderTrendChart(months);
+}
+
+/* Manual reload — drops the server caches first so this really re-reads the
+   sheet rather than returning the same cached payload. */
+function refreshNow(){
+  var btn=document.getElementById('iv-refresh');
+  btn.disabled=true; btn.textContent='↻ Refreshing…';
+  google.script.run
+    .withSuccessHandler(function(){ location.reload(); })
+    .withFailureHandler(function(){ location.reload(); })
+    .refreshAnalyticsNow();
+}
+
+function stampUpdated(){
+  var el=document.getElementById('iv-updated');
+  if(el) el.textContent='updated '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+}
 
 /* ── Zone filter ── */
 function buildZoneFilters(zones){
@@ -568,7 +635,11 @@ google.script.run
   .getAnalyticsKPIs();
 
 google.script.run
-  .withSuccessHandler(function(r){_trend=typeof r==='string'?JSON.parse(r):r;tryRenderAll();})
+  .withSuccessHandler(function(r){
+    _trendMonth=typeof r==='string'?JSON.parse(r):r;
+    if(_period==='month') _trend=_trendMonth;
+    tryRenderAll(); stampUpdated();
+  })
   .withFailureHandler(function(err){
     var el=document.getElementById('iv-chart-section');
     if(el)el.innerHTML='<div class="iv-error">Trend load error: '+escHtml(err.message)+'</div>';

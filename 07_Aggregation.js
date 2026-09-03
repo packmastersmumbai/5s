@@ -98,7 +98,12 @@ function weeklyRollup() {
     // Compute averages
     var count = zoneRows.length;
     if (count === 0) {
-      summaryRows.push(buildSummaryRow_(zoneId, currentMonth, 0, 0, 0, 0, 0, 0, 0));
+      // Write NOTHING for a zone with no submissions in the window. This used
+      // to push an all-zero row, but "no data" is not "scored 0": those rows
+      // were then averaged into the plant score like real observations.
+      // Measured 2026-09-02: a single rollup wrote 28 zero-rows for 2026-09 and
+      // dragged the reported plant average from 81.8% to 6.8%, and the same
+      // zeros flattened every pillar trend line for the current month.
       return;
     }
 
@@ -541,8 +546,17 @@ function writeSummaryRows_(ss, rows, periodType, month) {
 
   // Write new rows
   if (rows.length > 0) {
-    summarySheet.getRange(summarySheet.getLastRow() + 1, 1, rows.length, rows[0].length)
-      .setValues(rows);
+    var startRow = summarySheet.getLastRow() + 1;
+    var target = summarySheet.getRange(startRow, 1, rows.length, rows[0].length);
+    // Force the month column (B) to plain text BEFORE writing. "2026-09" is a
+    // valid date literal to Sheets, so setValues() silently coerced it to a
+    // Date; getPillarTrend then keyed its series on
+    // "Tue Sep 01 2026 00:00:00 GMT+0530" instead of "2026-09" and the month
+    // never lined up with the seeded "yyyy-MM" rows, so new months simply did
+    // not plot. (00_DemoSeed already did this; the live write path did not.)
+    target.setNumberFormat('General');
+    summarySheet.getRange(startRow, 2, rows.length, 1).setNumberFormat('@');
+    target.setValues(rows);
   }
 }
 

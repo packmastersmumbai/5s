@@ -749,14 +749,26 @@ function submitGembaWalk(walkData) {
         var qmap = {};
         (getGembaWalkQuestions(d.walkType) || []).forEach(function (q) { qmap[q.questionId] = q.text; });
         var walkerEmail = v2ResolveUser_(d.walkerEmail);
+        /* A "No" used to become a task whose description just restated that a
+           non-conformance existed. The walker is standing in front of it, so
+           the form now captures what was seen, a photo, an owner and a date --
+           and that is what the task carries. */
+        var findings = walkData.findings || {};
         Object.keys(responses).forEach(function (qId) {
           if (String(responses[qId]).toLowerCase() !== "no") return;
+          var f = findings[qId] || {};
+          var desc = f.note
+            ? f.note + "\n\n(Gemba " + d.walkType + " walk " + walkId + ": " + (qmap[qId] || qId) + ")"
+            : "Non-conformance found on the " + d.walkType + " Gemba walk (" + walkId + ").";
           var tr = createTask({
             zoneId: d.zoneId,
             title: "Gemba (" + d.walkType + "): " + (qmap[qId] || qId),
-            description: "Non-conformance found on the " + d.walkType + " Gemba walk (" + walkId + ").",
-            priority: "medium", assignedTo: d.walkerName,
-            source: "GEMBA_WALK", sourceRefId: walkId, createdBy: walkerEmail
+            description: desc,
+            priority: f.priority || "medium",
+            assignedTo: f.owner || d.walkerName,
+            dueDate: f.dueDate || "",
+            source: "GEMBA_WALK", sourceRefId: walkId, createdBy: walkerEmail,
+            photosB64: Array.isArray(f.photosB64) ? f.photosB64 : []
           });
           if (tr && tr.taskId) taskIds.push(tr.taskId);
         });
@@ -786,6 +798,48 @@ function submitGembaWalk(walkData) {
     if (taskIds.length > 0) walkSheet.getRange(walkSheet.getLastRow(), GW_COL.TASK_IDS_JSON + 1).setValue(JSON.stringify(taskIds));
     return { success: true, walkId: walkId, taskIds: taskIds, message: "Walk submitted." };
   }, "submitGembaWalk", { success: false, walkId: "", taskIds: [], message: "Server error." });
+}
+
+/**
+ * Findings from earlier walks in this zone that are still open.
+ *
+ * A walk that does not start by checking the last walk's findings lets them
+ * evaporate -- the single most common criticism of a Gemba programme. Reads
+ * TaskBoard rather than GembaWalks, because the task carries the live status.
+ *
+ * @param {string} zoneId
+ * @param {string} [walkType] optional, to show only this walk type's findings
+ * @returns {Array<{taskId,title,owner,dueDate,ageDays,walkId,overdue}>}
+ */
+function getOpenGembaFindings(zoneId, walkType) {
+  return v2SafeExecute_(function () {
+    var ss = v2GetSpreadsheet_(), data = v2LoadSheet_(ss, "TaskBoard");
+    if (data.length <= 1) return [];
+    var now = new Date(), out = [];
+    for (var r = 1; r < data.length; r++) {
+      if (!data[r][TASK_COL.TASK_ID]) continue;
+      if (String(data[r][TASK_COL.SOURCE] || "").toUpperCase() !== "GEMBA_WALK") continue;
+      if (zoneId && String(data[r][TASK_COL.ZONE_ID] || "").trim() !== zoneId) continue;
+      var st = String(data[r][TASK_COL.STATUS] || "").toUpperCase();
+      if (st === "DONE" || st === "CLOSED" || st === "DELETED") continue;
+      if (walkType && String(data[r][TASK_COL.CATEGORY] || "").trim() &&
+          String(data[r][TASK_COL.CATEGORY]).trim() !== walkType) continue;
+      var created = data[r][TASK_COL.CREATED] ? new Date(data[r][TASK_COL.CREATED]) : null;
+      var due = data[r][TASK_COL.DUE_DATE] ? new Date(data[r][TASK_COL.DUE_DATE]) : null;
+      out.push({
+        taskId: String(data[r][TASK_COL.TASK_ID]),
+        title: String(data[r][TASK_COL.TITLE] || ""),
+        owner: String(data[r][TASK_COL.ASSIGNED_TO] || ""),
+        walkId: String(data[r][TASK_COL.SOURCE_REF] || ""),
+        dueDate: due && !isNaN(due) ? Utilities.formatDate(due, TZ, "dd MMM") : "",
+        overdue: !!(due && !isNaN(due) && due < now),
+        ageDays: created && !isNaN(created)
+          ? Math.floor((now - created) / 86400000) : 0
+      });
+    }
+    out.sort(function (a, b) { return b.ageDays - a.ageDays; });
+    return out;
+  }, "getOpenGembaFindings", [], "low");
 }
 
 function getGembaWalkData(filters) {

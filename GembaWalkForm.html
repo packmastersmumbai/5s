@@ -1,511 +1,636 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
+<html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>Gemba Walk — PackMasters 5S</title>
+<title>Gemba Walk</title>
 <?!= include("CommonStyles") ?>
 <style>
-.gw-header {
-  background: linear-gradient(135deg, var(--pm-primary) 0%, var(--pm-primary-light) 100%);
-  color: #fff;
-  padding: 14px 16px 12px;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-.gw-header__top { display: flex; align-items: center; gap: 10px; }
-.gw-header__back {
-  width: 36px; height: 36px; border-radius: 50%;
-  background: rgba(255,255,255,.15);
-  border: none; color: #fff; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 20px; flex-shrink: 0;
-}
-.gw-header__title { font-family: var(--font-display); font-size: 18px; font-weight: 700; flex: 1; }
+/* ── GEMBA WALK ──
+   The old form put all 28 zone chips, the walk type and the walker name on one
+   scrolling page, then every question below that. On a 390px phone -- the only
+   device a walk actually happens on -- you could not see a single question
+   without scrolling past 28 chips, and the submit bar floated over the nav.
 
-.gw-progress-bar { background: var(--border); height: 3px; }
-.gw-progress-fill { height: 100%; width: 100%; background: var(--score-green); transform-origin: left; transform: scaleX(0); transition: transform .3s ease-out; }
+   A Gemba walk is done standing in front of the thing. So: one question per
+   screen, thumb-sized answers, and a "No" immediately asks what you saw, with
+   a photo and an owner, because that is the finding. Compliance % is a
+   consequence at the end, not the headline. */
+body { background: var(--bg-page); margin: 0; }
 
-.gw-content { max-width: 600px; margin: 0 auto; padding: 16px 12px 120px; }
+.gw-shell { display: flex; flex-direction: column; min-height: 100vh; max-width: 720px; margin: 0 auto; }
 
-.form-section {
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: var(--r-lg);
-  padding: 14px 16px;
-  margin-bottom: 12px;
-  box-shadow: var(--shadow);
+/* Header: zone + type + progress, always visible so the walker never loses context. */
+.gw-hd { position: sticky; top: 0; z-index: 30; background: var(--bg-header); border-bottom: 1px solid var(--border); }
+.gw-hd-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px; }
+.gw-back {
+  width: 34px; height: 34px; border-radius: 9px; border: 1px solid var(--border);
+  background: var(--bg-card); color: var(--text-secondary); font-size: 17px;
+  cursor: pointer; flex-shrink: 0;
 }
-.form-section h3 {
-  font-family: var(--font-display);
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--pm-primary);
-  margin-bottom: 12px;
-}
+.gw-hd-ctx { min-width: 0; flex: 1; }
+.gw-hd-zone { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--text-secondary); letter-spacing: .5px; }
+.gw-hd-type { font-family: var(--font-display); font-size: 15px; font-weight: 800; color: var(--text-primary); }
+.gw-hd-count { font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--text-secondary); flex-shrink: 0; }
+.gw-dots { display: flex; gap: 3px; padding: 0 14px 9px; flex-wrap: wrap; }
+.gw-dot { width: 100%; max-width: 26px; flex: 1; height: 4px; border-radius: 3px; background: var(--border); }
+.gw-dot.yes  { background: var(--score-green); }
+.gw-dot.no   { background: var(--score-red); }
+.gw-dot.na   { background: var(--text-muted); }
+.gw-dot.ask  { background: var(--pm-primary); }
+.gw-dot.now  { background: var(--pm-accent, #F59E0B); }
 
-.gw-field { margin-bottom: 12px; }
-.gw-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 5px; }
+.gw-body { flex: 1; padding: 16px 14px 20px; }
 
-.gw-question { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border-light); }
-.gw-question:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
-.gw-question__text { font-size: 13px; color: var(--text-primary); margin-bottom: 8px; line-height: 1.4; }
-.gw-yn-btns { display: flex; gap: 8px; }
-.gw-yn-btn {
-  flex: 1; padding: 8px; border-radius: var(--r); font-size: 13px; font-weight: 600;
-  border: 1.5px solid var(--border); background: var(--bg-card-2);
-  cursor: pointer; min-height: 36px; transition: var(--trans);
+/* ── Setup ── */
+.gw-setup-h { font-family: var(--font-display); font-size: 17px; font-weight: 800; margin-bottom: 2px; }
+.gw-setup-p { font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; }
+.gw-f { margin-bottom: 18px; }
+.gw-f > label { display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 6px; }
+.gw-f input[type=text] {
+  width: 100%; padding: 11px 12px; font-size: 15px; font-family: inherit; box-sizing: border-box;
+  border: 1px solid var(--border); border-radius: var(--r); background: var(--bg-card); color: var(--text-primary);
 }
-.gw-yn-btn.yes.selected { background: var(--score-green-bg); border-color: var(--score-green); color: var(--score-green); }
-.gw-yn-btn.no.selected  { background: var(--score-red-bg);   border-color: var(--score-red);   color: var(--score-red); }
-.gw-yn-btn.na.selected  { background: var(--score-amber-bg); border-color: var(--score-amber); color: var(--score-amber); }
-
-.action-item {
-  background: var(--bg-card-2);
-  border-radius: var(--r);
-  padding: 12px;
-  margin-bottom: 8px;
-  border: 1px solid var(--border-light);
-}
-.ai-field {
-  width: 100%;
-  padding: 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  font-size: 13px;
-  font-family: inherit;
-  background: var(--bg-card);
-  color: var(--text-primary);
-  margin-top: 6px;
-  box-sizing: border-box;
-}
-
-.gw-add-btn {
-  padding: 8px 16px;
-  border-radius: var(--r);
-  border: 1.5px dashed var(--border);
-  background: var(--bg-card-2);
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  width: 100%;
-  min-height: 36px;
-  transition: var(--trans);
-}
-.gw-add-btn:hover { border-color: var(--pm-primary); color: var(--pm-primary); }
-
-.gw-progress-row {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text-muted);
-  text-align: right;
-  margin-bottom: 4px;
-}
-
-/* Compact chip pickers */
-.gw-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.gw-chips { display: flex; flex-wrap: wrap; gap: 7px; }
 .gw-chip {
-  padding: 7px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
-  border: 1.5px solid var(--border); background: var(--bg-card-2); color: var(--text-secondary);
-  cursor: pointer; min-height: 34px; transition: var(--trans);
+  padding: 10px 15px; min-height: 42px; border-radius: 999px; cursor: pointer;
+  font-size: 14px; font-weight: 600; border: 1.5px solid var(--border);
+  background: var(--bg-card); color: var(--text-secondary);
 }
-.gw-chip.selected { background: var(--pm-primary); border-color: var(--pm-primary); color: #fff; }
-.gw-zone-group { margin-bottom: 10px; }
-.gw-zone-group:last-child { margin-bottom: 0; }
-.gw-zone-floor {
-  font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
-  color: var(--text-muted); margin-bottom: 6px;
-}
+.gw-chip.on { background: var(--pm-primary); border-color: var(--pm-primary); color: #fff; }
+/* Walk type carries a count so the walker knows the commitment before starting. */
+.gw-chip small { display: block; font-size: 11px; font-weight: 600; opacity: .75; margin-top: 1px; }
 .gw-zone-locked {
-  display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: var(--r);
-  background: var(--score-green-bg); border: 1.5px solid var(--score-green); color: var(--score-green);
-  font-size: 13px; font-weight: 700;
+  display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: var(--r);
+  background: var(--score-green-bg); border: 1.5px solid var(--score-green);
+  color: var(--score-green); font-size: 14px; font-weight: 700;
 }
-.gw-zone-locked span { font-size: 15px; }
+/* 28 chips was a wall; a search box plus floor groups is navigable. */
+.gw-zone-search {
+  width: 100%; padding: 10px 12px; font-size: 15px; margin-bottom: 10px; box-sizing: border-box;
+  border: 1px solid var(--border); border-radius: var(--r); font-family: inherit;
+}
+.gw-zone-fl { font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--text-muted); margin: 10px 0 6px; }
 
-/* Plan F: mobile-only */
-.mobile-only { display: none; }
-@media (max-width: 768px) {
-  .mobile-only { display: inline; color: var(--score-red, #EF4444); }
+/* ── Carry-over findings ── */
+.gw-carry { border: 1px solid var(--score-amber); background: var(--score-amber-bg);
+  border-radius: var(--r-lg); padding: 12px 14px; margin-bottom: 18px; }
+.gw-carry h4 { font-size: 13px; font-weight: 800; color: var(--score-amber); margin-bottom: 2px; }
+.gw-carry p { font-size: 12.5px; color: var(--text-secondary); margin-bottom: 10px; }
+.gw-carry-item { display: flex; gap: 8px; align-items: baseline; font-size: 13px; padding: 5px 0;
+  border-top: 1px solid rgba(0,0,0,.06); }
+.gw-carry-item:first-of-type { border-top: 0; }
+.gw-carry-item b { font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); flex-shrink: 0; }
+.gw-carry-age { margin-left: auto; font-family: var(--font-mono); font-size: 11px; font-weight: 700; flex-shrink: 0; }
+.gw-carry-age.late { color: var(--score-red); }
+
+/* ── Question card ── */
+.gw-q { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 18px 16px; }
+.gw-q-cat { display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--text-secondary); background: var(--bg-card-2);
+  border: 1px solid var(--border); border-radius: 5px; padding: 3px 9px; margin-bottom: 12px; }
+.gw-q-cat.dialogue { background: #EFF6FF; color: #1D4ED8; }
+.gw-q-t { font-size: 19px; font-weight: 700; line-height: 1.35; margin-bottom: 6px; }
+.gw-q-hi { font-size: 14px; color: var(--text-secondary); margin-bottom: 4px; }
+.gw-q-hint { font-size: 12.5px; color: var(--text-muted); }
+
+/* Answers: full-width targets sized for a gloved thumb. */
+.gw-ans { display: grid; gap: 9px; margin-top: 20px; }
+.gw-ans button {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  min-height: 60px; padding: 0 18px; cursor: pointer; font: inherit;
+  font-size: 17px; font-weight: 700; text-align: left;
+  border: 2px solid var(--border); border-radius: 12px;
+  background: var(--bg-card); color: var(--text-primary);
 }
+.gw-ans button .ic { font-size: 22px; line-height: 1; }
+.gw-ans .gw-yes.on { border-color: var(--score-green); background: var(--score-green-bg); color: var(--score-green); }
+.gw-ans .gw-no.on  { border-color: var(--score-red);   background: var(--score-red-bg);   color: var(--score-red); }
+.gw-ans .gw-na.on  { border-color: var(--text-muted);  background: var(--bg-card-2);      color: var(--text-secondary); }
+.gw-ans button:focus-visible { outline: 3px solid var(--border-focus); outline-offset: 2px; }
+
+/* Dialogue answer is free text: the point is what the operator said. */
+.gw-say { width: 100%; margin-top: 18px; padding: 12px; font-size: 15px; font-family: inherit;
+  min-height: 110px; box-sizing: border-box; border: 1px solid var(--border);
+  border-radius: var(--r); background: var(--bg-card); color: var(--text-primary); }
+
+/* ── Finding sheet: opens the moment a No is recorded ── */
+.gw-scrim { position: fixed; inset: 0; background: rgba(15,23,42,.6); z-index: 200; }
+.gw-sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 201; max-height: 92vh; overflow-y: auto;
+  background: var(--bg-card); border-radius: 16px 16px 0 0; padding: 16px 16px 20px;
+  box-shadow: 0 -8px 32px rgba(0,0,0,.3);
+}
+@media (min-width: 640px) {
+  .gw-sheet { left: 50%; bottom: auto; top: 50%; transform: translate(-50%,-50%);
+    width: min(560px,94vw); border-radius: 16px; }
+}
+.gw-sheet h3 { font-size: 16px; font-weight: 800; margin-bottom: 2px; }
+.gw-sheet .gw-sheet-q { font-size: 13px; color: var(--text-secondary); margin-bottom: 14px; }
+.gw-sheet-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 460px) { .gw-sheet-2 { grid-template-columns: 1fr; } }
+.gw-sheet .gw-f textarea, .gw-sheet .gw-f input, .gw-sheet .gw-f select {
+  width: 100%; padding: 10px 11px; font-size: 15px; font-family: inherit; box-sizing: border-box;
+  border: 1px solid var(--border); border-radius: var(--r); background: var(--bg-card); color: var(--text-primary);
+}
+.gw-sheet .gw-f textarea { min-height: 76px; resize: vertical; }
+.gw-ph { display: flex; flex-wrap: wrap; gap: 8px; }
+.gw-ph-t { position: relative; width: 78px; height: 78px; border-radius: 9px; overflow: hidden; border: 1px solid var(--border); }
+.gw-ph-t img { width: 100%; height: 100%; object-fit: cover; }
+.gw-ph-t button { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border: 0;
+  border-radius: 50%; background: rgba(15,23,42,.78); color: #fff; font-size: 12px; line-height: 1; cursor: pointer; }
+.gw-ph-add { width: 78px; height: 78px; border-radius: 9px; cursor: pointer; font-size: 12px; font-weight: 600;
+  border: 1.5px dashed var(--border); background: var(--bg-card); color: var(--text-secondary);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+.gw-err { font-size: 12px; color: var(--score-red); margin-top: 4px; display: none; }
+.gw-f.bad .gw-err { display: block; }
+.gw-f.bad textarea, .gw-f.bad input { border-color: var(--score-red); }
+
+/* ── Nav bar ── */
+.gw-nav { position: sticky; bottom: 0; z-index: 30; display: flex; gap: 10px; align-items: center;
+  padding: 10px 14px; background: var(--bg-card); border-top: 1px solid var(--border); }
+.gw-nav button { min-height: 48px; padding: 0 20px; border-radius: var(--r); cursor: pointer;
+  font: inherit; font-size: 15px; font-weight: 700; border: 1px solid var(--border); background: var(--bg-card); }
+.gw-nav .gw-primary { flex: 1; background: var(--pm-primary); border-color: var(--pm-primary); color: #fff; }
+.gw-nav .gw-primary:disabled {
+  background: var(--bg-card-2); border-color: var(--border);
+  color: var(--text-muted); cursor: not-allowed;
+}
+
+/* ── Summary ── */
+.gw-sum-score { text-align: center; padding: 8px 0 18px; }
+.gw-sum-pct { font-family: var(--font-mono); font-size: 46px; font-weight: 800; line-height: 1; letter-spacing: -.03em; }
+.gw-sum-pct.g { color: var(--score-green); } .gw-sum-pct.a { color: var(--score-amber); } .gw-sum-pct.r { color: var(--score-red); }
+.gw-sum-lbl { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--text-secondary); margin-top: 5px; }
+.gw-sum-tiles { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 18px; }
+.gw-tile { border: 1px solid var(--border); border-radius: 10px; padding: 11px 8px; text-align: center; background: var(--bg-card); }
+.gw-tile b { display: block; font-family: var(--font-mono); font-size: 21px; font-weight: 800; }
+.gw-tile span { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-secondary); }
+.gw-sum-h { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--text-secondary); margin: 0 0 8px; }
+.gw-find { border: 1px solid var(--border); border-left: 3px solid var(--score-red);
+  border-radius: 9px; padding: 10px 12px; margin-bottom: 8px; background: var(--bg-card); }
+.gw-find-q { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+.gw-find-m { font-size: 12.5px; color: var(--text-secondary); }
+.gw-done { text-align: center; padding: 44px 20px; }
+.gw-done h2 { font-family: var(--font-display); font-size: 21px; font-weight: 800; margin: 10px 0 4px; }
+.gw-done p { font-size: 14px; color: var(--text-secondary); }
+.gw-done-id { display: inline-block; margin-top: 14px; padding: 8px 16px; font-family: var(--font-mono);
+  font-size: 15px; font-weight: 700; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card-2); }
 </style>
 </head>
 <body>
 
-<div class="gw-header">
-  <div class="gw-header__top">
-    <button class="gw-header__back" onclick="history.back()">&#8592;</button>
-    <span class="gw-header__title">Gemba Walk</span>
+<div class="gw-shell">
+  <div class="gw-hd">
+    <div class="gw-hd-row">
+      <button class="gw-back" onclick="gwBack()" aria-label="Back">&#8592;</button>
+      <div class="gw-hd-ctx">
+        <div class="gw-hd-zone" id="gwHdZone">Gemba Walk</div>
+        <div class="gw-hd-type" id="gwHdType">Setup</div>
+      </div>
+      <div class="gw-hd-count" id="gwHdCount"></div>
+    </div>
+    <div class="gw-dots" id="gwDots"></div>
   </div>
-</div>
-<div class="gw-progress-bar">
-  <div class="gw-progress-fill" id="progressBar"></div>
+  <div class="gw-body" id="gwBody">
+    <div style="text-align:center;padding:60px;color:var(--text-muted);font-size:13px">Loading&hellip;</div>
+  </div>
+  <div class="gw-nav" id="gwNav" hidden>
+    <button id="gwPrev" onclick="gwStep(-1)">Back</button>
+    <button id="gwNext" class="gw-primary" onclick="gwStep(1)">Next</button>
+  </div>
 </div>
 
-<div class="gw-content" id="gwContent">
-  <div style="text-align:center;padding:60px;color:var(--text-muted);font-family:var(--font-mono);font-size:12px">
-    Loading form…
-  </div>
-</div>
+<input type="file" id="gwFile" accept="image/*" capture="environment" multiple hidden onchange="gwPick(this)">
 
 <script>
-// Auth guard
-(function() {
+(function () {
   var params = new URLSearchParams(window.location.search);
-  var urlToken = params.get('token');
-  if (urlToken) localStorage.setItem('pm5s_token', urlToken);
-  var token = localStorage.getItem('pm5s_token');
-  if (!token) {
-    window.pm5sNav('<?= deployUrl ?>?v2=1&action=login');
-    return;
-  }
-  window.PM5S_TOKEN = token;
+  var t = params.get('token');
+  if (t) { try { localStorage.setItem('pm5s_token', t); } catch (e) {} }
+  var tok = t; try { tok = tok || localStorage.getItem('pm5s_token'); } catch (e) {}
+  if (!tok) { window.pm5sNav('<?= deployUrl ?>?v2=1&action=login'); return; }
+  window.PM5S_TOKEN = tok;
 })();
 
 var DU = '<?= deployUrl ?>';
 var ZONE_ID = '<?= params && params.zone ? String(params.zone).replace(/[^a-zA-Z0-9\-_]/g,"") : "" ?>';
-var responses = {};
+var ZC = {}; try { ZC = <?!= config.zoneConfig ?> || {}; } catch (e) { ZC = {}; }
+
+var phase = 'setup';        /* setup | q | summary */
+var qIndex = 0;
 var questions = [];
-var actionItemCount = 0;
-var selectedWalkType = '';
-var selectedZone = '';
+var answers = {};           /* qId -> 'yes'|'no'|'na' or free text for ask */
+var findings = {};          /* qId -> {note, owner, dueDate, priority, photosB64, photoUrls} */
+var walkTypes = [];
+var typeCounts = {};
+var selectedType = '';
+var selectedZone = ZONE_ID || '';
+var walkerName = '';
+var _photoTarget = null;
 
-function escHtml(s) {
-  if (!s) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+  return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]; }); }
+function el(id) { return document.getElementById(id); }
+function gwBack() { if (phase === 'q' && qIndex > 0) { gwStep(-1); return; } history.back(); }
+function floorOf(id) { var n = parseInt(String(id).replace(/[^0-9]/g,''),10)||0;
+  return n <= 9 ? 'Ground Floor' : n <= 19 ? '1st Floor' : '2nd Floor'; }
 
-/* ── Load walk types then render form ── */
-function loadWalkForm() {
-  google.script.run
-    .withSuccessHandler(function(types) {
-      renderForm(types || []);
-    })
-    .withFailureHandler(function(e) {
-      document.getElementById('gwContent').innerHTML =
-        '<div style="text-align:center;padding:40px;color:var(--score-red);">' + escHtml(e.message) + '</div>';
-    })
-    .getGembaWalkTypes();
-}
+/* ── Boot ── */
+google.script.run
+  .withSuccessHandler(function (types) {
+    walkTypes = types || [];
+    if (!walkTypes.length) { el('gwBody').innerHTML = '<div style="padding:40px;text-align:center">No walk types configured.</div>'; return; }
+    var pending = walkTypes.length;
+    walkTypes.forEach(function (wt) {
+      google.script.run.withSuccessHandler(function (qs) {
+        typeCounts[wt] = (qs || []).length;
+        if (--pending === 0) renderSetup();
+      }).withFailureHandler(function () { typeCounts[wt] = 0; if (--pending === 0) renderSetup(); })
+        .getGembaWalkQuestions(wt);
+    });
+  })
+  .withFailureHandler(function (e) {
+    el('gwBody').innerHTML = '<div style="padding:40px;text-align:center;color:var(--score-red)">' + esc(e.message) + '</div>';
+  })
+  .getGembaWalkTypes();
 
-/* ── Render the main form shell ── */
-function renderForm(walkTypes) {
-  var html = '';
+/* ── Setup ── */
+function renderSetup() {
+  phase = 'setup';
+  el('gwHdZone').textContent = 'Gemba Walk';
+  el('gwHdType').textContent = 'Setup';
+  el('gwHdCount').textContent = '';
+  el('gwDots').innerHTML = '';
+  el('gwNav').hidden = true;
 
-  // Walk Info section — Zone first, one-tap chips
-  html += '<div class="form-section">';
-  html += '<h3>Walk Setup</h3>';
-
-  html += '<div class="gw-field"><label class="gw-label">Zone *</label>';
-  html += '<div id="walkZoneChips"><div style="color:var(--text-muted);font-size:12px">Loading zones…</div></div></div>';
-
-  html += '<div class="gw-field"><label class="gw-label">Walk Type *</label>';
-  html += '<div id="walkTypeChips" class="gw-chips"></div></div>';
-
-  html += '<div class="gw-field"><label class="gw-label" for="walkerName">Walker Name</label>';
-  html += '<input class="pm-input" type="text" id="walkerName" placeholder="Your name"></div>';
-  html += '</div>';
-
-  // Questions section (populated by loadQuestions)
-  html += '<div class="form-section" id="questionsSection">';
-  html += '<h3>Observations</h3>';
-  html += '<div id="questionsList"><div style="color:var(--text-muted);font-size:13px;">Select walk type to load questions…</div></div>';
-  html += '<div class="gw-progress-row"><span id="progressText">0/0</span></div>';
-  html += '</div>';
-
-  // General observations
-  html += '<div class="form-section">';
-  html += '<h3>General Observations</h3>';
-  html += '<div class="gw-field"><label class="gw-label" for="observations">Notes / Comments</label>';
-  html += '<textarea class="pm-textarea" id="observations" rows="3" placeholder="Any additional observations…"></textarea></div>';
-  html += '</div>';
-
-  // Action items
-  html += '<div class="form-section">';
-  html += '<h3>Action Items</h3>';
-  html += '<div id="actionItemsList"></div>';
-  html += '<button class="gw-add-btn" onclick="addActionItem()">+ Add Action Item</button>';
-  html += '</div>';
-
-  // Photo evidence
-  html += '<div class="form-section">';
-  html += '<label class="gw-label">Photo Evidence <span class="mobile-only">(required)</span></label>';
-  html += '<input type="file" id="photoInput" name="photoInput" accept="image/*" capture="environment" class="pm-input" style="padding:6px;">';
-  html += '<small style="color:var(--text-muted,#94A3B8);">Capture on-site evidence</small>';
-  html += '</div>';
-
-  // Submit
-  html += '<button class="pm-btn pm-btn--primary form-sticky-submit" id="submitBtn" onclick="submitWalk()" disabled>Submit Walk</button>';
-  html += '<div id="submitStatus" style="text-align:center;margin-top:8px;color:var(--text-muted);font-size:13px;"></div>';
-
-  document.getElementById('gwContent').innerHTML = html;
-  initFormDefaults_();
-  renderWalkTypeChips(walkTypes);
-  loadZonesForForm();
-}
-
-/* ── Walk-type chips (default first, auto-loads questions) ── */
-function labelType_(t) {
-  return String(t).replace(/_/g, ' ').replace(/\b\w/g, function(m) { return m.toUpperCase(); });
-}
-function renderWalkTypeChips(types) {
-  if (!types || !types.length) types = ['5S_AUDIT', 'SAFETY', 'QUALITY'];
-  var c = document.getElementById('walkTypeChips');
-  if (!c) return;
-  c.innerHTML = types.map(function(t) {
-    return '<button type="button" class="gw-chip" data-type="' + escHtml(t) + '" onclick="selectWalkType(\'' + escHtml(t) + '\')">' + escHtml(labelType_(t)) + '</button>';
-  }).join('');
-  selectWalkType(types[0]);
-}
-function selectWalkType(t) {
-  selectedWalkType = t;
-  document.querySelectorAll('#walkTypeChips .gw-chip').forEach(function(b) {
-    b.classList.toggle('selected', b.dataset.type === t);
-  });
-  loadQuestions();
-}
-
-/* ── Zone chips (floor-grouped) or locked pill when prefilled ── */
-function floorOf_(id) {
-  var n = parseInt(String(id).replace(/[^0-9]/g, ''), 10) || 0;
-  if (n <= 9) return 'Ground Floor';
-  if (n <= 19) return '1st Floor';
-  return '2nd Floor';
-}
-// Zone config injected server-side (same reliable path as KaizenForm) — the old
-// google.script.run.getZoneConfig() had no failure handler and left "Loading zones…" stuck.
-var GW_ZC = {};
-try { GW_ZC = <?!= config.zoneConfig ?> || {}; } catch (e) { GW_ZC = {}; }
-function loadZonesForForm() {
-  if (GW_ZC && Object.keys(GW_ZC).length) { renderZoneChips(GW_ZC); return; }
-  google.script.run
-    .withSuccessHandler(function(cfg) { renderZoneChips(cfg || {}); })
-    .withFailureHandler(function(e) {
-      var w = document.getElementById('walkZoneChips');
-      if (w) w.innerHTML = '<div style="color:var(--score-red);font-size:12px">Could not load zones: ' + escHtml(e && e.message || '') + '</div>';
-    })
-    .getZoneConfig();
-}
-function renderZoneChips(cfg) {
-  var wrap = document.getElementById('walkZoneChips');
-  if (!wrap) return;
-  var ids = Object.keys(cfg).sort();
-
-  if (ZONE_ID && cfg[ZONE_ID]) {
-    selectedZone = ZONE_ID;
-    wrap.innerHTML = '<div class="gw-zone-locked">' + escHtml(ZONE_ID + ' — ' + (cfg[ZONE_ID].name || ZONE_ID)) + ' <span>&#10003;</span></div>';
-    updateProgress();
-    return;
+  var zoneBlock;
+  if (selectedZone && ZC[selectedZone]) {
+    /* Arrived from the zone card, so the 28-chip wall is unnecessary. */
+    zoneBlock = '<div class="gw-zone-locked">' + esc(selectedZone + ' — ' + (ZC[selectedZone].name || selectedZone)) + ' &#10003;</div>';
+  } else {
+    var ids = Object.keys(ZC).sort();
+    var byFloor = {};
+    ids.forEach(function (id) { (byFloor[floorOf(id)] = byFloor[floorOf(id)] || []).push(id); });
+    zoneBlock = '<input class="gw-zone-search" id="gwZoneQ" placeholder="Search zone…" oninput="gwFilterZones(this.value)">' +
+      '<div id="gwZoneList">' +
+      ['Ground Floor','1st Floor','2nd Floor'].map(function (fl) {
+        if (!byFloor[fl]) return '';
+        return '<div class="gw-zone-fl">' + fl + '</div><div class="gw-chips">' +
+          byFloor[fl].map(function (id) {
+            return '<button type="button" class="gw-chip gw-zc" data-z="' + esc(id) + '" data-n="' +
+              esc((ZC[id].name || id).toLowerCase()) + '" onclick="gwPickZone(\'' + esc(id) + '\')">' +
+              esc(ZC[id].name || id) + '</button>';
+          }).join('') + '</div>';
+      }).join('') + '</div>';
   }
 
-  var groups = {};
-  ids.forEach(function(id) { (groups[floorOf_(id)] = groups[floorOf_(id)] || []).push(id); });
-  var html = '';
-  ['Ground Floor', '1st Floor', '2nd Floor'].forEach(function(fl) {
-    if (!groups[fl]) return;
-    html += '<div class="gw-zone-group"><div class="gw-zone-floor">' + fl + '</div><div class="gw-chips">';
-    groups[fl].forEach(function(id) {
-      html += '<button type="button" class="gw-chip gw-chip--zone" data-zone="' + escHtml(id) + '" onclick="selectZone(\'' + escHtml(id) + '\')" title="' + escHtml(id) + '">' + escHtml(cfg[id].name || id) + '</button>';
-    });
-    html += '</div></div>';
-  });
-  wrap.innerHTML = html;
-  updateProgress();
+  el('gwBody').innerHTML =
+    '<div class="gw-setup-h">Start a walk</div>' +
+    '<div class="gw-setup-p">Go to the area, answer one question at a time, and record what you see.</div>' +
+    '<div id="gwCarry"></div>' +
+    '<div class="gw-f"><label>Zone</label>' + zoneBlock + '</div>' +
+    '<div class="gw-f"><label>Walk type</label><div class="gw-chips" id="gwTypes">' +
+      walkTypes.map(function (wt) {
+        return '<button type="button" class="gw-chip' + (wt === selectedType ? ' on' : '') +
+          '" onclick="gwPickType(\'' + esc(wt) + '\')">' + esc(wt) +
+          '<small>' + (typeCounts[wt] || 0) + ' questions</small></button>';
+      }).join('') + '</div></div>' +
+    '<div class="gw-f"><label for="gwName">Your name</label>' +
+      '<input type="text" id="gwName" value="' + esc(walkerName) + '" placeholder="Who is walking" oninput="walkerName=this.value;gwSetupGate()"></div>' +
+    '<button class="gw-primary" id="gwStart" style="width:100%;min-height:52px;border:0;border-radius:var(--r);font:inherit;font-size:16px;font-weight:700;background:var(--pm-primary);color:#fff;cursor:pointer" ' +
+      'onclick="gwBegin()" disabled>Start walk</button>';
+  gwSetupGate();
+  if (selectedZone) loadCarry();
 }
-function selectZone(id) {
+
+function gwFilterZones(q) {
+  q = String(q || '').toLowerCase().trim();
+  document.querySelectorAll('.gw-zc').forEach(function (b) {
+    var hit = !q || b.dataset.z.toLowerCase().indexOf(q) > -1 || b.dataset.n.indexOf(q) > -1;
+    b.style.display = hit ? '' : 'none';
+  });
+}
+function gwPickZone(id) {
   selectedZone = id;
-  document.querySelectorAll('#walkZoneChips .gw-chip--zone').forEach(function(b) {
-    b.classList.toggle('selected', b.dataset.zone === id);
+  document.querySelectorAll('.gw-zc').forEach(function (b) { b.classList.toggle('on', b.dataset.z === id); });
+  gwSetupGate(); loadCarry();
+}
+function gwPickType(wt) {
+  selectedType = wt;
+  document.querySelectorAll('#gwTypes .gw-chip').forEach(function (b) {
+    b.classList.toggle('on', b.textContent.indexOf(wt) === 0);
   });
-  updateProgress();
+  gwSetupGate(); loadCarry();
+}
+function gwSetupGate() {
+  var ok = !!selectedZone && !!selectedType && !!String(walkerName || (el('gwName') || {}).value || '').trim();
+  var b = el('gwStart'); if (b) b.disabled = !ok;
 }
 
-/* ── Load questions for selected walk type ── */
-function loadQuestions() {
-  if (!selectedWalkType) return;
-  var qList = document.getElementById('questionsList');
-  if (qList) qList.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">Loading questions…</div>';
-  responses = {};
+/* A walk that does not start by checking the last walk's findings lets them
+   evaporate. Surface them before the first question. */
+function loadCarry() {
+  if (!selectedZone) return;
+  google.script.run.withSuccessHandler(function (list) {
+    var box = el('gwCarry'); if (!box) return;
+    if (!list || !list.length) { box.innerHTML = ''; return; }
+    box.innerHTML = '<div class="gw-carry"><h4>' + list.length + ' open finding' + (list.length === 1 ? '' : 's') + ' from earlier walks</h4>' +
+      '<p>Check these first — a repeat finding is the signal that matters.</p>' +
+      list.slice(0, 6).map(function (f) {
+        return '<div class="gw-carry-item"><b>' + esc(f.taskId) + '</b>' +
+          '<span>' + esc(f.title.replace(/^Gemba \([^)]*\):\s*/, '')) + '</span>' +
+          '<span class="gw-carry-age' + (f.overdue ? ' late' : '') + '">' + f.ageDays + 'd</span></div>';
+      }).join('') +
+      (list.length > 6 ? '<div class="gw-carry-item"><span>and ' + (list.length - 6) + ' more</span></div>' : '') +
+      '</div>';
+  }).withFailureHandler(function () {}).getOpenGembaFindings(selectedZone, selectedType);
+}
+
+function gwBegin() {
+  walkerName = String((el('gwName') || {}).value || walkerName || '').trim();
   google.script.run
-    .withSuccessHandler(function(qs) {
+    .withSuccessHandler(function (qs) {
       questions = qs || [];
-      renderQuestions(questions);
+      if (!questions.length) { alert('No questions configured for ' + selectedType); return; }
+      answers = {}; findings = {}; qIndex = 0; phase = 'q';
+      renderQ();
     })
-    .withFailureHandler(function() {
-      questions = [];
-      renderQuestions([]);
-    })
-    .getGembaWalkQuestions(selectedWalkType);
+    .withFailureHandler(function (e) { alert('Could not load questions: ' + e.message); })
+    .getGembaWalkQuestions(selectedType);
 }
 
-/* ── Render question cards ── */
-function renderQuestions(qs) {
-  var qList = document.getElementById('questionsList');
-  if (!qList) return;
-  if (qs.length === 0) {
-    qList.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">No questions configured for this walk type.</div>';
-    updateProgress();
-    return;
+/* ── One question per screen ── */
+function renderDots() {
+  el('gwDots').innerHTML = questions.map(function (q, i) {
+    var a = answers[q.questionId];
+    var cls = i === qIndex ? 'now'
+      : q.responseType === 'ask' ? (a ? 'ask' : '')
+      : a === 'yes' ? 'yes' : a === 'no' ? 'no' : a === 'na' ? 'na' : '';
+    return '<span class="gw-dot ' + cls + '"></span>';
+  }).join('');
+}
+
+function renderQ() {
+  var q = questions[qIndex];
+  el('gwHdZone').textContent = selectedZone + ' · ' + ((ZC[selectedZone] || {}).name || '');
+  el('gwHdType').textContent = selectedType + ' walk';
+  el('gwHdCount').textContent = (qIndex + 1) + '/' + questions.length;
+  el('gwNav').hidden = false;
+  renderDots();
+
+  var isAsk = q.responseType === 'ask';
+  var allowNA = q.responseType === 'yes_no_na' || isAsk === false && q.responseType !== 'yes_no';
+  var a = answers[q.questionId];
+
+  var ansHtml;
+  if (isAsk) {
+    ansHtml = '<textarea class="gw-say" id="gwSay" placeholder="What did they say? Write it in their words." ' +
+      'oninput="answers[' + JSON.stringify(q.questionId) + ']=this.value;renderDots();gwGate()">' + esc(a || '') + '</textarea>';
+  } else {
+    ansHtml = '<div class="gw-ans">' +
+      '<button type="button" class="gw-yes' + (a === 'yes' ? ' on' : '') + '" onclick="gwAnswer(\'yes\')"><span class="ic">&#10003;</span>Yes</button>' +
+      '<button type="button" class="gw-no'  + (a === 'no'  ? ' on' : '') + '" onclick="gwAnswer(\'no\')"><span class="ic">&#10007;</span>No — record a finding</button>' +
+      (q.responseType === 'yes_no_na'
+        ? '<button type="button" class="gw-na' + (a === 'na' ? ' on' : '') + '" onclick="gwAnswer(\'na\')"><span class="ic">&#8211;</span>Not applicable</button>'
+        : '') +
+      '</div>';
   }
-  var html = '';
-  qs.forEach(function(q, idx) {
-    html += '<div class="gw-question">';
-    html += '<div class="gw-question__text">' + escHtml(q.text || q.question || ('Question ' + (idx + 1))) + (q.required ? ' <span style="color:var(--score-red)">*</span>' : '') + '</div>';
-    html += '<div class="gw-yn-btns">';
-    html += '<button class="gw-yn-btn yes" id="q' + idx + '_yes" onclick="setResponse(\'' + escHtml(q.questionId || ('q' + idx)) + '\',' + idx + ',\'YES\')">Yes</button>';
-    html += '<button class="gw-yn-btn no"  id="q' + idx + '_no"  onclick="setResponse(\'' + escHtml(q.questionId || ('q' + idx)) + '\',' + idx + ',\'NO\')">No</button>';
-    html += '<button class="gw-yn-btn na"  id="q' + idx + '_na"  onclick="setResponse(\'' + escHtml(q.questionId || ('q' + idx)) + '\',' + idx + ',\'NA\')">N/A</button>';
-    html += '</div>';
-    html += '<div id="q' + idx + '_flag" style="display:none;font-size:11px;color:#b71c1c;font-weight:600;margin-top:6px">&#9888; A follow-up task will be auto-created for this finding.</div>';
-    html += '</div>';
+
+  el('gwBody').innerHTML =
+    '<div class="gw-q">' +
+      '<span class="gw-q-cat' + (isAsk ? ' dialogue' : '') + '">' + esc(q.category || (isAsk ? 'Dialogue' : 'Check')) + '</span>' +
+      '<div class="gw-q-t">' + esc(q.text) + '</div>' +
+      (q.textHi ? '<div class="gw-q-hi">' + esc(q.textHi) + '</div>' : '') +
+      (isAsk ? '<div class="gw-q-hint">Ask the person doing the work. Their answer is the point, not a score.</div>' : '') +
+      ansHtml +
+    '</div>' +
+    (findings[q.questionId] && findings[q.questionId].note
+      ? '<div class="gw-find" style="margin-top:12px"><div class="gw-find-q">Finding recorded</div>' +
+        '<div class="gw-find-m">' + esc(findings[q.questionId].note) + '</div></div>' : '');
+
+  el('gwPrev').disabled = qIndex === 0;
+  el('gwNext').textContent = qIndex === questions.length - 1 ? 'Finish' : 'Next';
+  gwGate();
+}
+
+function gwGate() {
+  var q = questions[qIndex];
+  var a = answers[q.questionId];
+  var ok = q.responseType === 'ask' ? true : !!a;
+  if (!q.required) ok = true;
+  var btn = el('gwNext');
+  btn.disabled = !ok;
+  var last = qIndex === questions.length - 1;
+  btn.textContent = ok ? (last ? 'Finish' : 'Next') : 'Answer to continue';
+}
+
+function gwAnswer(v) {
+  var q = questions[qIndex];
+  answers[q.questionId] = v;
+  renderDots();
+  document.querySelectorAll('.gw-ans button').forEach(function (b) { b.classList.remove('on'); });
+  var sel = document.querySelector('.gw-' + v); if (sel) sel.classList.add('on');
+  gwGate();
+  /* The walker is standing in front of it right now -- ask while they can see it. */
+  if (v === 'no') openFinding(q);
+  else if (v !== 'no' && findings[q.questionId]) { delete findings[q.questionId]; renderQ(); }
+}
+
+/* ── Finding sheet ── */
+function openFinding(q) {
+  var f = findings[q.questionId] || { photosB64: [], photoUrls: [] };
+  findings[q.questionId] = f;
+  var host = document.createElement('div');
+  host.id = 'gwFindHost';
+  host.innerHTML =
+    '<div class="gw-scrim" onclick="cancelFinding()"></div>' +
+    '<div class="gw-sheet" role="dialog" aria-modal="true">' +
+      '<h3>Record the finding</h3>' +
+      '<div class="gw-sheet-q">' + esc(q.text) + '</div>' +
+      '<div class="gw-f" id="gwfNoteF"><label for="gwfNote">What did you see?</label>' +
+        '<textarea id="gwfNote" placeholder="Be specific: what, where exactly, how many.">' + esc(f.note || '') + '</textarea>' +
+        '<div class="gw-err">Describe what you saw — this becomes the action.</div></div>' +
+      '<div class="gw-f" id="gwfPhF"><label>Photo</label>' +
+        '<div class="gw-ph" id="gwfPhotos"></div>' +
+        '<div class="gw-err">Attach a photo of what you found.</div></div>' +
+      '<div class="gw-sheet-2">' +
+        '<div class="gw-f"><label for="gwfOwner">Owner</label>' +
+          '<input type="text" id="gwfOwner" value="' + esc(f.owner || '') + '" placeholder="Who fixes it"></div>' +
+        '<div class="gw-f"><label for="gwfDue">Due</label>' +
+          '<input type="date" id="gwfDue" value="' + esc(f.dueDate || '') + '"></div>' +
+      '</div>' +
+      '<div class="gw-f"><label for="gwfPri">Priority</label><select id="gwfPri">' +
+        ['CRITICAL','HIGH','MEDIUM','LOW'].map(function (p) {
+          return '<option value="' + p + '"' + ((f.priority || 'MEDIUM') === p ? ' selected' : '') + '>' + p + '</option>';
+        }).join('') + '</select></div>' +
+      '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px">' +
+        '<button type="button" onclick="cancelFinding()" style="min-height:46px;padding:0 18px;border-radius:9px;border:1px solid var(--border);background:var(--bg-card);font:inherit;font-weight:700;cursor:pointer">Cancel</button>' +
+        '<button type="button" onclick="saveFinding()" style="min-height:46px;padding:0 20px;border-radius:9px;border:0;background:var(--pm-primary);color:#fff;font:inherit;font-weight:700;cursor:pointer">Save finding</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(host);
+  _photoTarget = q.questionId;
+  renderFindingPhotos();
+  var n = el('gwfNote'); if (n) n.focus();
+}
+
+function renderFindingPhotos() {
+  var box = el('gwfPhotos'); if (!box) return;
+  var f = findings[_photoTarget] || { photosB64: [] };
+  var urls = f.photoUrls || [];
+  box.innerHTML = urls.map(function (u, i) {
+    return '<div class="gw-ph-t"><img src="' + u + '" alt="Finding evidence"><button type="button" onclick="dropFindingPhoto(' + i + ')">&times;</button></div>';
+  }).join('') + (urls.length < 3
+    ? '<button type="button" class="gw-ph-add" onclick="document.getElementById(\'gwFile\').click()"><span style="font-size:18px">&#128247;</span>Add</button>' : '');
+}
+function gwPick(input) {
+  var files = Array.prototype.slice.call(input.files || []);
+  input.value = '';
+  var f = findings[_photoTarget]; if (!f) return;
+  f.photosB64 = f.photosB64 || []; f.photoUrls = f.photoUrls || [];
+  files.slice(0, 3 - f.photoUrls.length).forEach(function (file) {
+    var fr = new FileReader();
+    fr.onload = function () {
+      var u = String(fr.result);
+      f.photoUrls.push(u); f.photosB64.push(u.split(',')[1]);
+      renderFindingPhotos();
+    };
+    fr.readAsDataURL(file);
   });
-  qList.innerHTML = html;
-  updateProgress();
+}
+function dropFindingPhoto(i) {
+  var f = findings[_photoTarget]; if (!f) return;
+  f.photoUrls.splice(i, 1); f.photosB64.splice(i, 1);
+  renderFindingPhotos();
+}
+function closeFindingSheet() {
+  var h = el('gwFindHost'); if (h) h.parentNode.removeChild(h);
+}
+function cancelFinding() {
+  var qid = _photoTarget;
+  var f = findings[qid];
+  /* Cancelling a finding cancels the No: a No with nothing recorded is the
+     old behaviour this rebuild exists to remove. */
+  if (!f || !f.note) { delete findings[qid]; delete answers[qid]; }
+  closeFindingSheet();
+  renderQ();
+}
+function saveFinding() {
+  var qid = _photoTarget, f = findings[qid];
+  var note = String((el('gwfNote') || {}).value || '').trim();
+  var hasPhoto = (f.photoUrls || []).length > 0;
+  el('gwfNoteF').classList.toggle('bad', !note);
+  el('gwfPhF').classList.toggle('bad', !hasPhoto);
+  if (!note || !hasPhoto) return;
+  f.note = note;
+  f.owner = String((el('gwfOwner') || {}).value || '').trim();
+  f.dueDate = String((el('gwfDue') || {}).value || '');
+  f.priority = String((el('gwfPri') || {}).value || 'MEDIUM');
+  closeFindingSheet();
+  renderQ();
 }
 
-/* ── Record a response ── */
-function setResponse(questionId, idx, val) {
-  responses[questionId] = val;
-  ['yes','no','na'].forEach(function(v) {
-    var btn = document.getElementById('q' + idx + '_' + v);
-    if (btn) btn.classList.toggle('selected', v.toUpperCase() === val);
+/* ── Navigation ── */
+function gwStep(dir) {
+  if (phase === 'summary' && dir < 0) { phase = 'q'; qIndex = questions.length - 1; renderQ(); return; }
+  if (dir > 0 && qIndex === questions.length - 1) { renderSummary(); return; }
+  qIndex = Math.max(0, Math.min(questions.length - 1, qIndex + dir));
+  renderQ();
+}
+
+/* ── Summary: what you found, then the score as a consequence ── */
+function renderSummary() {
+  phase = 'summary';
+  var yes = 0, no = 0, na = 0, asked = 0;
+  questions.forEach(function (q) {
+    var a = answers[q.questionId];
+    if (q.responseType === 'ask') { if (a) asked++; return; }
+    if (a === 'yes') yes++; else if (a === 'no') no++; else if (a === 'na') na++;
   });
-  var flag = document.getElementById('q' + idx + '_flag');
-  if (flag) flag.style.display = (val === 'NO') ? 'block' : 'none';
-  updateProgress();
+  var scored = yes + no;
+  var pct = scored ? Math.round(yes / scored * 100) : 0;
+  var cls = pct >= 85 ? 'g' : pct >= 70 ? 'a' : 'r';
+
+  var findList = questions.filter(function (q) { return answers[q.questionId] === 'no'; });
+
+  el('gwHdCount').textContent = '';
+  el('gwHdType').textContent = 'Review';
+  el('gwBody').innerHTML =
+    '<div class="gw-sum-score"><div class="gw-sum-pct ' + cls + '">' + pct + '<span style="font-size:22px">%</span></div>' +
+      '<div class="gw-sum-lbl">Compliance</div></div>' +
+    '<div class="gw-sum-tiles">' +
+      '<div class="gw-tile"><b style="color:var(--score-green)">' + yes + '</b><span>Yes</span></div>' +
+      '<div class="gw-tile"><b style="color:var(--score-red)">' + no + '</b><span>Findings</span></div>' +
+      '<div class="gw-tile"><b>' + asked + '</b><span>Asked</span></div>' +
+    '</div>' +
+    (findList.length
+      ? '<h4 class="gw-sum-h">' + findList.length + ' action' + (findList.length === 1 ? '' : 's') + ' will be raised</h4>' +
+        findList.map(function (q) {
+          var f = findings[q.questionId] || {};
+          return '<div class="gw-find"><div class="gw-find-q">' + esc(q.text) + '</div>' +
+            '<div class="gw-find-m">' + esc(f.note || 'No detail recorded') +
+            (f.owner ? ' · ' + esc(f.owner) : '') +
+            (f.dueDate ? ' · due ' + esc(f.dueDate) : '') +
+            ((f.photoUrls || []).length ? ' · ' + f.photoUrls.length + ' photo' : '') +
+            '</div></div>';
+        }).join('')
+      : '<h4 class="gw-sum-h">No findings</h4><p style="font-size:13px;color:var(--text-secondary)">Nothing to raise from this walk.</p>') +
+    '<div class="gw-f" style="margin-top:18px"><label for="gwObs">Overall observations</label>' +
+      '<textarea id="gwObs" style="width:100%;min-height:84px;padding:11px;font-size:15px;font-family:inherit;box-sizing:border-box;border:1px solid var(--border);border-radius:var(--r);background:var(--bg-card);color:var(--text-primary)" ' +
+      'placeholder="Anything worth recording that the questions did not cover."></textarea></div>';
+  el('gwPrev').disabled = false;
+  el('gwNext').textContent = 'Submit walk';
+  el('gwNext').disabled = false;
+  el('gwNext').onclick = submitWalk;
 }
 
-/* ── Update progress bar and submit state ── */
-function updateProgress() {
-  var answered = Object.keys(responses).length;
-  var total = questions.length;
-  var pct = total > 0 ? Math.round(answered / total * 100) : 0;
-  var bar = document.getElementById('progressBar');
-  if (bar) bar.style.transform = 'scaleX(' + pct / 100 + ')';
-  var txt = document.getElementById('progressText');
-  if (txt) txt.textContent = answered + '/' + total;
-
-  var allRequired = true;
-  questions.forEach(function(q) {
-    if (q.required && !responses[q.questionId || ('q' + questions.indexOf(q))]) allRequired = false;
-  });
-  var btn = document.getElementById('submitBtn');
-  if (btn) btn.disabled = !allRequired || !selectedWalkType || !selectedZone;
-}
-
-/* ── Add action item row ── */
-function addActionItem() {
-  actionItemCount++;
-  var div = document.createElement('div');
-  div.className = 'action-item';
-  div.innerHTML =
-    '<b style="font-size:13px;">Action Item #' + actionItemCount + '</b>' +
-    '<input type="text" placeholder="Title / What needs to be done?" data-field="title" class="ai-field">' +
-    '<textarea rows="2" placeholder="Description (optional)" data-field="description" class="ai-field" style="margin-top:4px;"></textarea>' +
-    '<input type="text" placeholder="Assign to (name)" data-field="assignedTo" class="ai-field">' +
-    '<input type="date" data-field="dueDate" class="ai-field">';
-  document.getElementById('actionItemsList').appendChild(div);
-}
-
-/* ── Submit the walk ── */
 function submitWalk() {
-  if (!validatePhotoOnMobile_()) return;
-  var btn = document.getElementById('submitBtn');
-  btn.disabled = true;
-  document.getElementById('submitStatus').textContent = 'Submitting…';
+  var btn = el('gwNext');
+  btn.disabled = true; btn.textContent = 'Submitting…';
 
-  var actionItems = [];
-  document.querySelectorAll('.action-item').forEach(function(item) {
-    var ai = {};
-    item.querySelectorAll('.ai-field').forEach(function(field) {
-      ai[field.dataset.field] = field.value;
-    });
-    if (ai.title) actionItems.push(ai);
+  /* Dialogue answers are text, not yes/no: keep them out of the compliance
+     maths and fold them into the observations where they belong. */
+  var scored = {}, said = [];
+  questions.forEach(function (q) {
+    var a = answers[q.questionId];
+    if (!a) return;
+    if (q.responseType === 'ask') { said.push(q.text + '\n  ' + a); return; }
+    scored[q.questionId] = a;
   });
+  var obs = String((el('gwObs') || {}).value || '').trim();
+  if (said.length) obs = (obs ? obs + '\n\n' : '') + 'OPERATOR DIALOGUE\n' + said.join('\n');
 
-  var walkData = {
-    walkType: selectedWalkType,
-    zoneId: selectedZone,
-    walkerName: document.getElementById('walkerName').value,
-    walkerEmail: '',
-    responses: responses,
-    observations: document.getElementById('observations').value,
-    actionItems: actionItems,
-    photoUrls: ''
+  var payload = {
+    walkType: selectedType, zoneId: selectedZone,
+    walkerName: walkerName, walkerEmail: '',
+    responses: scored, findings: findings, observations: obs
   };
 
-  function queueGembaOffline_(reason) {
-    if (typeof offlineQueue !== 'undefined') {
-      var gembaForQueue = Object.assign({}, walkData, { zone: walkData.zoneId });
-      offlineQueue.queueSubmission('gemba', gembaForQueue).then(function() {
-        btn.disabled = false;
-        document.getElementById('submitStatus').innerHTML = '<span style="color:var(--score-amber);">Saved offline — will sync when online</span>';
-        if (typeof pmToast === 'function') pmToast('Saved offline — will sync when online', 'info');
-        if (typeof updateQueueStatus_ === 'function') updateQueueStatus_();
-      }).catch(function(e2) {
-        btn.disabled = false;
-        document.getElementById('submitStatus').innerHTML = '<span style="color:var(--score-red);">Error: ' + escHtml(e2.message) + '</span>';
-      });
-    } else {
-      btn.disabled = false;
-      document.getElementById('submitStatus').innerHTML = '<span style="color:var(--score-red);">Error: ' + escHtml(reason) + '</span>';
-    }
-  }
-
-  if (!navigator.onLine) { queueGembaOffline_('offline'); return; }
-
   google.script.run
-    .withFailureHandler(function(e) {
-      queueGembaOffline_(e.message);
-    })
-    .withSuccessHandler(function(result) {
-      if (result.success) {
-        if (typeof pmToast === 'function') pmToast('✓ Submitted', 'success');
-        document.getElementById('submitStatus').innerHTML = '<span style="color:var(--score-green);">Walk submitted! ID: ' +
-          escHtml(String(result.walkId)) +
-          (result.taskIds && result.taskIds.length > 0 ? ' | ' + result.taskIds.length + ' tasks created' : '') +
-          '</span>';
+    .withSuccessHandler(function (r) {
+      if (r && r.success) {
+        el('gwNav').hidden = true;
+        el('gwBody').innerHTML = '<div class="gw-done"><div style="font-size:40px">&#9989;</div>' +
+          '<h2>Walk submitted</h2>' +
+          '<p>' + ((r.taskIds || []).length
+            ? (r.taskIds.length + ' action' + (r.taskIds.length === 1 ? '' : 's') + ' raised and assigned.')
+            : 'No actions were needed.') + '</p>' +
+          '<div class="gw-done-id">' + esc(r.walkId) + '</div>' +
+          '<div style="margin-top:22px"><button type="button" onclick="location.reload()" ' +
+            'style="min-height:44px;padding:0 18px;border-radius:9px;border:1px solid var(--border);background:var(--bg-card);font:inherit;font-weight:600;cursor:pointer">Start another walk</button></div>' +
+          '</div>';
       } else {
-        document.getElementById('submitStatus').innerHTML = '<span style="color:var(--score-red);">' + escHtml(result.message) + '</span>';
-        btn.disabled = false;
+        btn.disabled = false; btn.textContent = 'Submit walk';
+        alert((r && r.message) || 'Submission failed');
       }
     })
-    .submitGembaWalk(walkData);
+    .withFailureHandler(function (e) {
+      btn.disabled = false; btn.textContent = 'Submit walk';
+      alert('Could not submit: ' + e.message);
+    })
+    .submitGembaWalk(payload);
 }
-
-/* ── Plan F: Form defaults, mobile detection, photo validation ── */
-function initFormDefaults_() {
-  var params = new URLSearchParams(window.location.search);
-  var today = new Date().toISOString().split('T')[0];
-  document.querySelectorAll('input[type="date"]').forEach(function(f) { if (!f.value) f.value = today; });
-  var ownerField = document.getElementById('walkerName');
-  if (ownerField && params.get('currentUser') && !ownerField.value) {
-    ownerField.value = params.get('currentUser');
-  }
-  document.querySelectorAll('.form-section').forEach(function(el, idx) {
-    el.classList.add('animate__animated', 'animate__fadeInUp');
-    el.style.animationDelay = (idx * 0.08) + 's';
-  });
-  document.body.classList.add('has-sticky-submit');
-}
-
-function isMobileDevice_() {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-}
-
-function validatePhotoOnMobile_() {
-  if (!isMobileDevice_()) return true;
-  var photoInput = document.getElementById('photoInput') || document.querySelector('input[type="file"][accept*="image"]');
-  if (!photoInput || !photoInput.files || photoInput.files.length === 0) {
-    if (typeof pmToast === 'function') pmToast('Photo required on mobile', 'warning');
-    return false;
-  }
-  return true;
-}
-
-loadWalkForm();
 </script>
-</body>
-</html>
+</body></html>

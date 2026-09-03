@@ -148,6 +148,9 @@ body { background: var(--bg-page); margin: 0; }
 /* ── Nav bar ── */
 .gw-nav { position: sticky; bottom: 0; z-index: 30; display: flex; gap: 10px; align-items: center;
   padding: 10px 14px; background: var(--bg-card); border-top: 1px solid var(--border); }
+/* display:flex beats the hidden attribute, so the walk nav was showing on the
+   setup screen alongside "Start walk" -- two competing primary actions. */
+.gw-nav[hidden] { display: none; }
 .gw-nav button { min-height: 48px; padding: 0 20px; border-radius: var(--r); cursor: pointer;
   font: inherit; font-size: 15px; font-weight: 700; border: 1px solid var(--border); background: var(--bg-card); }
 .gw-nav .gw-primary { flex: 1; background: var(--pm-primary); border-color: var(--pm-primary); color: #fff; }

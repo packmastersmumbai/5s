@@ -29,6 +29,8 @@ const say = (n, ok, d) => { R.push({ ok: !!ok }); console.log((ok ? 'PASS  ' : '
   await fr.locator('#gwStart').waitFor({ state: 'visible', timeout: 25000 });
   say('setup renders', true);
   say('start is gated until setup is complete', await fr.locator('#gwStart').isDisabled());
+  // The walk nav must not compete with "Start walk" on the setup screen.
+  say('walk nav hidden during setup', !(await fr.locator('#gwNav').isVisible().catch(() => true)));
 
   const types = await fr.locator('#gwTypes .gw-chip').count();
   say('walk types offered with counts', types >= 4, types + ' types');

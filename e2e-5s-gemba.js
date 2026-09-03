@@ -33,7 +33,10 @@ const say = (n, ok, d) => { R.push({ ok: !!ok }); console.log((ok ? 'PASS  ' : '
   say('walk nav hidden during setup', !(await fr.locator('#gwNav').isVisible().catch(() => true)));
 
   const types = await fr.locator('#gwTypes .gw-chip').count();
-  say('walk types offered with counts', types >= 4, types + ' types');
+  say('walk types offered with counts', types >= 5, types + ' types');
+  const typeNames = (await fr.locator('#gwTypes .gw-chip').allTextContents()).join('|');
+  say('HESQ pillars present', /Health & Safety/.test(typeNames) && /Environment/.test(typeNames) &&
+      /Quality/.test(typeNames), typeNames.replace(/\d+ questions/g, '').slice(0, 90));
   const typeLabel = await fr.locator('#gwTypes .gw-chip').first().textContent();
   say('type shows its question count', /\d+\s*questions/i.test(typeLabel || ''), (typeLabel || '').trim());
 
@@ -63,6 +66,10 @@ const say = (n, ok, d) => { R.push({ ok: !!ok }); console.log((ok ? 'PASS  ' : '
   const counter = await fr.locator('#gwHdCount').textContent();
   say('progress counter shows position', /^\d+\/\d+$/.test((counter || '').trim()), (counter || '').trim());
   say('progress dots render', (await fr.locator('.gw-dot').count()) > 5);
+
+  // HESQ walk types, and every scored question tagged to an SQCDP leg.
+  const dim = await fr.locator('.gw-q-dim').first().textContent().catch(() => '');
+  say('question shows its SQCDP leg', /^[SQCDP]\s*·/.test((dim || '').trim()), (dim || '').trim());
 
   const yesBox = await fr.locator('.gw-yes').boundingBox();
   say('answer is a thumb-sized target', yesBox && yesBox.height >= 55,

@@ -757,9 +757,12 @@ function submitGembaWalk(walkData) {
         Object.keys(responses).forEach(function (qId) {
           if (String(responses[qId]).toLowerCase() !== "no") return;
           var f = findings[qId] || {};
-          var desc = f.note
-            ? f.note + "\n\n(Gemba " + d.walkType + " walk " + walkId + ": " + (qmap[qId] || qId) + ")"
-            : "Non-conformance found on the " + d.walkType + " Gemba walk (" + walkId + ").";
+          var m = qmeta[qId] || {};
+          var tag = (m.sqcdp ? "SQCDP " + m.sqcdp : "") + (m.category ? " \u00b7 " + m.category : "");
+          var desc = (f.note ? f.note
+            : "Non-conformance found on the " + d.walkType + " Gemba walk.") +
+            "\n\n" + (tag ? tag + "\n" : "") +
+            "Gemba " + d.walkType + " walk " + walkId + ": " + (qmap[qId] || qId);
           var tr = createTask({
             zoneId: d.zoneId,
             title: "Gemba (" + d.walkType + "): " + (qmap[qId] || qId),
@@ -768,6 +771,7 @@ function submitGembaWalk(walkData) {
             assignedTo: f.owner || d.walkerName,
             dueDate: f.dueDate || "",
             source: "GEMBA_WALK", sourceRefId: walkId, createdBy: walkerEmail,
+            sqcdp: m.sqcdp || "",
             photosB64: Array.isArray(f.photosB64) ? f.photosB64 : []
           });
           if (tr && tr.taskId) taskIds.push(tr.taskId);

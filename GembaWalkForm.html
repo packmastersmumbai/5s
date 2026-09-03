@@ -89,6 +89,14 @@ body { background: var(--bg-page); margin: 0; }
   text-transform: uppercase; color: var(--text-secondary); background: var(--bg-card-2);
   border: 1px solid var(--border); border-radius: 5px; padding: 3px 9px; margin-bottom: 12px; }
 .gw-q-cat.dialogue { background: #EFF6FF; color: #1D4ED8; }
+/* SQCDP leg: named, not just a letter, so it teaches the framework in use. */
+.gw-q-dim { display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .04em;
+  border-radius: 5px; padding: 3px 9px; margin: 0 0 12px 6px; }
+.gw-q-dim.d-S { background: var(--score-red-bg);   color: var(--score-red); }
+.gw-q-dim.d-Q { background: #EEF2FF;               color: #4338CA; }
+.gw-q-dim.d-C { background: var(--score-amber-bg); color: var(--score-amber); }
+.gw-q-dim.d-D { background: #ECFEFF;               color: #0E7490; }
+.gw-q-dim.d-P { background: var(--score-green-bg); color: var(--score-green); }
 .gw-q-t { font-size: 19px; font-weight: 700; line-height: 1.35; margin-bottom: 6px; }
 .gw-q-hi { font-size: 14px; color: var(--text-secondary); margin-bottom: 4px; }
 .gw-q-hint { font-size: 12.5px; color: var(--text-muted); }
@@ -165,7 +173,17 @@ body { background: var(--bg-page); margin: 0; }
 .gw-sum-pct.g { color: var(--score-green); } .gw-sum-pct.a { color: var(--score-amber); } .gw-sum-pct.r { color: var(--score-red); }
 .gw-sum-lbl { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
   color: var(--text-secondary); margin-top: 5px; }
-.gw-sum-tiles { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 18px; }
+.gw-sum-tiles { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 12px; }
+/* Findings per SQCDP leg -- the shape a review meeting actually asks for. */
+.gw-sqcdp { display: grid; grid-template-columns: repeat(5,1fr); gap: 6px; margin-bottom: 18px; }
+.gw-sq { border: 1px solid var(--border); border-radius: 9px; padding: 8px 4px; text-align: center;
+  background: var(--bg-card); opacity: .5; }
+.gw-sq.hit { opacity: 1; }
+.gw-sq b { display: block; font-family: var(--font-mono); font-size: 18px; font-weight: 800; }
+.gw-sq span { font-size: 11px; font-weight: 800; color: var(--text-secondary); }
+.gw-sq.d-S { border-color: var(--score-red); }   .gw-sq.d-Q { border-color: #4338CA; }
+.gw-sq.d-C { border-color: var(--score-amber); } .gw-sq.d-D { border-color: #0E7490; }
+.gw-sq.d-P { border-color: var(--score-green); }
 .gw-tile { border: 1px solid var(--border); border-radius: 10px; padding: 11px 8px; text-align: center; background: var(--bg-card); }
 .gw-tile b { display: block; font-family: var(--font-mono); font-size: 21px; font-weight: 800; }
 .gw-tile span { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-secondary); }
@@ -220,6 +238,10 @@ body { background: var(--bg-page); margin: 0; }
 var DU = '<?= deployUrl ?>';
 var ZONE_ID = '<?= params && params.zone ? String(params.zone).replace(/[^a-zA-Z0-9\-_]/g,"") : "" ?>';
 var ZC = {}; try { ZC = <?!= config.zoneConfig ?> || {}; } catch (e) { ZC = {}; }
+
+/* Same S/Q/C/D/P keys the SQCDP board and QuickAudit already use, so a Gemba
+   finding lands on a leg the plant reviews rather than being unclassified. */
+var SQCDP_NAME = { S: 'Safety', Q: 'Quality', C: 'Cost', D: 'Delivery', P: 'People' };
 
 var phase = 'setup';        /* setup | q | summary */
 var qIndex = 0;
@@ -404,6 +426,8 @@ function renderQ() {
   el('gwBody').innerHTML =
     '<div class="gw-q">' +
       '<span class="gw-q-cat' + (isAsk ? ' dialogue' : '') + '">' + esc(q.category || (isAsk ? 'Dialogue' : 'Check')) + '</span>' +
+      (q.sqcdp ? '<span class="gw-q-dim d-' + esc(q.sqcdp) + '" title="' + esc(SQCDP_NAME[q.sqcdp] || q.sqcdp) + '">' +
+        esc(q.sqcdp) + ' &middot; ' + esc(SQCDP_NAME[q.sqcdp] || '') + '</span>' : '') +
       '<div class="gw-q-t">' + esc(q.text) + '</div>' +
       (q.textHi ? '<div class="gw-q-hi">' + esc(q.textHi) + '</div>' : '') +
       (isAsk ? '<div class="gw-q-hint">Ask the person doing the work. Their answer is the point, not a score.</div>' : '') +
@@ -568,6 +592,10 @@ function renderSummary() {
       '<div class="gw-tile"><b style="color:var(--score-red)">' + no + '</b><span>Findings</span></div>' +
       '<div class="gw-tile"><b>' + asked + '</b><span>Asked</span></div>' +
     '</div>' +
+    (findList.length ? '<div class="gw-sqcdp">' + ['S','Q','C','D','P'].map(function (k) {
+      var n = findList.filter(function (q) { return q.sqcdp === k; }).length;
+      return '<div class="gw-sq' + (n ? ' hit d-' + k : '') + '"><b>' + n + '</b><span>' + k + '</span></div>';
+    }).join('') + '</div>' : '') +
     (findList.length
       ? '<h4 class="gw-sum-h">' + findList.length + ' action' + (findList.length === 1 ? '' : 's') + ' will be raised</h4>' +
         findList.map(function (q) {

@@ -540,3 +540,85 @@ function getFloorMapLayout() {
     return null;
   }
 }
+
+/**
+ * Saves the criteria list for one zone into ZONE_CONFIG.
+ *
+ * ZONE_CONFIG is already the per-zone criteria store that getZoneCriteria()
+ * reads, so criteria are edited in place rather than mirrored into a sheet --
+ * a second source of truth would only add a sync bug to maintain.
+ *
+ * ponytail: all 28 zones share one ScriptProperty (~180KB of 500KB today).
+ * If it approaches the cap, split to one CRITERIA_<zoneId> key per zone.
+ *
+ * @param {string} zoneId    e.g. "Z-01"
+ * @param {Array}  criteria  criterion objects; see getDefaultZoneCriteria_()
+ * @returns {{success:boolean, message:string, count:number}}
+ */
+function saveZoneCriteria(zoneId, criteria) {
+  try {
+    if (!zoneId) return { success: false, message: 'Zone ID required.', count: 0 };
+    if (!Array.isArray(criteria)) return { success: false, message: 'Criteria must be an array.', count: 0 };
+
+    var config = getZoneConfig();
+    if (!config[zoneId]) return { success: false, message: 'Zone ' + zoneId + ' not found.', count: 0 };
+
+    var SQ = ['S', 'Q', 'C', 'D', 'P'];
+    var seen = {}, clean = [];
+    for (var i = 0; i < criteria.length; i++) {
+      var c = criteria[i] || {};
+      var id = String(c.id || '').trim();
+      if (!id) return { success: false, message: 'Criterion ' + (i + 1) + ' has no id.', count: 0 };
+      if (seen[id]) return { success: false, message: 'Duplicate criterion id: ' + id, count: 0 };
+      seen[id] = true;
+
+      var sq = {};
+      for (var k = 0; k < SQ.length; k++) sq[SQ[k]] = !!(c.sqdcp && c.sqdcp[SQ[k]]);
+
+      clean.push({
+        id: id,
+        pillar: String(c.pillar || id.split('-')[0] || '').trim(),
+        labelEn: String(c.labelEn || ''),
+        labelHi: String(c.labelHi || ''),
+        helperEn: String(c.helperEn || ''),
+        helperHi: String(c.helperHi || ''),
+        sqdcp: sq,
+        trigger: String(c.trigger || ''),
+        maxScore: parseInt(c.maxScore, 10) || 4,
+        active: c.active === false ? false : true
+      });
+    }
+
+    config[zoneId].criteria = clean;
+    var payload = JSON.stringify(config);
+
+    // Fail loudly rather than let setProperty truncate silently.
+    if (payload.length > 480000) {
+      return { success: false, count: 0,
+               message: 'ZONE_CONFIG would be ' + payload.length + ' bytes, over the safe limit. Split per-zone keys before adding more.' };
+    }
+
+    PropertiesService.getScriptProperties().setProperty('ZONE_CONFIG', payload);
+    logAdminAction_('saveZoneCriteria', zoneId + ': ' + clean.length + ' criteria');
+    return { success: true, message: 'Saved ' + clean.length + ' criteria for ' + zoneId + '.', count: clean.length };
+
+  } catch (e) {
+    return { success: false, message: 'Save failed: ' + e.message, count: 0 };
+  }
+}
+
+/**
+ * Returns every zone id -> criteria in one call, so the criteria editor can
+ * load the whole plant once and switch zones client-side with no round trip.
+ * @returns {Object} { zones: {id:{name,criteria}}, totalCriteria: n }
+ */
+function getAllZoneCriteria() {
+  var config = getZoneConfig() || {};
+  var out = {}, total = 0;
+  Object.keys(config).sort().forEach(function(zid) {
+    var c = config[zid].criteria || [];
+    out[zid] = { name: config[zid].name || zid, criteria: c };
+    total += c.length;
+  });
+  return { zones: out, totalCriteria: total };
+}

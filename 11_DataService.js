@@ -933,38 +933,55 @@ function getKanbanData() {
   try {
     var SQCDP_KEYS = ['S','Q','C','D','P'];
     var pillarVotes = {}; // pillar → {S:n, Q:n, ...}
-    var anyCriteria = getZoneCriteria('Z-01');
-    anyCriteria.forEach(function(c) {
-      var sq = c.sqdcp || {};
-      var primary = '';
+    var allCriteria = [];
+    var zc = getZoneConfig() || {};
+    Object.keys(zc).forEach(function(z) {
+      (zc[z].criteria || []).forEach(function(c) { allCriteria.push(c); });
+    });
+    if (!allCriteria.length) allCriteria = getZoneCriteria('Z-01');
+    allCriteria.forEach(function(c) {
+      // Field is spelled sqdcp in the criteria data; sqcdp everywhere else.
+      var sq = c.sqcdp || c.sqdcp || {};
+      var dims = [];
       for (var ki = 0; ki < SQCDP_KEYS.length; ki++) {
-        if (sq[SQCDP_KEYS[ki]]) { primary = SQCDP_KEYS[ki]; break; }
+        if (sq[SQCDP_KEYS[ki]]) dims.push(SQCDP_KEYS[ki]);
       }
-      if (!primary) return;
-      if (c.id) criterionSqcdpMap[c.id] = primary;
-      if (c.labelEn) criterionSqcdpMap[c.labelEn.toLowerCase().trim()] = primary;
-      // accumulate votes for pillar prefix
+      if (!dims.length) return;
+      // Keep every dimension. 284 of 420 criteria carry more than one, and
+      // taking only the first silently dropped the rest from SQCDP counts.
+      if (c.id) criterionSqcdpMap[c.id] = dims;
+      if (c.labelEn) criterionSqcdpMap[c.labelEn.toLowerCase().trim()] = dims;
       var pfx = c.pillar || (c.id || '').split('-')[0];
       if (pfx) {
         if (!pillarVotes[pfx]) pillarVotes[pfx] = {};
-        pillarVotes[pfx][primary] = (pillarVotes[pfx][primary] || 0) + 1;
+        dims.forEach(function(d) { pillarVotes[pfx][d] = (pillarVotes[pfx][d] || 0) + 1; });
       }
     });
     // key by pillar prefix → most-voted SQCDP
     Object.keys(pillarVotes).forEach(function(pfx) {
       var votes = pillarVotes[pfx];
       var best = Object.keys(votes).sort(function(a,b){return votes[b]-votes[a];})[0];
-      criterionSqcdpMap[pfx] = best;
+      criterionSqcdpMap[pfx] = [best];
     });
   } catch(e) {}
+
+  function _sqcdpFor_(r) {
+    var cid = String(r[NC_COL.PILLAR]);
+    return criterionSqcdpMap[cid] ||
+           criterionSqcdpMap[cid.split('-')[0]] ||
+           criterionSqcdpMap[String(r[NC_COL.DESCRIPTION]).toLowerCase().trim()] || [];
+  }
 
   var ncSh = ss.getSheetByName('NC_CAPA');
   if (ncSh && ncSh.getLastRow() > 1) {
     var ncData = ncSh.getDataRange().getValues();
-    // NC_CAPA schema: nc_id(0),zone_id(1),audit_date(2),description(3),type(4),
-    //   pillar(5),sqcdp_dimension(6),corrective_action(7),responsible_person(8),
-    //   target_date(9),actual_closure_date(10),status(11),root_cause(12),
-    //   verified_by(13),verification_date(14),recurrence_count(15)
+    // NC_CAPA is 22 columns; address it through NC_COL, never by literal index.
+    // nc_id(0),created_date(1),zone_id(2),zone_name(3),audit_date(4),
+    //   criterion_id(5),criterion_label(6),score_given(7),auditor_email(8),
+    //   root_cause(9),corrective_action(10),preventive_action(11),
+    //   responsible_person(12),target_date(13),status(14),closure_date(15),
+    //   verified_by(16),verification_remarks(17),is_repeat_nc(18),
+    //   repeat_count(19),photo_url(20),photo_file_id(21)
     ncData.slice(1).forEach(function(r) {
       if (!r[NC_COL.NC_ID]) return;
       var td = r[NC_COL.TARGET_DATE];
@@ -981,12 +998,10 @@ function getKanbanData() {
         description: String(r[NC_COL.DESCRIPTION] || r[NC_COL.CORRECTIVE_ACTION] || ''),
         type: 'NC',
         pillar: String(r[NC_COL.PILLAR] || ''),
-        sqcdp: (function() {
-          var cid = String(r[NC_COL.PILLAR]);
-          return criterionSqcdpMap[cid] ||
-                 criterionSqcdpMap[cid.split('-')[0]] ||
-                 criterionSqcdpMap[String(r[NC_COL.DESCRIPTION]).toLowerCase().trim()] || '';
-        })(),
+        // sqcdp stays the primary dimension (string) for existing consumers;
+        // sqcdpAll carries every dimension the criterion actually maps to.
+        sqcdp: _sqcdpFor_(r)[0] || '',
+        sqcdpAll: _sqcdpFor_(r),
         owner: String(r[NC_COL.RESPONSIBLE] || r[NC_COL.AUDITOR] || ''),
         targetDate: targetDate,
         status: status,

@@ -1,73 +1,309 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Kaizen Suggestion</title>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Kaizen</title>
 <?!= include("CommonStyles") ?>
 <style>
-.kz-header{background:linear-gradient(135deg,var(--pm-primary) 0%,var(--pm-primary-light) 100%);color:white;padding:16px 20px;text-align:center;}
-.kz-header h1{font-size:20px;font-family:var(--font-display);}
-.kz-header p{font-size:12px;opacity:.85;margin-top:2px;}
-.form-section{background:var(--bg-card);margin:12px;border-radius:var(--r-lg);padding:16px;box-shadow:var(--shadow);border:1px solid var(--border-light);}
-.form-section h3{font-family:var(--font-display);font-size:14px;font-weight:700;color:var(--pm-primary);margin-bottom:12px;}
-.form-group{margin-bottom:14px;}
-.form-group label,.kz-field label{display:block;font-size:12px;font-weight:600;margin-bottom:6px;color:var(--text-secondary);}
-.form-group select,.form-group input,.form-group textarea{width:100%;padding:10px;border:1px solid var(--border);border-radius:var(--r);font-size:14px;font-family:inherit;background:var(--bg-card);color:var(--text-primary);}
-.form-group select:focus,.form-group input:focus,.form-group textarea:focus{outline:none;border-color:var(--border-focus);}
+/* ── KAIZEN SHEET ──
+   The old form was six flat fields under "Kaizen Suggestion Box / Every
+   improvement idea counts!". It captured an idea but not a kaizen: no current
+   state, no measurable target, no before evidence, no effort/impact call. An
+   auditor asking "what changed and by how much" had nothing to read, and the
+   board could not rank anything.
 
-/* Compact chip pickers (Gemba-aligned) */
-.kz-field{margin-bottom:14px;}
-.kz-chips{display:flex;flex-wrap:wrap;gap:6px;}
-.kz-chip{padding:7px 12px;border-radius:999px;font-size:12.5px;font-weight:600;border:1.5px solid var(--border);background:var(--bg-card-2);color:var(--text-secondary);cursor:pointer;min-height:34px;transition:var(--trans);}
-.kz-chip.selected{background:var(--pm-primary);border-color:var(--pm-primary);color:#fff;}
-.kz-zone-group{margin-bottom:10px;}
-.kz-zone-group:last-child{margin-bottom:0;}
-.kz-zone-floor{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;}
-.kz-zone-locked{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:var(--r);background:var(--score-green-bg);border:1.5px solid var(--score-green);color:var(--score-green);font-size:13px;font-weight:700;}
-.kz-zone-locked span{font-size:15px;}
+   This is the A3/PDCA sheet that TPM and ISO assessors expect, split into
+   numbered steps so a floor worker on a phone meets one question at a time. */
+body { background: var(--bg-page); padding-bottom: 96px; }
 
-/* Plan F: mobile-only */
-.mobile-only { display: none; }
-@media (max-width: 768px) {
-  .mobile-only { display: inline; color: var(--score-red, #EF4444); }
+.kz-doc { max-width: 780px; margin: 0 auto; }
+
+/* Document header — reads as a controlled form, not a marketing banner. */
+.kz-hd {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  padding: 14px 16px 12px; border-bottom: 2px solid var(--pm-primary);
+  background: var(--bg-card);
+}
+.kz-hd h1 { font-family: var(--font-display); font-size: 19px; font-weight: 800; letter-spacing: -.01em; }
+.kz-hd .kz-doc-no {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+  color: var(--text-secondary); letter-spacing: .5px;
+  border: 1px solid var(--border); border-radius: 5px; padding: 2px 7px;
+}
+.kz-hd p { flex-basis: 100%; font-size: 12.5px; color: var(--text-secondary); margin-top: 2px; }
+
+/* Progress rail: how many of the four steps are answered. */
+.kz-rail { display: flex; gap: 4px; padding: 10px 16px 0; }
+.kz-rail-seg { flex: 1; height: 3px; border-radius: 3px; background: var(--border); transition: background .2s ease; }
+.kz-rail-seg.done { background: var(--score-green); }
+
+.kz-step {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--r-lg); margin: 12px; padding: 0; overflow: hidden;
+}
+.kz-step-hd {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px; border-bottom: 1px solid var(--border-light);
+  background: var(--bg-card-2);
+}
+.kz-step-n {
+  width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 800;
+  background: var(--pm-primary); color: #fff;
+}
+.kz-step.is-done .kz-step-n { background: var(--score-green); }
+.kz-step-t { font-family: var(--font-display); font-size: 14.5px; font-weight: 700; }
+.kz-step-sub { font-size: 12px; color: var(--text-secondary); margin-left: auto; text-align: right; }
+.kz-step-bd { padding: 14px; }
+
+.kz-f { margin-bottom: 15px; }
+.kz-f:last-child { margin-bottom: 0; }
+.kz-f > label {
+  display: block; font-size: 12.5px; font-weight: 700;
+  color: var(--text-primary); margin-bottom: 3px;
+}
+.kz-f .kz-help { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+.kz-f input[type=text], .kz-f input[type=number], .kz-f textarea, .kz-f select {
+  width: 100%; padding: 10px 11px; font-size: 15px; font-family: inherit;
+  border: 1px solid var(--border); border-radius: var(--r);
+  background: var(--bg-card); color: var(--text-primary); box-sizing: border-box;
+}
+.kz-f textarea { min-height: 74px; resize: vertical; line-height: 1.45; }
+.kz-f input:focus, .kz-f textarea:focus, .kz-f select:focus {
+  outline: none; border-color: var(--pm-primary); box-shadow: 0 0 0 3px var(--pm-primary-soft, rgba(15,23,42,.08));
+}
+.kz-req { color: var(--score-red); font-weight: 700; }
+.kz-err { font-size: 12px; color: var(--score-red); margin-top: 4px; display: none; }
+.kz-f.invalid .kz-err { display: block; }
+.kz-f.invalid input, .kz-f.invalid textarea { border-color: var(--score-red); }
+
+/* Chips — one vocabulary for zone, category and benefit. */
+.kz-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.kz-chip {
+  padding: 8px 13px; min-height: 38px; border-radius: 999px;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  border: 1.5px solid var(--border); background: var(--bg-card-2);
+  color: var(--text-secondary); transition: var(--trans);
+}
+.kz-chip:hover { border-color: var(--pm-primary); }
+.kz-chip.selected { background: var(--pm-primary); border-color: var(--pm-primary); color: #fff; }
+.kz-chip:focus-visible { outline: 3px solid var(--border-focus); outline-offset: 2px; }
+.kz-zone-group { margin-bottom: 10px; }
+.kz-zone-group:last-child { margin-bottom: 0; }
+.kz-zone-floor {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--text-muted); margin-bottom: 6px;
+}
+.kz-zone-locked {
+  display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px;
+  border-radius: var(--r); background: var(--score-green-bg);
+  border: 1.5px solid var(--score-green); color: var(--score-green);
+  font-size: 13.5px; font-weight: 700;
+}
+
+/* Before / target metric — the pair that makes a kaizen measurable. */
+.kz-metric { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: end; }
+.kz-metric .kz-arrow { padding-bottom: 11px; color: var(--text-muted); font-size: 16px; }
+.kz-metric small {
+  display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .04em; color: var(--text-secondary); margin-bottom: 4px;
+}
+@media (max-width: 420px) {
+  .kz-metric { grid-template-columns: 1fr; }
+  .kz-metric .kz-arrow { display: none; }
+}
+
+/* Impact / effort — two sliders that resolve to a named quadrant, so the
+   submitter sees how their idea will be triaged before they send it. */
+.kz-slider { margin-bottom: 12px; }
+.kz-slider-row { display: flex; align-items: center; gap: 10px; }
+.kz-slider-row label { flex: 0 0 62px; font-size: 12.5px; font-weight: 700; }
+.kz-slider input[type=range] { flex: 1; accent-color: var(--pm-primary); height: 26px; }
+.kz-slider-val {
+  flex: 0 0 66px; text-align: right; font-family: var(--font-mono);
+  font-size: 12px; font-weight: 700; color: var(--text-secondary);
+}
+.kz-quad {
+  margin-top: 10px; padding: 10px 12px; border-radius: var(--r);
+  border: 1px solid var(--border); background: var(--bg-card-2);
+  font-size: 13px; display: flex; align-items: center; gap: 8px;
+}
+.kz-quad b { font-weight: 800; }
+.kz-quad.win   { background: var(--score-green-bg); border-color: var(--score-green); color: var(--score-green); }
+.kz-quad.major { background: #EFF6FF; border-color: #3B82F6; color: #1D4ED8; }
+.kz-quad.fill  { background: var(--score-amber-bg); border-color: var(--score-amber); color: var(--score-amber); }
+.kz-quad.thank { background: var(--bg-card-2); }
+
+/* Evidence */
+.kz-photos { display: flex; flex-wrap: wrap; gap: 8px; }
+.kz-ph {
+  position: relative; width: 84px; height: 84px; border-radius: 10px;
+  overflow: hidden; border: 1px solid var(--border);
+}
+.kz-ph img { width: 100%; height: 100%; object-fit: cover; }
+.kz-ph button {
+  position: absolute; top: 3px; right: 3px; width: 20px; height: 20px;
+  border: 0; border-radius: 50%; background: rgba(15,23,42,.78); color: #fff;
+  font-size: 12px; line-height: 1; cursor: pointer;
+}
+.kz-ph-add {
+  width: 84px; height: 84px; border-radius: 10px; cursor: pointer;
+  border: 1.5px dashed var(--border); background: var(--bg-card);
+  color: var(--text-secondary); font-size: 12px; font-weight: 600;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+}
+.kz-ph-add:hover { border-color: var(--pm-primary); color: var(--pm-primary); }
+
+/* Submit bar */
+.kz-bar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px; background: var(--bg-card);
+  border-top: 1px solid var(--border); box-shadow: 0 -2px 14px rgba(0,0,0,.07);
+}
+/* The app rail overlays the left edge on desktop, clipping the progress text. */
+.kz-bar-inner {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; max-width: 780px; margin: 0 auto;
+}
+.kz-bar-info { font-size: 12.5px; color: var(--text-secondary); flex: 1; }
+.kz-bar button {
+  min-height: 46px; padding: 0 24px; border: 0; border-radius: var(--r);
+  background: var(--pm-primary); color: #fff; font: inherit;
+  font-size: 15px; font-weight: 700; cursor: pointer;
+}
+.kz-bar button:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Submitted state — an ID the submitter can quote, not a toast that vanishes. */
+.kz-done { text-align: center; padding: 48px 20px; }
+.kz-done-ico { font-size: 40px; }
+.kz-done h2 { font-family: var(--font-display); font-size: 20px; font-weight: 800; margin: 10px 0 4px; }
+.kz-done p { font-size: 14px; color: var(--text-secondary); }
+.kz-done-id {
+  display: inline-block; margin-top: 14px; padding: 8px 16px;
+  font-family: var(--font-mono); font-size: 15px; font-weight: 700;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card-2);
+}
+.kz-done-actions { display: flex; gap: 10px; justify-content: center; margin-top: 22px; flex-wrap: wrap; }
+.kz-done-actions button {
+  min-height: 44px; padding: 0 18px; border-radius: var(--r); cursor: pointer;
+  border: 1px solid var(--border); background: var(--bg-card); font: inherit; font-weight: 600;
 }
 </style>
 </head><body>
-<div class="kz-header"><h1>Kaizen Suggestion Box</h1><p>Every improvement idea counts!</p></div>
 
-<div class="form-section">
-<h3>What &amp; Where</h3>
-<div class="kz-field"><label>Zone *</label><div id="kzZoneChips"><div style="color:var(--text-muted);font-size:12px">Loading zones…</div></div></div>
-<div class="kz-field"><label>Category *</label><div id="kzCatChips" class="kz-chips"></div></div>
+<div class="kz-doc" id="kzDoc">
+  <div class="kz-hd">
+    <h1>Kaizen</h1>
+    <span class="kz-doc-no">KZ / F-01</span>
+    <p>Record one improvement: what it is now, what you propose, and what it is worth.</p>
+  </div>
+  <div class="kz-rail" aria-hidden="true">
+    <div class="kz-rail-seg" id="seg1"></div><div class="kz-rail-seg" id="seg2"></div>
+    <div class="kz-rail-seg" id="seg3"></div><div class="kz-rail-seg" id="seg4"></div>
+  </div>
+
+  <!-- 1 ── WHERE -->
+  <section class="kz-step" id="step1">
+    <div class="kz-step-hd"><span class="kz-step-n">1</span><span class="kz-step-t">Where</span>
+      <span class="kz-step-sub">Zone &amp; theme</span></div>
+    <div class="kz-step-bd">
+      <div class="kz-f"><label>Zone <span class="kz-req">*</span></label>
+        <div id="kzZoneChips"><div style="color:var(--text-muted);font-size:12.5px">Loading zones…</div></div>
+        <div class="kz-err">Select the zone this improvement applies to.</div></div>
+      <div class="kz-f"><label>Category</label>
+        <div id="kzCatChips" class="kz-chips"></div></div>
+    </div>
+  </section>
+
+  <!-- 2 ── THE PROBLEM -->
+  <section class="kz-step" id="step2">
+    <div class="kz-step-hd"><span class="kz-step-n">2</span><span class="kz-step-t">The problem today</span>
+      <span class="kz-step-sub">Plan</span></div>
+    <div class="kz-step-bd">
+      <div class="kz-f"><label for="kzTitle">Title <span class="kz-req">*</span></label>
+        <span class="kz-help">One line a manager can scan on a board.</span>
+        <input type="text" id="kzTitle" maxlength="90" placeholder="e.g. Shadow board for gauges at Line 2">
+        <div class="kz-err">Give the improvement a short title.</div></div>
+      <div class="kz-f"><label for="kzCurrent">Current state <span class="kz-req">*</span></label>
+        <span class="kz-help">What happens now, and why it is a problem. Waste, delay, risk, rework.</span>
+        <textarea id="kzCurrent" maxlength="1200" placeholder="e.g. Operators walk 12 m to the tool crib for gauges, roughly 20 times a shift."></textarea>
+        <div class="kz-err">Describe what happens today.</div></div>
+      <div class="kz-f"><label>Before photo <span class="kz-req">*</span></label>
+        <span class="kz-help">Evidence of the current condition. This is what an auditor asks to see.</span>
+        <div class="kz-photos" id="kzPhotos"></div>
+        <input type="file" id="kzFile" accept="image/*" capture="environment" multiple hidden onchange="kzPick(this)">
+        <div class="kz-err">Attach at least one photo of the current condition.</div></div>
+    </div>
+  </section>
+
+  <!-- 3 ── THE PROPOSAL -->
+  <section class="kz-step" id="step3">
+    <div class="kz-step-hd"><span class="kz-step-n">3</span><span class="kz-step-t">Your proposal</span>
+      <span class="kz-step-sub">Do</span></div>
+    <div class="kz-step-bd">
+      <div class="kz-f"><label for="kzDesc">Countermeasure <span class="kz-req">*</span></label>
+        <span class="kz-help">What you would change. Be specific enough that someone else could do it.</span>
+        <textarea id="kzDesc" maxlength="1500" placeholder="e.g. Mount a shadow board with the four gauges at the workstation."></textarea>
+        <div class="kz-err">Describe what you propose to change.</div></div>
+      <div class="kz-f"><label>What improves</label>
+        <span class="kz-help">Pick every dimension this affects.</span>
+        <div class="kz-chips" id="kzBenefitChips"></div></div>
+      <div class="kz-f"><label>Measure it</label>
+        <span class="kz-help">A kaizen without a number cannot be verified later.</span>
+        <input type="text" id="kzMetric" maxlength="70" placeholder="What you will measure — e.g. walking time per shift" style="margin-bottom:8px">
+        <div class="kz-metric">
+          <div><small>Now</small><input type="text" id="kzBefore" maxlength="40" placeholder="e.g. 40 min"></div>
+          <div class="kz-arrow" aria-hidden="true">&rarr;</div>
+          <div><small>Target</small><input type="text" id="kzAfter" maxlength="40" placeholder="e.g. 5 min"></div>
+        </div></div>
+      <div class="kz-f"><label for="kzSavings">Estimated saving (₹ per month)</label>
+        <span class="kz-help">Leave blank if you cannot estimate it — the reviewer will.</span>
+        <input type="number" id="kzSavings" min="0" step="100" placeholder="0"></div>
+    </div>
+  </section>
+
+  <!-- 4 ── SIZING -->
+  <section class="kz-step" id="step4">
+    <div class="kz-step-hd"><span class="kz-step-n">4</span><span class="kz-step-t">Size it</span>
+      <span class="kz-step-sub">Check</span></div>
+    <div class="kz-step-bd">
+      <div class="kz-slider">
+        <div class="kz-slider-row"><label for="kzImpact">Impact</label>
+          <input type="range" id="kzImpact" min="1" max="5" value="3" oninput="kzQuad()">
+          <span class="kz-slider-val" id="kzImpactV">Moderate</span></div>
+        <div class="kz-slider-row"><label for="kzEffort">Effort</label>
+          <input type="range" id="kzEffort" min="1" max="5" value="3" oninput="kzQuad()">
+          <span class="kz-slider-val" id="kzEffortV">Moderate</span></div>
+        <div class="kz-quad" id="kzQuad"></div>
+      </div>
+      <div class="kz-f"><label for="kzName">Your name <span class="kz-req">*</span></label>
+        <input type="text" id="kzName" maxlength="60" placeholder="Who is submitting this">
+        <div class="kz-err">Enter your name so credit goes to you.</div></div>
+    </div>
+  </section>
 </div>
 
-<div class="form-section">
-<h3>Your Idea</h3>
-<div class="form-group"><label>Suggestion Title</label><input type="text" id="kzTitle" placeholder="Brief title for your idea"></div>
-<div class="form-group"><label>Description</label><textarea id="kzDesc" rows="4" placeholder="Describe your improvement idea in detail..."></textarea></div>
-<div class="form-group"><label>Expected Benefit</label><textarea id="kzBenefit" rows="2" placeholder="What will improve if this is implemented?"></textarea></div>
-<div class="form-group"><label>Estimated Savings (₹/month)</label><input type="number" id="kzSavings" placeholder="0"></div>
-<div class="form-group"><label>Your Name</label><input type="text" id="kzName" placeholder="Your name"></div>
-<div class="form-group form-section" style="margin:0 0 14px;border:1px solid var(--border-light);padding:12px;background:var(--bg-card-2);">
-  <label>Photo Evidence <span class="mobile-only">(required)</span></label>
-  <input type="file" id="photoInput" name="photoInput" accept="image/*" capture="environment" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:var(--r);margin-top:4px;">
-  <small style="color:var(--text-muted,#94A3B8);">Capture on-site evidence</small>
+<div class="kz-bar" id="kzBar">
+  <div class="kz-bar-inner">
+    <span class="kz-bar-info" id="kzStatus">4 steps &middot; about 2 minutes</span>
+    <button id="kzSubmit" onclick="submitKaizen()">Submit Kaizen</button>
+  </div>
 </div>
-<button class="pm-btn pm-btn--primary form-sticky-submit" id="kzSubmit" onclick="submitKaizen()">Submit Suggestion</button>
-<div id="kzStatus" style="text-align:center;margin-top:8px;color:var(--text-muted);font-size:13px;"></div>
-</div>
+
 <script>
-
 function escHtml(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
-// Zone ID injected server-side (pre-selects zone from URL param)
-var _ZONE_ID='<?= (typeof params !== "undefined" && params && params.zone) ? String(params.zone).replace(/['"<>&]/g,"") : "" ?>';
+var _ZONE_ID='<?= (typeof params !== "undefined" && params && params.zone) ? String(params.zone).replace(/[\'"<>&]/g,"") : "" ?>';
 var ZC={};
 try{ ZC=<?!= config.zoneConfig ?>||{}; }catch(e){ ZC={}; }
-var selectedZone='';
-var selectedCategory='5S';
+var selectedZone='', selectedCategory='5S';
 var CATEGORIES=['5S','Safety','Quality','Productivity','Cost Saving','Environment','Other'];
+var BENEFITS=['Safety','Quality','Cost','Delivery','Morale','Environment'];
+var selectedBenefits={};
+var kzPhotos=[];          /* {b64, url} — before evidence */
 
 function floorOf_(id){var n=parseInt(String(id).replace(/[^0-9]/g,''),10)||0;if(n<=9)return 'Ground Floor';if(n<=19)return '1st Floor';return '2nd Floor';}
 
-/* ── Category chips (default 5S) ── */
+/* ── Chips ── */
 function renderCatChips(){
   var c=document.getElementById('kzCatChips');if(!c)return;
   c.innerHTML=CATEGORIES.map(function(t){return '<button type="button" class="kz-chip" data-cat="'+escHtml(t)+'" onclick="selectCat(\''+escHtml(t)+'\')">'+escHtml(t)+'</button>';}).join('');
@@ -75,14 +311,25 @@ function renderCatChips(){
 }
 function selectCat(t){selectedCategory=t;document.querySelectorAll('#kzCatChips .kz-chip').forEach(function(b){b.classList.toggle('selected',b.dataset.cat===t);});}
 
-/* ── Zone chips (floor-grouped) or locked pill when prefilled ── */
+/* Benefit is multi-select: an improvement rarely helps exactly one dimension,
+   and forcing a single pick is what made the old data unusable for reporting. */
+function renderBenefitChips(){
+  var c=document.getElementById('kzBenefitChips');if(!c)return;
+  c.innerHTML=BENEFITS.map(function(t){return '<button type="button" class="kz-chip" data-b="'+escHtml(t)+'" onclick="toggleBenefit(\''+escHtml(t)+'\')">'+escHtml(t)+'</button>';}).join('');
+}
+function toggleBenefit(t){
+  selectedBenefits[t]=!selectedBenefits[t];
+  document.querySelectorAll('#kzBenefitChips .kz-chip').forEach(function(b){b.classList.toggle('selected',!!selectedBenefits[b.dataset.b]);});
+  kzProgress();
+}
+
 function renderZoneChips(){
   var wrap=document.getElementById('kzZoneChips');if(!wrap)return;
   var ids=Object.keys(ZC).sort();
   if(_ZONE_ID&&ZC[_ZONE_ID]){
     selectedZone=_ZONE_ID;
     wrap.innerHTML='<div class="kz-zone-locked">'+escHtml(_ZONE_ID+' — '+(ZC[_ZONE_ID].name||_ZONE_ID))+' <span>&#10003;</span></div>';
-    return;
+    kzProgress();return;
   }
   var groups={};
   ids.forEach(function(id){(groups[floorOf_(id)]=groups[floorOf_(id)]||[]).push(id);});
@@ -95,66 +342,139 @@ function renderZoneChips(){
   });
   wrap.innerHTML=html;
 }
-function selectZone(id){selectedZone=id;document.querySelectorAll('#kzZoneChips .kz-chip--zone').forEach(function(b){b.classList.toggle('selected',b.dataset.zone===id);});}
+function selectZone(id){
+  selectedZone=id;
+  document.querySelectorAll('#kzZoneChips .kz-chip--zone').forEach(function(b){b.classList.toggle('selected',b.dataset.zone===id);});
+  kzProgress();
+}
 
-/* ── Plan F: Form defaults, mobile detection, photo validation ── */
-function initFormDefaults_(){
-  var params=new URLSearchParams(window.location.search);
-  var today=new Date().toISOString().split('T')[0];
-  document.querySelectorAll('input[type="date"]').forEach(function(f){if(!f.value)f.value=today;});
-  var nameField=document.getElementById('kzName');
-  if(nameField&&params.get('currentUser')&&!nameField.value){nameField.value=params.get('currentUser');}
-  document.querySelectorAll('.form-section').forEach(function(el,idx){
-    el.classList.add('animate__animated','animate__fadeInUp');
-    el.style.animationDelay=(idx*0.08)+'s';
+/* ── Evidence ── */
+function kzPick(input){
+  var files=Array.prototype.slice.call(input.files||[]);
+  input.value='';
+  files.slice(0,4-kzPhotos.length).forEach(function(f){
+    var fr=new FileReader();
+    fr.onload=function(){
+      var url=String(fr.result);
+      kzPhotos.push({b64:url.split(',')[1],url:url});
+      renderPhotos();kzProgress();
+    };
+    fr.readAsDataURL(f);
   });
-  document.body.classList.add('has-sticky-submit');
+}
+function kzDropPhoto(i){kzPhotos.splice(i,1);renderPhotos();kzProgress();}
+function renderPhotos(){
+  var c=document.getElementById('kzPhotos');if(!c)return;
+  c.innerHTML=kzPhotos.map(function(p,i){
+    return '<div class="kz-ph"><img src="'+p.url+'" alt="Before evidence '+(i+1)+'"><button type="button" onclick="kzDropPhoto('+i+')" aria-label="Remove photo">&times;</button></div>';
+  }).join('')+(kzPhotos.length<4?'<button type="button" class="kz-ph-add" onclick="document.getElementById(\'kzFile\').click()"><span style="font-size:18px">&#128247;</span>Add</button>':'');
 }
 
-function isMobileDevice_(){
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+/* ── Impact / effort quadrant ─────────────────────────────────────────
+   Naming the quadrant tells the submitter how the idea will be triaged, and
+   gives the reviewer a starting position instead of a blank ranking. */
+var SCALE={1:'Very low',2:'Low',3:'Moderate',4:'High',5:'Very high'};
+function kzQuad(){
+  var im=+document.getElementById('kzImpact').value, ef=+document.getElementById('kzEffort').value;
+  document.getElementById('kzImpactV').textContent=SCALE[im];
+  document.getElementById('kzEffortV').textContent=SCALE[ef];
+  var el=document.getElementById('kzQuad'), cls, txt;
+  if(im>=4&&ef<=2){cls='win';txt='<b>Quick win</b> — high value, little effort. Do it now.';}
+  else if(im>=4){cls='major';txt='<b>Major project</b> — worth doing, needs planning and a budget.';}
+  else if(ef<=2){cls='fill';txt='<b>Fill-in</b> — small gain, small effort. Do it when there is time.';}
+  else{cls='thank';txt='<b>Low priority</b> — limited gain for the effort involved.';}
+  el.className='kz-quad '+cls;el.innerHTML=txt;
 }
 
-function validatePhotoOnMobile_(){
-  if(!isMobileDevice_())return true;
-  var photoInput=document.getElementById('photoInput')||document.querySelector('input[type="file"][accept*="image"]');
-  if(!photoInput||!photoInput.files||photoInput.files.length===0){
-    if(typeof pmToast==='function')pmToast('Photo required on mobile','warning');
-    return false;
+/* ── Progress rail + validation ── */
+function val_(id){var e=document.getElementById(id);return e?e.value.trim():'';}
+function stepDone(n){
+  if(n===1)return !!selectedZone;
+  if(n===2)return !!val_('kzTitle')&&!!val_('kzCurrent')&&kzPhotos.length>0;
+  if(n===3)return !!val_('kzDesc');
+  if(n===4)return !!val_('kzName');
+  return false;
+}
+function kzProgress(){
+  var done=0;
+  for(var n=1;n<=4;n++){
+    var ok=stepDone(n);if(ok)done++;
+    document.getElementById('seg'+n).classList.toggle('done',ok);
+    document.getElementById('step'+n).classList.toggle('is-done',ok);
   }
-  return true;
+  var info=document.getElementById('kzStatus');
+  if(info&&!info.dataset.locked){
+    info.textContent=done===4?'Ready to submit':(done+' of 4 steps complete');
+  }
+  return done;
 }
 
-renderZoneChips();
-renderCatChips();
-document.addEventListener('DOMContentLoaded', initFormDefaults_);
+function mark_(id,bad){
+  var f=document.getElementById(id);
+  if(!f)return;
+  var grp=f.closest?f.closest('.kz-f'):null;
+  if(grp)grp.classList.toggle('invalid',!!bad);
+}
+
+function validate_(){
+  var bad=[];
+  mark_('kzTitle',!val_('kzTitle'));   if(!val_('kzTitle'))bad.push('kzTitle');
+  mark_('kzCurrent',!val_('kzCurrent'));if(!val_('kzCurrent'))bad.push('kzCurrent');
+  mark_('kzDesc',!val_('kzDesc'));     if(!val_('kzDesc'))bad.push('kzDesc');
+  mark_('kzName',!val_('kzName'));     if(!val_('kzName'))bad.push('kzName');
+  var photoGrp=document.getElementById('kzPhotos').closest('.kz-f');
+  photoGrp.classList.toggle('invalid',kzPhotos.length===0);
+  if(kzPhotos.length===0)bad.push('kzPhotos');
+  var zoneGrp=document.getElementById('kzZoneChips').closest('.kz-f');
+  zoneGrp.classList.toggle('invalid',!selectedZone);
+  if(!selectedZone)bad.push('kzZoneChips');
+  if(bad.length){
+    var first=document.getElementById(bad[0]);
+    if(first&&first.scrollIntoView)first.scrollIntoView({behavior:'smooth',block:'center'});
+    if(typeof pmToast==='function')pmToast('Complete the highlighted fields','warning');
+  }
+  return bad.length===0;
+}
+
+['kzTitle','kzCurrent','kzDesc','kzName'].forEach(function(id){
+  document.addEventListener('input',function(e){if(e.target&&e.target.id===id){mark_(id,false);kzProgress();}});
+});
 
 function submitKaizen(){
-  if(!validatePhotoOnMobile_())return;
-  if(!selectedZone){if(typeof pmToast==='function')pmToast('Select a zone','warning');return;}
-  var btn=document.getElementById("kzSubmit");
-  btn.disabled=true;
-  document.getElementById("kzStatus").textContent="Submitting...";
+  if(!validate_())return;
+  var btn=document.getElementById('kzSubmit');
+  var info=document.getElementById('kzStatus');
+  btn.disabled=true;info.dataset.locked='1';info.textContent='Submitting…';
+
+  var benefits=Object.keys(selectedBenefits).filter(function(k){return selectedBenefits[k];});
   var data={
-    submitterName:document.getElementById("kzName").value,
-    zoneId:selectedZone,
-    zone:selectedZone,
+    submitterName:val_('kzName'),
+    zoneId:selectedZone, zone:selectedZone,
     category:selectedCategory,
-    title:document.getElementById("kzTitle").value,
-    description:document.getElementById("kzDesc").value,
-    expectedBenefit:document.getElementById("kzBenefit").value,
-    estimatedSavings:parseInt(document.getElementById("kzSavings").value)||0
+    title:val_('kzTitle'),
+    description:val_('kzDesc'),
+    currentState:val_('kzCurrent'),
+    expectedBenefit:benefits.join(', '),
+    benefitTypes:benefits.join(','),
+    estimatedSavings:parseInt(val_('kzSavings'),10)||0,
+    metricName:val_('kzMetric'), metricBefore:val_('kzBefore'), metricAfter:val_('kzAfter'),
+    impact:+document.getElementById('kzImpact').value,
+    effort:+document.getElementById('kzEffort').value,
+    photosB64:kzPhotos.map(function(p){return p.b64;})
   };
 
   function queueOffline_(reason){
     if(typeof offlineQueue!=='undefined'){
-      offlineQueue.queueSubmission('kaizen', data).then(function(){
-        btn.disabled=false;
-        document.getElementById("kzStatus").innerHTML='<span style="color:var(--score-amber);">Saved offline — will sync when online</span>';
-        if(typeof pmToast==='function')pmToast('Saved offline — will sync when online','info');
-        if(typeof updateQueueStatus_==='function')updateQueueStatus_();
-      }).catch(function(e){btn.disabled=false;document.getElementById("kzStatus").innerHTML='<span style="color:var(--score-red);">Failed: '+escHtml(e.message)+'</span>';});
-    }else{btn.disabled=false;document.getElementById("kzStatus").innerHTML='<span style="color:var(--score-red);">Error: '+escHtml(reason)+'</span>';}
+      offlineQueue.queueSubmission('kaizen',data).then(function(){
+        showDone('','Saved on this device. It will send when you are back online.');
+      }).catch(function(e){
+        btn.disabled=false;delete info.dataset.locked;
+        info.innerHTML='<span style="color:var(--score-red)">Could not save: '+escHtml(e.message)+'</span>';
+      });
+    }else{
+      btn.disabled=false;delete info.dataset.locked;
+      info.innerHTML='<span style="color:var(--score-red)">Could not send: '+escHtml(reason)+'</span>';
+    }
   }
 
   if(!navigator.onLine){queueOffline_('offline');return;}
@@ -162,15 +482,40 @@ function submitKaizen(){
   google.script.run
     .withFailureHandler(function(e){queueOffline_(e.message);})
     .withSuccessHandler(function(r){
-      if(r.success){
-        if(typeof pmToast==='function')pmToast('✓ Submitted','success');
-        document.getElementById("kzStatus").innerHTML='<span style="color:var(--score-green);">Kaizen submitted! ID: '+escHtml(r.kaizenId)+'</span>';
-        btn.disabled=false;
-      }else{
-        document.getElementById("kzStatus").innerHTML='<span style="color:var(--score-red);">'+escHtml(r.message)+'</span>';
-        btn.disabled=false;
+      if(r&&r.success){showDone(r.kaizenId,'');}
+      else{
+        btn.disabled=false;delete info.dataset.locked;
+        info.innerHTML='<span style="color:var(--score-red)">'+escHtml((r&&r.message)||'Submission failed')+'</span>';
       }
     })
     .createKaizenSuggestion(data);
 }
+
+/* A vanishing toast gave the submitter nothing to quote when chasing their
+   idea. Show the reference, and an obvious way to raise another. */
+function showDone(id,note){
+  document.getElementById('kzBar').style.display='none';
+  document.getElementById('kzDoc').innerHTML=
+    '<div class="kz-done">'+
+      '<div class="kz-done-ico">&#127881;</div>'+
+      '<h2>Kaizen submitted</h2>'+
+      '<p>'+(note||'Your zone lead will review it and come back to you.')+'</p>'+
+      (id?'<div class="kz-done-id">'+escHtml(id)+'</div>':'')+
+      '<div class="kz-done-actions">'+
+        '<button type="button" onclick="location.reload()">Submit another</button>'+
+      '</div>'+
+    '</div>';
+}
+
+renderZoneChips();
+renderCatChips();
+renderBenefitChips();
+renderPhotos();
+kzQuad();
+kzProgress();
+document.addEventListener('DOMContentLoaded',function(){
+  var params=new URLSearchParams(window.location.search);
+  var n=document.getElementById('kzName');
+  if(n&&params.get('currentUser')&&!n.value){n.value=params.get('currentUser');kzProgress();}
+});
 </script></body></html>

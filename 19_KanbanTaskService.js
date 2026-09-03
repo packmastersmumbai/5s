@@ -587,8 +587,16 @@ function createKaizenSuggestion(kzData) {
       category: { required: false, type: "string", maxLen: 50, defaultVal: "5S" },
       title: { required: true, type: "string", maxLen: 200 }, description: { required: true, type: "string", maxLen: 2000 },
       expectedBenefit: { required: false, type: "string", maxLen: 500 },
-      estimatedSavings: { required: false, type: "number", defaultVal: 0 }
+      estimatedSavings: { required: false, type: "number", defaultVal: 0 },
+      currentState: { required: false, type: "string", maxLen: 2000 },
+      benefitTypes: { required: false, type: "string", maxLen: 120 },
+      impact: { required: false, type: "number", defaultVal: 0 },
+      effort: { required: false, type: "number", defaultVal: 0 },
+      metricName: { required: false, type: "string", maxLen: 80 },
+      metricBefore: { required: false, type: "string", maxLen: 60 },
+      metricAfter: { required: false, type: "string", maxLen: 60 }
     });
+    var kzPhotos = Array.isArray(kzData && kzData.photosB64) ? kzData.photosB64 : [];
     if (!v.valid) return { success: false, kaizenId: "", message: v.errors.join("; ") };
     var d = v.data, ss = v2GetSpreadsheet_(), sheet = ss.getSheetByName("KaizenSuggestions");
     if (!sheet) return { success: false, kaizenId: "", message: "KaizenSuggestions sheet not found." };
@@ -597,7 +605,33 @@ function createKaizenSuggestion(kzData) {
     row[KZ_COL.KAIZEN_ID] = kaizenId; row[KZ_COL.CREATED] = now; row[KZ_COL.ZONE_ID] = d.zoneId;
     row[KZ_COL.ZONE_NAME] = v2GetZoneName_(d.zoneId); row[KZ_COL.SUBMITTER] = d.submitterName;
     row[KZ_COL.CATEGORY] = d.category; row[KZ_COL.TITLE] = d.title; row[KZ_COL.DESCRIPTION] = d.description;
-    row[KZ_COL.PHOTO_URL] = ""; row[KZ_COL.EXPECTED_BENEFIT] = d.expectedBenefit || "";
+    /* PHOTO_URL was hardcoded empty, so no kaizen ever carried evidence -- 0 of 8
+       live records have a photo. Same upload path the task form uses. */
+    var kzPhotoUrls = [];
+    kzPhotos.forEach(function (b64, pIdx) {
+      if (!b64) return;
+      try {
+        var pname = kaizenId + "_before" + (pIdx ? "_" + (pIdx + 1) : "") + ".jpg";
+        var pres = uploadPhotoToDrive(b64, pname, d.zoneId);
+        if (pres && pres.thumbnailUrl) kzPhotoUrls.push(pres.thumbnailUrl);
+      } catch (e) { Logger.log("Kaizen photo skipped (" + kaizenId + " #" + pIdx + "): " + e.message); }
+    });
+    row[KZ_COL.PHOTO_URL] = kzPhotoUrls.join(",");
+
+    /* The sheet has no columns for the PDCA detail, and adding six is a schema
+       migration on a live sheet. Fold them into DESCRIPTION as a labelled block
+       instead: readable in the sheet, parseable on the board, no migration. */
+    var extra = [];
+    if (d.currentState) extra.push("CURRENT STATE: " + d.currentState);
+    if (d.metricName && (d.metricBefore || d.metricAfter)) {
+      extra.push("METRIC: " + d.metricName + " | before " + (d.metricBefore || "?") +
+                 " -> target " + (d.metricAfter || "?"));
+    }
+    if (d.benefitTypes) extra.push("BENEFIT: " + d.benefitTypes);
+    if (d.impact || d.effort) extra.push("IMPACT/EFFORT: " + (d.impact || 0) + "/" + (d.effort || 0));
+    if (extra.length) row[KZ_COL.DESCRIPTION] = d.description + "\n\n" + extra.join("\n");
+
+    row[KZ_COL.EXPECTED_BENEFIT] = d.expectedBenefit || "";
     row[KZ_COL.EST_SAVINGS] = d.estimatedSavings; row[KZ_COL.STATUS] = STATUS.SUBMITTED;
     for (var i = KZ_COL.REVIEWER; i <= KZ_COL.BENEFIT_VERIFIED_BY; i++) { if (row[i] === undefined) row[i] = ""; }
     sheet.appendRow(row);
@@ -635,6 +669,14 @@ function updateKaizenStatus(kzId, newStatus, remarks, additionalFields) {
         if (additionalFields.assignedTo) updates[KZ_COL.ASSIGNED_TO] = additionalFields.assignedTo;
         if (additionalFields.targetDate) updates[KZ_COL.TARGET_DATE] = new Date(additionalFields.targetDate);
         if (additionalFields.actualSavings) updates[KZ_COL.ACTUAL_SAVINGS] = additionalFields.actualSavings;
+        /* Closing the loop the schema was built for: 1 of 8 live records had an
+           actual saving and none had a verification date, so no kaizen could be
+           shown to have delivered anything. */
+        if (additionalFields.implementationNotes) updates[KZ_COL.IMPLEMENTATION_NOTES] = additionalFields.implementationNotes;
+        if (additionalFields.verifiedBy) {
+          updates[KZ_COL.BENEFIT_VERIFIED_BY] = additionalFields.verifiedBy;
+          updates[KZ_COL.VERIFICATION_DATE] = new Date();
+        }
         if (newStatus === STATUS.COMPLETED) updates[KZ_COL.COMPLETED_DATE] = new Date();
         v2BatchUpdateRow_(sheet, r + 1, updates, data[r]);
         return { success: true, message: "Kaizen " + kzId + " → " + newStatus };

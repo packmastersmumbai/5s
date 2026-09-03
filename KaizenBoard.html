@@ -201,6 +201,41 @@ body {
   .board-wrap { flex-direction: column; padding: 12px; }
   .column { min-width: auto; }
 }
+
+/* Review dialog: one dialog, fields switched by stage. Review captures a
+   decision and a reason; approval captures an owner and a date; completion
+   captures what was actually delivered against the estimate. */
+.kzb-scrim { position: fixed; inset: 0; background: rgba(15,23,42,.55); z-index: 900; }
+.kzb-dlg {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%,-50%);
+  width: min(520px, 94vw); max-height: 86vh; overflow-y: auto; z-index: 901;
+  background: #fff; border-radius: 14px; padding: 18px;
+  box-shadow: 0 24px 60px rgba(0,0,0,.3);
+}
+.kzb-dlg h3 { font-size: 16px; font-weight: 800; margin: 0 0 2px; }
+.kzb-dlg .kzb-sub { font-size: 12.5px; color: #64748b; margin-bottom: 14px; }
+.kzb-ctx { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 9px;
+  padding: 10px 12px; margin-bottom: 14px; font-size: 13px; }
+.kzb-ctx b { display: block; font-size: 14px; margin-bottom: 3px; }
+.kzb-ctx span { color: #64748b; font-size: 12px; }
+.kzb-fld { margin-bottom: 13px; }
+.kzb-fld label { display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 4px; }
+.kzb-fld input, .kzb-fld textarea, .kzb-fld select {
+  width: 100%; padding: 9px 10px; font-size: 14px; font-family: inherit;
+  border: 1px solid #d4d8e2; border-radius: 8px; box-sizing: border-box;
+}
+.kzb-fld textarea { min-height: 66px; resize: vertical; }
+.kzb-hint { font-size: 12px; color: #64748b; margin-top: 3px; }
+.kzb-vs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.kzb-vs .kzb-est { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
+  padding: 9px 10px; font-size: 13px; }
+.kzb-vs .kzb-est b { display: block; font-family: var(--font-mono, monospace); font-size: 16px; }
+.kzb-ft { display: flex; gap: 10px; justify-content: flex-end; margin-top: 6px; }
+.kzb-ft button { min-height: 44px; padding: 0 18px; border-radius: 9px; cursor: pointer;
+  font: inherit; font-weight: 700; border: 1px solid #d4d8e2; background: #fff; }
+.kzb-ft .kzb-go { background: #0F172A; border-color: #0F172A; color: #fff; }
+.kzb-ft .kzb-go.danger { background: #C92A2A; border-color: #C92A2A; }
+.card-actions .kzb-reject { border-color: #e2b3b3; color: #C92A2A; }
 </style>
 </head>
 <body>
@@ -244,6 +279,114 @@ body {
 function escHtml(s) {
   if (!s) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+
+/* Stage-appropriate labels: "Move -> Under Review" names the mechanism,
+   "Start review" names the job. */
+var KZ_ACTION = {
+  SUBMITTED:    'Start review',
+  UNDER_REVIEW: 'Approve',
+  APPROVED:     'Start implementing',
+  IMPLEMENTING: 'Mark complete',
+  COMPLETED:    'Verify benefit'
+};
+
+var _kzReview = null;
+var KZ_USER = (function(){
+  try { return new URLSearchParams(window.location.search).get('currentUserName') || ''; }
+  catch(e) { return ''; }
+})();
+
+function openReview(item, fromKey, nextKey) {
+  _kzReview = { item: item, next: nextKey, from: fromKey };
+  var body = '', title = '', sub = '', cta = 'Save', danger = false;
+
+  if (fromKey === 'REJECT') {
+    title = 'Reject this kaizen'; cta = 'Reject'; danger = true;
+    sub = 'The submitter sees this reason, so make it specific.';
+    body = fld('kzbRemarks', 'Reason', 'textarea', '', 'Why this cannot proceed, and what would change that.');
+  } else if (fromKey === 'SUBMITTED') {
+    title = 'Start review'; sub = 'Record who is reviewing it.';
+    body = fld('kzbReviewer', 'Reviewer', 'text', KZ_USER, '') +
+           fld('kzbRemarks', 'First assessment (optional)', 'textarea', '', '');
+  } else if (fromKey === 'UNDER_REVIEW') {
+    title = 'Approve kaizen'; sub = 'Approval needs an owner and a date, or nothing happens next.';
+    body = fld('kzbAssignee', 'Assign to', 'text', item.assignedTo || '', 'Who will implement it.') +
+           fld('kzbTarget', 'Target date', 'date', '', '') +
+           fld('kzbRemarks', 'Approval note (optional)', 'textarea', '', '');
+  } else if (fromKey === 'APPROVED') {
+    title = 'Start implementing'; sub = 'Confirm the owner before work starts.';
+    body = fld('kzbAssignee', 'Owner', 'text', item.assignedTo || '', '') +
+           fld('kzbRemarks', 'Plan note (optional)', 'textarea', '', '');
+  } else if (fromKey === 'IMPLEMENTING') {
+    title = 'Mark complete'; sub = 'What was actually done, and what it actually delivered.';
+    body = fld('kzbNotes', 'What was implemented', 'textarea', '', 'The countermeasure as it was actually built.') +
+           '<div class="kzb-fld"><label>Actual saving (\u20B9 per month)</label><div class="kzb-vs">' +
+             '<div class="kzb-est">Estimated<b>\u20B9' + (item.estimatedSavings || 0) + '</b></div>' +
+             '<div><input type="number" id="kzbActual" min="0" step="100" placeholder="Actual"></div>' +
+           '</div><div class="kzb-hint">Leave blank if it is not yet measurable.</div></div>';
+  } else if (fromKey === 'COMPLETED') {
+    title = 'Verify the benefit'; sub = 'An independent check that the gain is real and holding.';
+    body = fld('kzbVerifier', 'Verified by', 'text', KZ_USER, 'Someone other than the implementer.') +
+           fld('kzbActual', 'Confirmed saving (\u20B9/month)', 'number', item.actualSavings || '', '') +
+           fld('kzbRemarks', 'Verification note', 'textarea', '', 'What you checked, and when.');
+  }
+
+  var host = document.createElement('div');
+  host.id = 'kzbHost';
+  host.innerHTML =
+    '<div class="kzb-scrim" onclick="closeReview()"></div>' +
+    '<div class="kzb-dlg" role="dialog" aria-modal="true">' +
+      '<h3>' + escHtml(title) + '</h3><div class="kzb-sub">' + escHtml(sub) + '</div>' +
+      '<div class="kzb-ctx"><b>' + escHtml(item.title) + '</b>' +
+        '<span>' + escHtml(item.kaizenId) + ' \u00B7 ' + escHtml(item.zoneName || '') +
+        ' \u00B7 by ' + escHtml(item.submitterName || '') + '</span></div>' +
+      body +
+      '<div class="kzb-ft"><button type="button" onclick="closeReview()">Cancel</button>' +
+      '<button type="button" class="kzb-go' + (danger ? ' danger' : '') + '" onclick="submitReview()">' +
+      escHtml(cta) + '</button></div>' +
+    '</div>';
+  document.body.appendChild(host);
+  var first = host.querySelector('input,textarea');
+  if (first) first.focus();
+}
+
+function fld(id, label, type, value, hint) {
+  var input = (type === 'textarea')
+    ? '<textarea id="' + id + '">' + escHtml(value) + '</textarea>'
+    : '<input type="' + type + '" id="' + id + '" value="' + escHtml(String(value)) + '">';
+  return '<div class="kzb-fld"><label for="' + id + '">' + escHtml(label) + '</label>' + input +
+         (hint ? '<div class="kzb-hint">' + escHtml(hint) + '</div>' : '') + '</div>';
+}
+
+function closeReview() {
+  var h = document.getElementById('kzbHost');
+  if (h) h.parentNode.removeChild(h);
+  _kzReview = null;
+}
+
+function v_(id) { var e = document.getElementById(id); return e ? String(e.value).trim() : ''; }
+
+function submitReview() {
+  if (!_kzReview) return;
+  var r = _kzReview, extra = {};
+  if (v_('kzbReviewer')) extra.reviewer = v_('kzbReviewer');
+  if (v_('kzbAssignee')) extra.assignedTo = v_('kzbAssignee');
+  if (v_('kzbTarget'))   extra.targetDate = v_('kzbTarget');
+  if (v_('kzbActual'))   extra.actualSavings = parseInt(v_('kzbActual'), 10) || 0;
+  if (v_('kzbNotes'))    extra.implementationNotes = v_('kzbNotes');
+  if (v_('kzbVerifier')) extra.verifiedBy = v_('kzbVerifier');
+
+  if (r.from === 'REJECT' && !v_('kzbRemarks')) { alert('Give a reason so the submitter knows why.'); return; }
+  if (r.from === 'UNDER_REVIEW' && !v_('kzbAssignee')) { alert('Approval needs an owner.'); return; }
+
+  var btn = document.querySelector('.kzb-go');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving\u2026'; }
+  google.script.run
+    .withFailureHandler(function(e) { alert('Error: ' + e.message); if (btn) btn.disabled = false; })
+    .withSuccessHandler(function() { closeReview(); loadKaizen(); })
+    .updateKaizenStatus(r.item.kaizenId, r.next, v_('kzbRemarks'), extra);
 }
 
 var COLS = [
@@ -300,21 +443,29 @@ function renderBoard(items) {
         '<div class="card-meta">By: ' + escHtml(item.submitterName) + '</div>' +
         savingsHtml;
 
+      /* "Move -> Approved" advanced the stage and recorded nothing: no reviewer,
+         no remarks, no owner, no actual saving. That is why 1 of 8 records has
+         an actual saving and none has a verification date. Each stage now asks
+         for exactly what that stage is supposed to capture. */
       var ci = COLS.findIndex(function(c) { return c.key === col.key; });
       if (ci < COLS.length - 1) {
         var actions = document.createElement('div');
         actions.className = 'card-actions';
         var nb = document.createElement('button');
-        nb.textContent = 'Move → ' + COLS[ci + 1].label;
-        nb.onclick = (function(kId, nextKey) {
-          return function() {
-            google.script.run
-              .withFailureHandler(function(e) { alert('Error: ' + e.message); })
-              .withSuccessHandler(function() { loadKaizen(); })
-              .updateKaizenStatus(kId, nextKey, '', { reviewer: '' });
-          };
-        })(item.kaizenId, COLS[ci + 1].key);
+        nb.textContent = KZ_ACTION[col.key] || ('Move → ' + COLS[ci + 1].label);
+        nb.onclick = (function(it, nextKey, fromKey) {
+          return function() { openReview(it, fromKey, nextKey); };
+        })(item, COLS[ci + 1].key, col.key);
         actions.appendChild(nb);
+        if (col.key === 'SUBMITTED' || col.key === 'UNDER_REVIEW') {
+          var rj = document.createElement('button');
+          rj.textContent = 'Reject';
+          rj.className = 'kzb-reject';
+          rj.onclick = (function(it) {
+            return function() { openReview(it, 'REJECT', 'REJECTED'); };
+          })(item);
+          actions.appendChild(rj);
+        }
         card.appendChild(actions);
       }
 

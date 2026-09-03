@@ -49,7 +49,12 @@ const say = (n, ok, d) => { R.push({ ok: !!ok }); console.log((ok ? 'PASS  ' : '
     say('zone arrives locked from context', true);
   }
   await fr.locator('#gwTypes .gw-chip').first().click();
-  await fr.locator('#gwName').fill('E2E Walker');
+
+  // Identity now comes from the session, so #gwName is a hidden input and the
+  // walker is shown, not asked. Only type a name when there is no session name.
+  const sessionWho = await fr.locator('.gw-who b').textContent().catch(() => '');
+  say('walker identity comes from the session', !!(sessionWho || '').trim(), (sessionWho || '').trim() || 'free text fallback');
+  if (!(sessionWho || '').trim()) await fr.locator('#gwName').fill('E2E Walker');
   await page.waitForTimeout(500);
   say('start enables once zone+type+name set', !(await fr.locator('#gwStart').isDisabled()));
 

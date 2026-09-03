@@ -720,7 +720,8 @@ function submitGembaWalk(walkData) {
       walkType: { required: true, type: "string", maxLen: 50 }, zoneId: { required: true, type: "zoneId" },
       walkerName: { required: true, type: "string", maxLen: 100 },
       walkerEmail: { required: false, type: "string", maxLen: 100 },
-      observations: { required: false, type: "string", maxLen: 2000 }, photoUrls: { required: false, type: "string", maxLen: 1000 }
+      observations: { required: false, type: "string", maxLen: 2000 }, photoUrls: { required: false, type: "string", maxLen: 1000 },
+      reviewedWith: { required: false, type: "string", maxLen: 100 }
     });
     if (!v.valid) return { success: false, walkId: "", taskIds: [], message: v.errors.join("; ") };
     var d = v.data, ss = v2GetSpreadsheet_(), walkSheet = ss.getSheetByName("GembaWalks");
@@ -878,6 +879,117 @@ function getOpenGembaFindings(zoneId, walkType) {
     out.sort(function (a, b) { return b.ageDays - a.ageDays; });
     return out;
   }, "getOpenGembaFindings", [], "low");
+}
+
+/**
+ * Gemba programme analytics: repeat findings, SQCDP spread, and compliance
+ * trend per zone.
+ *
+ * A repeat finding -- the same question failing again in the same zone -- is
+ * the signal that matters: it means the countermeasure did not hold, which a
+ * single compliance percentage hides entirely. Nothing surfaced it before.
+ *
+ * @returns {{repeats:Array, sqcdp:Object, zones:Array, totals:Object}}
+ */
+function getGembaAnalytics() {
+  return v2SafeExecute_(function () {
+    var ss = v2GetSpreadsheet_();
+    var walks = v2LoadSheet_(ss, "GembaWalks");
+    var tasks = v2LoadSheet_(ss, "TaskBoard");
+
+    /* Count how often each question has failed per zone, from the stored
+       responses rather than the tasks, so it holds even if a task was
+       deleted. */
+    var failKey = {}, qText = {}, zoneWalks = {}, zoneScore = {};
+    var typeQ = {};
+    for (var r = 1; r < walks.length; r++) {
+      if (!walks[r][GW_COL.WALK_ID]) continue;
+      var zid = String(walks[r][GW_COL.ZONE_ID] || "").trim();
+      var wt = String(walks[r][GW_COL.WALK_TYPE] || "").trim();
+      var when = walks[r][GW_COL.TIMESTAMP] ? new Date(walks[r][GW_COL.TIMESTAMP]) : null;
+      var pct = Number(walks[r][GW_COL.COMPLIANCE_PCT]) || 0;
+
+      zoneWalks[zid] = (zoneWalks[zid] || 0) + 1;
+      if (!zoneScore[zid]) zoneScore[zid] = [];
+      zoneScore[zid].push({ pct: pct, at: when ? when.getTime() : 0 });
+
+      if (!typeQ[wt]) {
+        typeQ[wt] = {};
+        (getGembaWalkQuestions(wt) || []).forEach(function (q) {
+          typeQ[wt][q.questionId] = { text: q.text, sqcdp: q.sqcdp || "", category: q.category || "" };
+        });
+      }
+      var resp = {};
+      try { resp = JSON.parse(String(walks[r][GW_COL.RESPONSES_JSON] || "{}")); } catch (e) {}
+      Object.keys(resp).forEach(function (qId) {
+        if (String(resp[qId]).toLowerCase() !== "no") return;
+        var k = zid + "|" + qId;
+        if (!failKey[k]) failKey[k] = { zoneId: zid, questionId: qId, walkType: wt, count: 0, lastAt: 0 };
+        failKey[k].count++;
+        if (when && when.getTime() > failKey[k].lastAt) failKey[k].lastAt = when.getTime();
+        var meta = (typeQ[wt] || {})[qId] || {};
+        qText[qId] = meta;
+      });
+    }
+
+    /* Repeats only: a single failure is a finding, two or more is a pattern. */
+    var repeats = [];
+    Object.keys(failKey).forEach(function (k) {
+      var f = failKey[k];
+      if (f.count < 2) return;
+      var meta = qText[f.questionId] || {};
+      repeats.push({
+        zoneId: f.zoneId,
+        zoneName: v2GetZoneName_(f.zoneId),
+        questionId: f.questionId,
+        text: meta.text || f.questionId,
+        sqcdp: meta.sqcdp || "",
+        category: meta.category || "",
+        walkType: f.walkType,
+        failures: f.count,
+        lastAt: f.lastAt ? Utilities.formatDate(new Date(f.lastAt), TZ, "dd MMM yyyy") : ""
+      });
+    });
+    repeats.sort(function (a, b) { return b.failures - a.failures; });
+
+    /* Open findings per SQCDP leg, from the live tasks. */
+    var sqcdp = { S: 0, Q: 0, C: 0, D: 0, P: 0, unclassified: 0 };
+    var openTotal = 0, overdueTotal = 0, now = new Date();
+    for (var r = 1; r < tasks.length; r++) {
+      if (!tasks[r][TASK_COL.TASK_ID]) continue;
+      if (String(tasks[r][TASK_COL.SOURCE] || "").toUpperCase() !== "GEMBA_WALK") continue;
+      var st = String(tasks[r][TASK_COL.STATUS] || "").toUpperCase();
+      if (st === "DONE" || st === "CLOSED" || st === "DELETED") continue;
+      openTotal++;
+      var due = tasks[r][TASK_COL.DUE_DATE] ? new Date(tasks[r][TASK_COL.DUE_DATE]) : null;
+      if (due && !isNaN(due) && due < now) overdueTotal++;
+      var d = String(tasks[r][TASK_COL.DESCRIPTION] || "");
+      var m = d.match(/SQCDP\s+([SQCDP])/);
+      if (m) sqcdp[m[1]]++; else sqcdp.unclassified++;
+    }
+
+    /* Per-zone trend: latest score and the direction of travel. */
+    var zones = Object.keys(zoneScore).sort().map(function (zid) {
+      var list = zoneScore[zid].slice().sort(function (a, b) { return a.at - b.at; });
+      var latest = list[list.length - 1].pct;
+      var prev = list.length > 1 ? list[list.length - 2].pct : null;
+      return {
+        zoneId: zid, zoneName: v2GetZoneName_(zid),
+        walks: zoneWalks[zid] || 0,
+        latest: latest,
+        previous: prev,
+        delta: prev === null ? null : latest - prev,
+        repeats: repeats.filter(function (x) { return x.zoneId === zid; }).length
+      };
+    }).sort(function (a, b) { return a.latest - b.latest; });
+
+    return {
+      repeats: repeats,
+      sqcdp: sqcdp,
+      zones: zones,
+      totals: { walks: Math.max(0, walks.length - 1), openFindings: openTotal, overdue: overdueTotal }
+    };
+  }, "getGembaAnalytics", { repeats: [], sqcdp: {}, zones: [], totals: {} }, "low");
 }
 
 function getGembaWalkData(filters) {

@@ -28,7 +28,11 @@ const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8AAAwA
 
   if (await fr.locator('.gw-zc').count()) await fr.locator('.gw-zc').first().click();
   await fr.locator('#gwTypes .gw-chip').first().click();      // Health & Safety
-  await fr.locator('#gwName').fill('Audit Reviewer');
+
+  // Identity must come from the session, not a free-text box.
+  const who = await fr.locator('.gw-who b').textContent().catch(() => '');
+  console.log('walking as (from session):', JSON.stringify((who || '').trim()));
+  if (!who) await fr.locator('#gwName').fill('Audit Reviewer');
   await fr.locator('#gwStart').click();
   await fr.locator('.gw-q-t').waitFor({ state: 'visible', timeout: 20000 });
 
@@ -80,6 +84,8 @@ const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8AAAwA
               ' sqcdpLegs=' + JSON.stringify(legs) + ' findings=' + findings);
   await page.screenshot({ path: path.join(OUT, 'gwf-review.png'), fullPage: true });
 
+  const ackDefault = await fr.locator('#gwAck').inputValue().catch(() => '(no ack field)');
+  console.log('reviewed-with default:', JSON.stringify(ackDefault));
   await fr.locator('#gwObs').fill('Walked north bay and filling line with the shift in-charge. Two containment issues; operator flagged a guard rattle already reported.');
   await fr.locator('#gwNext').click();
 

@@ -58,6 +58,13 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
 
 <style>
+/* The hidden attribute loses to any class that sets display, which has now
+   silently broken three separate controls in this app: the ActionsHub bulk bar
+   showed on every tab, the Gemba walk nav showed on its setup screen, and the
+   ZoneSelector sheet. Toggling el.hidden is the obvious thing to reach for, so
+   make it actually work everywhere rather than fixing it per component. */
+[hidden] { display: none !important; }
+
 /* ═══════════════════════════════════════════════════════════════════════════
    5S CLEAN — DESIGN TOKENS
    ═══════════════════════════════════════════════════════════════════════════ */

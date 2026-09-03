@@ -58,6 +58,10 @@ body { background: var(--bg-page); margin: 0; }
 .gw-chip.on { background: var(--pm-primary); border-color: var(--pm-primary); color: #fff; }
 /* Walk type carries a count so the walker knows the commitment before starting. */
 .gw-chip small { display: block; font-size: 11px; font-weight: 600; opacity: .75; margin-top: 1px; }
+.gw-who { display: flex; align-items: baseline; gap: 9px; padding: 10px 13px;
+  border: 1px solid var(--border); border-radius: var(--r); background: var(--bg-card-2); }
+.gw-who b { font-size: 14.5px; font-weight: 700; }
+.gw-who span { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-secondary); }
 .gw-zone-locked {
   display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: var(--r);
   background: var(--score-green-bg); border: 1.5px solid var(--score-green);
@@ -239,6 +243,11 @@ var DU = '<?= deployUrl ?>';
 var ZONE_ID = '<?= params && params.zone ? String(params.zone).replace(/[^a-zA-Z0-9\-_]/g,"") : "" ?>';
 var ZC = {}; try { ZC = <?!= config.zoneConfig ?> || {}; } catch (e) { ZC = {}; }
 
+/* Identity comes from the validated session, injected server-side. An auditor
+   asks "who walked this"; free text could not answer it. */
+var SESSION_NAME = '<?= (config && config.auditor) ? String(config.auditor).replace(/[<>&"]/g,"") : "" ?>';
+var SESSION_USER = '<?= (config && config.auditorUsername) ? String(config.auditorUsername).replace(/[<>&"]/g,"") : "" ?>';
+
 /* Same S/Q/C/D/P keys the SQCDP board and QuickAudit already use, so a Gemba
    finding lands on a leg the plant reviews rather than being unclassified. */
 var SQCDP_NAME = { S: 'Safety', Q: 'Quality', C: 'Cost', D: 'Delivery', P: 'People' };
@@ -252,7 +261,7 @@ var walkTypes = [];
 var typeCounts = {};
 var selectedType = '';
 var selectedZone = ZONE_ID || '';
-var walkerName = '';
+var walkerName = SESSION_NAME || '';
 var _photoTarget = null;
 
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -322,8 +331,14 @@ function renderSetup() {
           '" onclick="gwPickType(\'' + esc(wt) + '\')">' + esc(wt) +
           '<small>' + (typeCounts[wt] || 0) + ' questions</small></button>';
       }).join('') + '</div></div>' +
-    '<div class="gw-f"><label for="gwName">Your name</label>' +
-      '<input type="text" id="gwName" value="' + esc(walkerName) + '" placeholder="Who is walking" oninput="walkerName=this.value;gwSetupGate()"></div>' +
+    (SESSION_NAME
+      ? '<div class="gw-f"><label>Walking as</label>' +
+          '<div class="gw-who"><b>' + esc(SESSION_NAME) + '</b>' +
+          (SESSION_USER ? '<span>' + esc(SESSION_USER) + '</span>' : '') + '</div>' +
+          '<input type="hidden" id="gwName" value="' + esc(SESSION_NAME) + '"></div>'
+      : '<div class="gw-f"><label for="gwName">Your name</label>' +
+          '<input type="text" id="gwName" value="' + esc(walkerName) + '" placeholder="Who is walking" ' +
+          'oninput="walkerName=this.value;gwSetupGate()"></div>') +
     '<button class="gw-primary" id="gwStart" style="width:100%;min-height:52px;border:0;border-radius:var(--r);font:inherit;font-size:16px;font-weight:700;background:var(--pm-primary);color:#fff;cursor:pointer" ' +
       'onclick="gwBegin()" disabled>Start walk</button>';
   gwSetupGate();
@@ -621,6 +636,12 @@ function renderSummary() {
             '</div></div>';
         }).join('')
       : '<h4 class="gw-sum-h">No findings</h4><p style="font-size:13px;color:var(--text-secondary)">Nothing to raise from this walk.</p>') +
+    (findList.length
+      ? '<div class="gw-f" style="margin-top:18px"><label for="gwAck">Reviewed with (area owner / shift in-charge)</label>' +
+        '<input type="text" id="gwAck" value="' + esc(zoneLeader_()) + '" placeholder="Who did you walk this with" ' +
+        'style="width:100%;padding:11px 12px;font-size:15px;font-family:inherit;box-sizing:border-box;border:1px solid var(--border);border-radius:var(--r);background:var(--bg-card);color:var(--text-primary)">' +
+        '<div style="font-size:12px;color:var(--text-muted);margin-top:4px">The findings are attributed as reviewed with this person.</div></div>'
+      : '') +
     '<div class="gw-f" style="margin-top:18px"><label for="gwObs">Overall observations</label>' +
       '<textarea id="gwObs" style="width:100%;min-height:84px;padding:11px;font-size:15px;font-family:inherit;box-sizing:border-box;border:1px solid var(--border);border-radius:var(--r);background:var(--bg-card);color:var(--text-primary)" ' +
       'placeholder="Anything worth recording that the questions did not cover."></textarea></div>';
@@ -628,6 +649,13 @@ function renderSummary() {
   el('gwNext').textContent = 'Submit walk';
   el('gwNext').disabled = false;
   el('gwNext').onclick = submitWalk;
+}
+
+/* Default the acknowledger to the zone's own leader: usually correct, and it
+   makes leaving it blank a deliberate act rather than an oversight. */
+function zoneLeader_() {
+  var z = ZC[selectedZone] || {};
+  return z.leader || '';
 }
 
 function submitWalk() {
@@ -644,11 +672,14 @@ function submitWalk() {
     scored[q.questionId] = a;
   });
   var obs = String((el('gwObs') || {}).value || '').trim();
+  var ack = String((el('gwAck') || {}).value || '').trim();
+  if (ack) obs = (obs ? obs + '\n\n' : '') + 'REVIEWED WITH: ' + ack;
   if (said.length) obs = (obs ? obs + '\n\n' : '') + 'OPERATOR DIALOGUE\n' + said.join('\n');
 
   var payload = {
     walkType: selectedType, zoneId: selectedZone,
-    walkerName: walkerName, walkerEmail: '',
+    walkerName: walkerName, walkerEmail: SESSION_USER || '',
+    reviewedWith: String((el('gwAck') || {}).value || '').trim(),
     responses: scored, findings: findings, observations: obs
   };
 

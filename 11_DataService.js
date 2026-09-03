@@ -1746,6 +1746,11 @@ function getUnifiedActionList(filters) {
 function _canonOwner_(raw) {
   var v = String(raw == null ? '' : raw).trim();
   if (!v) return '';
+  // Automation and test accounts are not people. Grouping them under a name
+  // in a by-owner list implies someone is accountable for that work; nobody
+  // is. They bucket as Unassigned so the backlog stays visible.
+  if (/^(system|admin|tbm|bbm|anyone|auditor|tester|testuser|smoketest|test)$/i.test(v)) return '';
+  if (/^packmasters\.mumbai@/i.test(v)) return '';
   if (v.indexOf('@') > 0) v = v.slice(0, v.indexOf('@')).replace(/[._-]+/g, ' ');
   v = v.replace(/^(mr|mrs|ms|miss|shri|smt|dr)\.?\s+/i, '');
   v = v.replace(/\s+/g, ' ').trim();
@@ -1753,6 +1758,61 @@ function _canonOwner_(raw) {
   return v.replace(/\S+/g, function (w) {
     return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
   });
+}
+
+/**
+ * The canonical list of people work can be assigned to.
+ *
+ * Owner fields were free text, which produced 42 distinct strings for 6 real
+ * people ("Shikha", "Mrs. Shikha", "shikha", "Shikhar", plus emails, "system"
+ * and test values). Every assignment surface picks from this list instead.
+ *
+ * Zone leaders are the source of truth for the full name; Users rows add
+ * anyone who can log in but leads no zone. Cached: it changes rarely and is
+ * read on every form load.
+ *
+ * @returns {Array<{name:string, role:string, zones:Array<string>}>}
+ */
+function getAssignablePeople() {
+  var cache = CacheService.getScriptCache();
+  var hit = cache.get('ASSIGNABLE_PEOPLE');
+  if (hit) { try { return JSON.parse(hit); } catch (e) {} }
+
+  var people = {};
+  var cfg = (typeof getZoneConfig === 'function') ? getZoneConfig() : {};
+  Object.keys(cfg).forEach(function (zid) {
+    var n = String((cfg[zid] || {}).leader || '').trim();
+    if (!n) return;
+    if (!people[n]) people[n] = { name: n, role: 'Zone Lead', zones: [] };
+    people[n].zones.push(zid);
+  });
+
+  try {
+    var ss = v2GetSpreadsheet_();
+    var u = ss.getSheetByName('Users');
+    if (u && u.getLastRow() > 1) {
+      var d = u.getDataRange().getValues();
+      for (var r = 1; r < d.length; r++) {
+        if (!d[r][0]) continue;
+        if (d[r][7] === false) continue;                 // inactive
+        var full = String(d[r][3] || '').trim();
+        var role = String(d[r][4] || '').trim();
+        if (!full || role === 'ADMIN') continue;         // Admin/TBM/BBM are not assignees
+        // Skip if a zone leader already covers this person -- "Shikha" (Users)
+        // and "Mrs. Shikha" (zone leader) are the same person, and the leader
+        // name is the one already written on live records.
+        var dup = Object.keys(people).some(function (k) {
+          return k.toLowerCase().indexOf(full.toLowerCase()) > -1;
+        });
+        if (dup) continue;
+        people[full] = { name: full, role: role === 'MANAGER' ? 'Manager' : 'Zone Lead', zones: [] };
+      }
+    }
+  } catch (e) {}
+
+  var list = Object.keys(people).sort().map(function (k) { return people[k]; });
+  try { cache.put('ASSIGNABLE_PEOPLE', JSON.stringify(list), 1800); } catch (e) {}
+  return list;
 }
 
 function getActionsSummary(filters) {

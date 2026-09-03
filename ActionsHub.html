@@ -434,10 +434,13 @@ body {
 
 /* ── COMPACT TABLE (Actions list) ───────── */
 .ah-table-wrap { max-width: 1440px; margin: 12px auto; padding: 0 16px 100px; overflow-x: auto; }
-.ah-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 12.5px; background: var(--bg-card);
+.ah-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 14.5px; background: var(--bg-card);
   border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; }
-.ah-table thead th { font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: .5px;
-  text-transform: uppercase; color: var(--text-muted); text-align: left; padding: 10px 12px;
+/* Headers were 9px uppercase mono -- a label you cannot read is not a label.
+   11.5px, and --text-secondary rather than --text-muted, which fails contrast
+   at this size on the card background. */
+.ah-table thead th { font-family: var(--font-mono); font-size: 11.5px; font-weight: 700; letter-spacing: .4px;
+  text-transform: uppercase; color: var(--text-secondary); text-align: left; padding: 11px 12px;
   background: var(--bg-card-2); border-bottom: 1px solid var(--border); white-space: nowrap; }
 /* Fixed-width columns so Title can't starve every other column of space —
    percentages sum to 100% across the visible (non hide-sm) set. */
@@ -821,11 +824,11 @@ body {
 .au-tile:hover { border-color: var(--pm-accent); box-shadow: var(--shadow-sm); }
 .au-tile:focus-visible { outline: 3px solid var(--border-focus); outline-offset: 2px; }
 .au-score {
-  flex: 0 0 62px; display: flex; align-items: center; justify-content: center;
+  flex: 0 0 72px; display: flex; align-items: center; justify-content: center;
   border-radius: 10px; font-family: var(--font-mono);
-  font-size: 21px; font-weight: 800; letter-spacing: -.02em;
+  font-size: 26px; font-weight: 800; letter-spacing: -.02em;
 }
-.au-score i { font-size: 11px; font-style: normal; font-weight: 700; opacity: .7; margin-left: 1px; }
+.au-score i { font-size: 13px; font-style: normal; font-weight: 700; opacity: .75; margin-left: 1px; }
 .au-score.g { background: #E8F5E9; color: #1B5E20; }
 .au-score.a { background: #FFF8E1; color: #7A5D00; }
 .au-score.r { background: #FDE7E7; color: #A31515; }
@@ -833,16 +836,27 @@ body {
 :root[data-theme="dark"] .au-score.a { background: #3A2F05; color: #FFE082; }
 :root[data-theme="dark"] .au-score.r { background: #3B1113; color: #EF9A9A; }
 .au-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
-.au-zone { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--text-muted); }
+.au-zone { font-family: var(--font-mono); font-size: 12.5px; font-weight: 700; color: var(--text-secondary); }
 .au-name {
-  font-size: 13.5px; font-weight: 700; color: var(--text-primary);
+  font-size: 15px; font-weight: 700; color: var(--text-primary); line-height: 1.3;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.au-meta { font-size: 11.5px; color: var(--text-secondary); }
+.au-meta { font-size: 12.5px; color: var(--text-secondary); }
+/* Was 11px on --text-muted: below the contrast floor and unreadable at
+   arm's length. The counts are data, so they get the mono face. */
+/* The auditor name shares this line with two counts. At the larger type it
+   wrapped and truncated to "packmast...", so the name gets its own line and
+   the counts stay on one. */
 .au-stats {
-  display: flex; gap: 10px; margin-top: 4px; font-size: 11px; color: var(--text-muted);
+  display: flex; gap: 14px; margin-top: 6px; font-size: 12.5px;
+  font-family: var(--font-mono); color: var(--text-secondary);
+  white-space: nowrap;
 }
-.au-by { margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 45%; }
+.au-by {
+  display: block; margin-top: 4px; font-size: 12px;
+  color: var(--text-secondary); overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
 
 /* Share row: full-width tap targets, not two thin links. */
 .au-share-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
@@ -1208,41 +1222,73 @@ body {
 .id-modal.open { display: flex; }
 
 /* ── SUMMARY TAB (by user / by zone) ── */
-.ah-sum-section { margin-bottom: 18px; }
+/* ── SUMMARY ──
+   Two problems were structural, not cosmetic. Status and record type were both
+   rendered as identical pills in the SAME status palette, so a Task was always
+   green ("good") and an NC always red ("bad") no matter what state it was in --
+   colour asserting a judgement the data never made. And every row carried an
+   identical chip pair, so a person with 45 open of 48 looked like a person
+   with 1 of 1.
+   Now: status keeps the red/amber/green semantics and is the only coloured
+   thing. Record type is neutral and typographic. Open count leads at display
+   size, because that is the number the row exists to communicate. */
+.ah-sum-section { margin-bottom: 26px; }
 .ah-sum-section h3 {
   font-family: var(--font-display);
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: .04em;
-  margin: 0 0 8px;
+  font-size: 15px; font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0; text-transform: none;
+  margin: 0 0 2px;
+}
+.ah-sum-section__sub {
+  font-size: 13px; color: var(--text-secondary); margin: 0 0 12px;
 }
 .ah-sum-row {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--r);
-  padding: 10px 12px;
-  margin-bottom: 8px;
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px 16px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 12px 14px; margin-bottom: 6px;
 }
-.ah-sum-row__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.ah-sum-row__name { font-weight: 600; font-size: 14px; }
-.ah-sum-row__total { font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); }
-.ah-sum-row__chips, .ah-sum-row__types { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
-.ah-sum-chip {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 12px;
-  background: var(--bg-card-2);
-  color: var(--text-secondary);
+.ah-sum-row__name {
+  font-weight: 650; font-size: 15px; color: var(--text-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.ah-sum-chip.r    { background: var(--score-red-bg);   color: var(--score-red); }
-.ah-sum-chip.a    { background: var(--score-amber-bg); color: var(--score-amber); }
-.ah-sum-chip.g    { background: var(--score-green-bg); color: var(--score-green); }
-.ah-sum-chip.nc   { background: var(--score-red-bg);   color: var(--score-red); }
-.ah-sum-chip.task { background: var(--score-green-bg); color: var(--score-green); }
-.ah-sum-chip.rt   { background: var(--score-amber-bg); color: var(--score-amber); }
+.ah-sum-row__types {
+  font-family: var(--font-mono); font-size: 12.5px; color: var(--text-secondary);
+  display: flex; gap: 12px; flex-wrap: wrap; margin-top: 3px;
+}
+.ah-sum-row__types b { font-weight: 700; color: var(--text-primary); }
+/* Numbers align in a fixed grid so columns read down the list. */
+.ah-sum-nums { display: flex; align-items: baseline; gap: 18px; }
+.ah-sum-num { text-align: right; min-width: 44px; }
+.ah-sum-num__v {
+  display: block; font-family: var(--font-mono); font-size: 20px;
+  font-weight: 800; line-height: 1.1; letter-spacing: -.02em;
+  /* slashed-zero off: a lone 0 in this mono face reads as the empty-set sign */
+  font-variant-numeric: tabular-nums; font-feature-settings: 'zero' 0, 'tnum' 1;
+}
+.ah-sum-num__l {
+  display: block; font-size: 10.5px; font-weight: 600; margin-top: 2px;
+  text-transform: uppercase; letter-spacing: .04em; color: var(--text-secondary);
+}
+.ah-sum-num.open .ah-sum-num__v     { color: var(--score-red); }
+.ah-sum-num.prog .ah-sum-num__v     { color: var(--score-amber); }
+.ah-sum-num.closed .ah-sum-num__v   { color: var(--score-green); }
+.ah-sum-num.total .ah-sum-num__v    { color: var(--text-primary); }
+.ah-sum-num.zero .ah-sum-num__v     { color: var(--text-muted); font-weight: 600; }
+/* Proportion of the row that is still open -- the one thing a reviewer scans
+   a summary for. 2px, so it reads as a measure and not as decoration. */
+/* Inset and muted: at full width in saturated red it read as a section rule
+   rather than as this row's own measure. */
+.ah-sum-bar {
+  grid-column: 1 / -1; height: 3px; max-width: 240px; border-radius: 3px;
+  background: var(--bg-card-2); overflow: hidden;
+}
+.ah-sum-bar span { display: block; height: 100%; background: var(--score-red); opacity: .55; }
+@media (max-width: 560px) {
+  .ah-sum-row { grid-template-columns: 1fr; }
+  .ah-sum-nums { gap: 14px; }
+  .ah-sum-num { min-width: 38px; text-align: left; }
+}
 
 /* ── AUDIT EVIDENCE THUMBNAILS + HOVER PREVIEW ── */
 .ah-au-photos { display: flex; gap: 6px; flex-shrink: 0; }
@@ -1637,24 +1683,57 @@ function renderSummaryView() {
     .withSuccessHandler(function(res) {
       var byUser = (res && res.byUser) || [];
       var byZone = (res && res.byZone) || [];
-      function typeChip(n, cls, label) {
-        return n > 0 ? '<span class="ah-sum-chip ' + cls + '">' + label + ' ' + n + '</span>' : '';
+
+      /* Sort by what is still open, not by total: a row with 45 open is the
+         one that needs attention, whatever its total. */
+      function byOpenDesc(a, b) { return (b.open - a.open) || (b.total - a.total); }
+      byUser = byUser.slice().sort(byOpenDesc);
+      byZone = byZone.slice().sort(byOpenDesc);
+
+      function num(v, cls, label) {
+        return '<span class="ah-sum-num ' + cls + (v ? '' : ' zero') + '">' +
+          '<b class="ah-sum-num__v">' + v + '</b>' +
+          '<span class="ah-sum-num__l">' + label + '</span></span>';
+      }
+      function typeBits(t) {
+        var out = [];
+        if (t.NC)      out.push('<b>' + t.NC + '</b> NC');
+        if (t.TASK)    out.push('<b>' + t.TASK + '</b> Task' + (t.TASK === 1 ? '' : 's'));
+        if (t.RED_TAG) out.push('<b>' + t.RED_TAG + '</b> Red Tag' + (t.RED_TAG === 1 ? '' : 's'));
+        return out.join('') ? out.join('<span aria-hidden="true">&middot;</span>') : '';
       }
       function row(b) {
+        var pctOpen = b.total ? Math.round((b.open / b.total) * 100) : 0;
         return '<div class="ah-sum-row">' +
-          '<div class="ah-sum-row__head"><span class="ah-sum-row__name">' + escHtml(b.label) + '</span>' +
-          '<span class="ah-sum-row__total">' + b.total + ' total</span></div>' +
-          '<div class="ah-sum-row__chips">' +
-            typeChip(b.open, 'r', 'Open') + typeChip(b.inProgress, 'a', 'In-progress') + typeChip(b.closed, 'g', 'Closed') +
-          '</div>' +
-          '<div class="ah-sum-row__types">' +
-            typeChip(b.byType.NC, 'nc', 'NC') + typeChip(b.byType.TASK, 'task', 'Task') + typeChip(b.byType.RED_TAG, 'rt', 'Red Tag') +
-          '</div></div>';
+          '<span>' +
+            '<span class="ah-sum-row__name">' + escHtml(b.label) + '</span>' +
+            '<span class="ah-sum-row__types">' + typeBits(b.byType || {}) + '</span>' +
+          '</span>' +
+          '<span class="ah-sum-nums">' +
+            num(b.open, 'open', 'Open') +
+            num(b.inProgress, 'prog', 'Doing') +
+            num(b.closed, 'closed', 'Closed') +
+            num(b.total, 'total', 'Total') +
+          '</span>' +
+          '<span class="ah-sum-bar" title="' + pctOpen + '% still open">' +
+            '<span style="width:' + pctOpen + '%"></span></span>' +
+        '</div>';
       }
-      var html = '<div class="ah-sum-section"><h3>By User</h3>' +
-        (byUser.length ? byUser.map(row).join('') : '<div class="ah-empty">No actions yet.</div>') + '</div>' +
-        '<div class="ah-sum-section"><h3>By Zone</h3>' +
-        (byZone.length ? byZone.map(row).join('') : '<div class="ah-empty">No actions yet.</div>') + '</div>';
+      function section(title, sub, rows) {
+        return '<div class="ah-sum-section"><h3>' + title + '</h3>' +
+          '<p class="ah-sum-section__sub">' + sub + '</p>' +
+          (rows.length ? rows.map(row).join('') : '<div class="ah-empty">No actions yet.</div>') +
+          '</div>';
+      }
+      function totals(list) {
+        var o = 0, t = 0;
+        list.forEach(function(b) { o += b.open; t += b.total; });
+        return { open: o, total: t };
+      }
+      var tu = totals(byUser), tz = totals(byZone);
+      var html =
+        section('By owner', byUser.length + ' owners &middot; ' + tu.open + ' of ' + tu.total + ' still open', byUser) +
+        section('By zone',  byZone.length + ' zones &middot; '  + tz.open + ' of ' + tz.total + ' still open', byZone);
       document.getElementById('ahContent').innerHTML = html;
     })
     .withFailureHandler(function(e) {
@@ -1664,6 +1743,19 @@ function renderSummaryView() {
 }
 
 /* ── Audits view (per-criterion filled audits with photos) ── */
+/* Audits recorded the raw account: "system" or a full address. Neither names
+   a person, and an address is too long for the tile. */
+function auditorName_(raw) {
+  var v = String(raw || '').trim();
+  if (!v) return 'Unknown auditor';
+  if (/^(system|admin|tbm|bbm)$/i.test(v)) return 'Automated';
+  if (/^packmasters[.]mumbai@/i.test(v)) return 'PackMasters';
+  if (v.indexOf('@') > 0) v = v.slice(0, v.indexOf('@')).replace(/[._-]+/g, ' ');
+  return v.replace(/[^\s]+/g, function (w) {
+    return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+  });
+}
+
 function renderAuditsView() {
   document.getElementById('ahContent').innerHTML = '<div class="ah-loading">Loading audits…</div>';
   google.script.run
@@ -1693,8 +1785,8 @@ function renderAuditsView() {
             '<span class="au-stats">' +
               '<span title="criteria scored">&#9989; ' + a.count + '</span>' +
               '<span title="photos attached">&#128247; ' + a.photos + '</span>' +
-              '<span class="au-by" title="auditor">' + escHtml(a.auditor || '') + '</span>' +
             '</span>' +
+            '<span class="au-by" title="auditor">' + escHtml(auditorName_(a.auditor)) + '</span>' +
           '</span></button>';
       }).join('') + '</div>';
       document.getElementById('ahContent').innerHTML = html;

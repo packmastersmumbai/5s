@@ -931,25 +931,44 @@ function updateCreateArea_(idx) {
   var prev = {};
   fields.querySelectorAll('[data-f]').forEach(function(el){ prev[el.getAttribute('data-f')] = el.value; });
   var label = (_CFG.criteria[idx].label || '');
+  /* Owner fields were free text, which produced 42 distinct strings for 6 real
+     people. A select over the canonical roster keeps names consistent; "Other"
+     still allows a name that is not on it, rather than blocking the audit. */
+  function personSelect_(field, label) {
+    var people = (window.QA_PEOPLE || []);
+    if (!people.length) {
+      return '<input class="qa-cf" data-f="' + field + '" type="text" placeholder="' + label + '">';
+    }
+    var zone = getZoneId();
+    var opts = '<option value="">' + label + '</option>';
+    people.forEach(function (p) {
+      var isLead = (p.zones || []).indexOf(zone) > -1;
+      opts += '<option value="' + escHtml(p.name) + '"' + (isLead ? ' selected' : '') + '>' +
+              escHtml(p.name) + (isLead ? ' (zone lead)' : '') + '</option>';
+    });
+    opts += '<option value="__other">Other…</option>';
+    return '<select class="qa-cf" data-f="' + field + '" onchange="personOther_(this)">' + opts + '</select>';
+  }
+
   var h = '';
   if (types.indexOf('NC') >= 0) {
     h += '<div class="qa-cf-grp"><span class="qa-cf-lbl nc">NCR</span>';
     h += '<input class="qa-cf" data-f="nc_desc" type="text" placeholder="Non-conformance description">';
-    h += '<div class="qa-cf-row"><input class="qa-cf" data-f="nc_resp" type="text" placeholder="Responsible person">';
+    h += '<div class="qa-cf-row">' + personSelect_('nc_resp', 'Responsible person');
     h += '<input class="qa-cf qa-cf-date" data-f="nc_target" type="date" title="Target date"></div>';
     h += recPhotoCtrl_(idx, 'NC') + '</div>';
   }
   if (types.indexOf('TASK') >= 0) {
     h += '<div class="qa-cf-grp"><span class="qa-cf-lbl task">Task</span>';
     h += '<input class="qa-cf" data-f="task_title" type="text" placeholder="Task title">';
-    h += '<div class="qa-cf-row"><input class="qa-cf" data-f="task_resp" type="text" placeholder="Assign to">';
+    h += '<div class="qa-cf-row">' + personSelect_('task_resp', 'Assign to');
     h += '<input class="qa-cf qa-cf-date" data-f="task_due" type="date" title="Due date"></div>';
     h += recPhotoCtrl_(idx, 'TASK') + '</div>';
   }
   if (types.indexOf('REDTAG') >= 0) {
     h += '<div class="qa-cf-grp"><span class="qa-cf-lbl rt">Red Tag</span>';
     h += '<input class="qa-cf" data-f="rt_item" type="text" placeholder="Item to tag">';
-    h += '<div class="qa-cf-row"><input class="qa-cf" data-f="rt_owner" type="text" placeholder="Owner">';
+    h += '<div class="qa-cf-row">' + personSelect_('rt_owner', 'Owner');
     h += '<input class="qa-cf qa-cf-date" data-f="rt_due" type="date" title="Deadline"></div>';
     h += recPhotoCtrl_(idx, 'REDTAG') + '</div>';
   }
@@ -966,6 +985,27 @@ function cfVal_(idx, f) {
   var e = document.querySelector('#createfields-' + idx + ' [data-f="' + f + '"]');
   return e ? (e.value || '').trim() : '';
 }
+
+/* "Other..." swaps the select for a text input, so an unlisted name is still
+   possible without making free text the default path. */
+function personOther_(sel) {
+  if (sel.value !== '__other') return;
+  var inp = document.createElement('input');
+  inp.className = 'qa-cf';
+  inp.type = 'text';
+  inp.placeholder = 'Name';
+  inp.setAttribute('data-f', sel.getAttribute('data-f'));
+  sel.parentNode.replaceChild(inp, sel);
+  inp.focus();
+}
+
+/* Canonical people, loaded once. The audit stays usable if this fails: the
+   select builder falls back to a text input when the roster is empty. */
+window.QA_PEOPLE = [];
+google.script.run
+  .withSuccessHandler(function (list) { window.QA_PEOPLE = list || []; })
+  .withFailureHandler(function () { window.QA_PEOPLE = []; })
+  .getAssignablePeople();
 
 /* ── Optional per-record evidence photos (NC / Task / Red Tag) ──────────────
    Separate from the criterion photo pool: a record can carry its own evidence,
@@ -1705,6 +1745,7 @@ window.PM_TOUR_STEPS = [
   .qa-cf-lbl { font-size:10px; font-weight:700; letter-spacing:.3px; padding:2px 7px; border-radius:20px; flex-shrink:0; }
   .qa-cf-lbl.nc { background:#fdecec; color:#c0392b; } .qa-cf-lbl.task { background:#eafaf1; color:#1e8e50; } .qa-cf-lbl.rt { background:#fef5e7; color:#b9770a; }
   .qa-cf { flex:1; min-width:120px; height:30px; padding:0 10px; border:1px solid #d4d8e2; border-radius:7px; font-size:13px; font-family:inherit; box-sizing:border-box; }
+  select.qa-cf { background:#fff; color:inherit; appearance:auto; }
   .qa-cf-row { display:flex; gap:6px; flex:1 1 100%; }
   .qa-cf-date { flex:0 0 130px; min-width:0; }
   .qa-create-btn { margin-top:8px; width:100%; height:32px; border:none; border-radius:7px; background:#2563eb; color:#fff; font-size:13px; font-weight:600; cursor:pointer; }

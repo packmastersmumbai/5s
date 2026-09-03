@@ -210,6 +210,32 @@ body {
   gap: 12px;
 }
 .score-banner-left { flex: 1; min-width: 0; }
+/* Zone action sheet */
+.za-scrim { position: fixed; inset: 0; background: rgba(15,23,42,.55); z-index: 900; }
+.za-card {
+  position: fixed; left: 50%; bottom: 0; transform: translateX(-50%);
+  width: min(460px, 100%); z-index: 901; background: #fff;
+  border-radius: 16px 16px 0 0; padding: 8px 8px 12px;
+  box-shadow: 0 -8px 40px rgba(0,0,0,.25);
+}
+@media (min-width: 640px) {
+  .za-card { top: 50%; bottom: auto; transform: translate(-50%, -50%); border-radius: 16px; }
+}
+.za-hd { display: flex; align-items: baseline; gap: 8px; padding: 12px 14px 10px; }
+.za-hd b { font-family: var(--font-mono); font-size: 13px; letter-spacing: 1px; color: #0F172A; }
+.za-hd span { font-size: 14px; font-weight: 600; color: #475569; }
+.za-act {
+  display: block; width: 100%; text-align: left; min-height: 56px;
+  padding: 10px 14px; margin-bottom: 6px; cursor: pointer;
+  background: #fff; border: 1px solid #d4d8e2; border-radius: 12px; font: inherit;
+}
+.za-act:hover { border-color: #F59E0B; background: #fffbf2; }
+.za-act b { display: block; font-size: 15px; font-weight: 700; color: #0F172A; }
+.za-act span { display: block; font-size: 12.5px; color: #64748b; margin-top: 1px; }
+.za-cancel {
+  width: 100%; min-height: 48px; border: none; background: none; cursor: pointer;
+  font: inherit; font-size: 14px; font-weight: 600; color: #64748b;
+}
 .score-zone-id {
   font-family: var(--font-mono);
   font-size: 10px;
@@ -1046,7 +1072,11 @@ function zmCard(z,sc,idx){
   var ncUrl=DU+'?v2=1&action=actionlist&zone='+z.id+'&token='+encodeURIComponent(TOKEN);
   var matrixUrl=DU+'?v2=1&action=zonematrix&zone='+z.id+'&token='+encodeURIComponent(TOKEN);
 
-  return '<div class="zm-card" style="animation-delay:'+cardDelay+'ms" onclick="pm5sNav(\''+matrixUrl+'\')">'
+  /* The section says "TAP A ZONE TO START" a quick audit, but the card went to
+     the records matrix and auditUrl was never used -- the promise and the
+     behaviour disagreed. A zone is the context for auditing AND for kaizen, so
+     one tap now offers the choice instead of guessing. */
+  return '<div class="zm-card" style="animation-delay:'+cardDelay+'ms" onclick="openZoneActions(&quot;'+z.id+'&quot;,&quot;'+String(z.n).replace(/"/g,"")+'&quot;)">'
     +'<div class="zm-ch"><span class="zm-id">'+z.id+'</span><span class="zm-type">'+z.t+'</span><div class="zm-flags">'+fh+'</div></div>'
     +'<div class="zm-body">'+tileHtml
     +'<div class="zm-info">'
@@ -1102,6 +1132,36 @@ window.zmSw=function(floor,btn){
     zmRender();
     if(grid)grid.classList.remove('zm-fading');
   },130);
+};
+
+/* One tap on a zone card: pick what to do in that zone. Quick Audit leads
+   because that is what the section header promises. */
+window.openZoneActions = function (zid, zname) {
+  var base = DU || window.PM5S_DU || '';
+  var tok = encodeURIComponent(TOKEN || window.PM5S_TOKEN || '');
+  var acts = [
+    { k: 'quickaudit', t: 'Quick Audit',   d: 'Score this zone against its 5S criteria' },
+    { k: 'kaizen',     t: 'Kaizen Idea',   d: 'Suggest an improvement for this zone' },
+    { k: 'zonematrix', t: 'Zone Records',  d: 'Audits, NCs and red tags for this zone' }
+  ];
+  var host = document.createElement('div');
+  host.id = 'zaHost';
+  host.innerHTML =
+    '<div class="za-scrim" onclick="closeZoneActions()"></div>' +
+    '<div class="za-card" role="dialog" aria-modal="true" aria-label="Zone actions">' +
+      '<div class="za-hd"><b>' + zid + '</b><span>' + String(zname || '').replace(/[<>&]/g, '') + '</span></div>' +
+      acts.map(function (a) {
+        return '<button type="button" class="za-act" onclick="pm5sNav(' +
+          JSON.stringify(base + '?v2=1&action=' + a.k + '&zone=' + zid + '&token=' + tok).replace(/"/g, '&quot;') +
+          ')"><b>' + a.t + '</b><span>' + a.d + '</span></button>';
+      }).join('') +
+      '<button type="button" class="za-cancel" onclick="closeZoneActions()">Cancel</button>' +
+    '</div>';
+  document.body.appendChild(host);
+};
+window.closeZoneActions = function () {
+  var h = document.getElementById('zaHost');
+  if (h) h.parentNode.removeChild(h);
 };
 
 zmRender();

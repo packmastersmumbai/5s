@@ -2566,7 +2566,11 @@ function toggleSelectMode() {
       _setBulkActionsEnabled_(false);
     }
   }
-  fetchAndRender();
+  /* Select mode only changes how the cached rows are drawn, so repaint from
+     the cache. fetchAndRender() dropped to a server round-trip, leaving the
+     checkbox column missing for as long as the fetch took -- long enough to
+     read as "multi-select does nothing". */
+  if (_allItems) applyFiltersAndRender_(); else fetchAndRender();
 }
 
 /** Bulk actions are meaningless with an empty selection. @private */

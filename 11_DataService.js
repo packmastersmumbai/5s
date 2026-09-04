@@ -1653,6 +1653,17 @@ function getUnifiedActionList(filters) {
     return "OPEN";
   }
 
+  /* Kaizen runs its own lifecycle: SUBMITTED -> UNDER_REVIEW -> APPROVED ->
+     IMPLEMENTING -> COMPLETED / BENEFIT_VERIFIED, plus REJECTED. Collapse it
+     onto the hub's three states so a kaizen sits in the same Open/Doing/Closed
+     columns as everything else. */
+  function mapKaizenStatus(raw) {
+    var s = String(raw || "").toUpperCase().trim();
+    if (s === "COMPLETED" || s === "BENEFIT_VERIFIED" || s === "CLOSED" || s === "REJECTED") return "CLOSED";
+    if (s === "APPROVED" || s === "IMPLEMENTING" || s === "IN_PROGRESS" || s === "UNDER_REVIEW") return "IN_PROGRESS";
+    return "OPEN";
+  }
+
   var PRIORITY_RANK = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
 
   /* Photo columns hold comma-joined Drive thumbnail URLs. Kept as a small
@@ -1776,8 +1787,86 @@ function getUnifiedActionList(filters) {
     Logger.log("getUnifiedActionList: RedTag read error — " + e.message);
   }
 
+  /* Kaizen belongs in the records list: it has an owner, a target date and a
+     lifecycle, exactly like a task. It was simply never added, so 8 live
+     suggestions were invisible on every tab of the page that claims to be the
+     unified record list. */
+  var kzItems = [];
+  try {
+    var kzRaw = (typeof getKaizenData === "function") ? getKaizenData({}) : [];
+    if (Array.isArray(kzRaw)) {
+      for (var m = 0; m < kzRaw.length; m++) {
+        var kz = kzRaw[m];
+        if (zoneFilter && kz.zoneId !== zoneFilter) continue;
+        var kzStatus = mapKaizenStatus(kz.status);
+        var kzAge = daysSince(kz.createdDate);
+        kzItems.push({
+          id:          kz.kaizenId,
+          type:        "KAIZEN",
+          title:       kz.title,
+          description: kz.description || kz.expectedBenefit || "",
+          zone:        kz.zoneName,
+          zoneId:      kz.zoneId,
+          owner:       _displayOwner_(kz.submitterName),
+          dueDate:     "",
+          rawStatus:   kz.status,
+          status:      kzStatus,
+          /* An idea nobody has looked at is the thing that goes stale, so age
+             drives priority. Kaizen carries no severity of its own. */
+          priority:    kzStatus === "CLOSED" ? "LOW" : (kzAge > 30 ? "HIGH" : "MEDIUM"),
+          ageDays:     kzAge,
+          daysPastDue: 0,
+          isOverdue:   false,
+          createdDate: kz.createdDate || "",
+          photos:      []
+        });
+      }
+    }
+  } catch (e) {
+    Logger.log("getUnifiedActionList: Kaizen read error — " + e.message);
+  }
+
+  /* A Gemba walk is a completed event, not an open action -- there is nothing
+     to chase, and the actions it raised are already in the list as their own
+     tasks. It is included so the record list is genuinely complete and a walk
+     can be found by zone, and it is always CLOSED so it never inflates the
+     open counts that drive the plant's follow-up. */
+  var gwItems = [];
+  try {
+    var gwRaw = (typeof getGembaWalkData === "function") ? getGembaWalkData({}) : [];
+    if (Array.isArray(gwRaw)) {
+      for (var n2 = 0; n2 < gwRaw.length; n2++) {
+        var gw = gwRaw[n2];
+        if (zoneFilter && gw.zoneId !== zoneFilter) continue;
+        var noC = Number(gw.noCount || 0);
+        gwItems.push({
+          id:          gw.walkId,
+          type:        "GEMBA",
+          title:       (gw.walkType || "Gemba") + " walk — " + noC + " finding" + (noC === 1 ? "" : "s"),
+          description: "Compliance " + (gw.compliancePct || 0) + "% · " +
+                       (gw.totalQuestions || 0) + " checks · " + (gw.yesCount || 0) + " pass",
+          zone:        gw.zoneName,
+          zoneId:      gw.zoneId,
+          owner:       _displayOwner_(gw.walkerName),
+          dueDate:     "",
+          rawStatus:   "COMPLETED",
+          status:      "CLOSED",
+          priority:    noC > 0 ? "MEDIUM" : "LOW",
+          ageDays:     daysSince(gw.timestamp),
+          daysPastDue: 0,
+          isOverdue:   false,
+          createdDate: gw.timestamp || "",
+          photos:      []
+        });
+      }
+    }
+  } catch (e) {
+    Logger.log("getUnifiedActionList: Gemba read error — " + e.message);
+  }
+
+
   // ── full zone-filtered pool (used for counts) ─────────────────────────────
-  var pool = ncItems.concat(taskItems).concat(rtItems);
+  var pool = ncItems.concat(taskItems).concat(rtItems).concat(kzItems).concat(gwItems);
 
   // ── counts pool ──────────────────────────────────────────────────────────
   // Counts deliberately IGNORE the status filter (each tab must show how many
@@ -1791,12 +1880,14 @@ function getUnifiedActionList(filters) {
   });
 
   var counts = {
-    byType:     { NC: 0, TASK: 0, RED_TAG: 0 },
+    byType:     { NC: 0, TASK: 0, RED_TAG: 0, KAIZEN: 0, GEMBA: 0 },
     byStatus:   { OPEN: 0, IN_PROGRESS: 0, CLOSED: 0 },
     byTypeStatus: {
       NC:      { OPEN: 0, IN_PROGRESS: 0, CLOSED: 0 },
       TASK:    { OPEN: 0, IN_PROGRESS: 0, CLOSED: 0 },
-      RED_TAG: { OPEN: 0, IN_PROGRESS: 0, CLOSED: 0 }
+      RED_TAG: { OPEN: 0, IN_PROGRESS: 0, CLOSED: 0 },
+      KAIZEN:  { OPEN: 0, IN_PROGRESS: 0, CLOSED: 0 },
+      GEMBA:   { OPEN: 0, IN_PROGRESS: 0, CLOSED: 0 }
     },
     byPriority: { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 },
     total:      countPool.length
@@ -1966,7 +2057,7 @@ function getActionsSummary(filters) {
       if (!map[key]) {
         map[key] = { key: key, label: label, zoneId: zoneId || "",
           total: 0, open: 0, inProgress: 0, closed: 0,
-          byType: { NC: 0, TASK: 0, RED_TAG: 0 } };
+          byType: { NC: 0, TASK: 0, RED_TAG: 0, KAIZEN: 0, GEMBA: 0 } };
       }
       return map[key];
     }

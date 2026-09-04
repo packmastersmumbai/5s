@@ -371,6 +371,8 @@ body {
 .type-badge.NC       { background: #EEE8FF; color: #5B21B6; }
 .type-badge.TASK     { background: var(--pm-primary-soft); color: var(--pm-primary); }
 .type-badge.RED_TAG  { background: var(--score-red-bg); color: var(--score-red); }
+.type-badge.KAIZEN   { background: #DBEAFE; color: #1D4ED8; }
+.type-badge.GEMBA    { background: #EDE9FE; color: #6D28D9; }
 
 /* PRIORITY badge */
 .pri-badge {
@@ -1676,7 +1678,7 @@ function escHtml(s) {
 /* ── state ── */
 var CURRENT_USER = '<?= (typeof params !== "undefined" && params && params.currentUser) ? params.currentUser : "" ?>';
 var _filters = { type: '', status: 'OPEN', priority: '', zoneId: '' };
-var _lastCounts = { byType:{NC:0,TASK:0,RED_TAG:0}, byStatus:{OPEN:0,IN_PROGRESS:0,CLOSED:0}, byPriority:{}, total:0 };
+var _lastCounts = { byType:{NC:0,TASK:0,RED_TAG:0,KAIZEN:0,GEMBA:0}, byStatus:{OPEN:0,IN_PROGRESS:0,CLOSED:0}, byPriority:{}, total:0 };
 var _rcaPendingId = null;
 
 /* ── tabs / chips ── */
@@ -1724,6 +1726,8 @@ function renderSummaryView() {
         if (t.NC)      out.push('<b>' + t.NC + '</b> NC');
         if (t.TASK)    out.push('<b>' + t.TASK + '</b> Task' + (t.TASK === 1 ? '' : 's'));
         if (t.RED_TAG) out.push('<b>' + t.RED_TAG + '</b> Red Tag' + (t.RED_TAG === 1 ? '' : 's'));
+        if (t.KAIZEN)  out.push('<b>' + t.KAIZEN + '</b> Kaizen');
+        if (t.GEMBA)   out.push('<b>' + t.GEMBA + '</b> Walk' + (t.GEMBA === 1 ? '' : 's'));
         return out.join('') ? out.join('<span aria-hidden="true">&middot;</span>') : '';
       }
       function row(b) {
@@ -2150,7 +2154,7 @@ function applyFiltersAndRender_() {
 
   var counts = {
     byStatus:   { OPEN: 0, IN_PROGRESS: 0, CLOSED: 0 },
-    byType:     { NC: 0, TASK: 0, RED_TAG: 0 },
+    byType:     { NC: 0, TASK: 0, RED_TAG: 0, KAIZEN: 0, GEMBA: 0 },
     byPriority: { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 },
     byTypeStatus: (_allCounts && _allCounts.byTypeStatus) || {},
     total: 0
@@ -2206,11 +2210,12 @@ function renderCards(items) {
   _openRow = null;
 
   /* Group into collapsible sections by record type */
-  var groups = { NC: [], TASK: [], RED_TAG: [] };
+  var groups = { NC: [], TASK: [], RED_TAG: [], KAIZEN: [], GEMBA: [] };
   items.forEach(function(a) { (groups[a.type] = groups[a.type] || []).push(a); });
 
-  var order = ['NC', 'TASK', 'RED_TAG'];
-  var emoji = { NC: '&#128995;', TASK: '&#128203;', RED_TAG: '&#128308;' };
+  var order = ['NC', 'TASK', 'RED_TAG', 'KAIZEN', 'GEMBA'];
+  var emoji = { NC: '&#128995;', TASK: '&#128203;', RED_TAG: '&#128308;',
+                KAIZEN: '&#128161;', GEMBA: '&#128065;' };
   var html = '';
   order.forEach(function(t) {
     var rows = groups[t] || [];
@@ -2377,6 +2382,8 @@ function typeName(t) {
   if (t === 'NC') return 'NC';
   if (t === 'TASK') return 'Task';
   if (t === 'RED_TAG') return 'Red Tag';
+  if (t === 'KAIZEN') return 'Kaizen';
+  if (t === 'GEMBA') return 'Gemba Walk';
   return t;
 }
 
@@ -2786,6 +2793,28 @@ function toggleRowDetail(type, id, el) {
         if (b) b.innerHTML = '<div class="ah-loading" style="color:var(--score-red)">' + escHtml(friendlyError_(e)) + '</div>';
       })
       .getNcDetail(id);
+  } else if (type === 'KAIZEN' || type === 'GEMBA') {
+    /* Neither is a task, so the task detail body would render mostly blanks.
+       Both already have a proper read-only record page (findings, savings,
+       photos) -- show the essentials here and send the reader there for the
+       rest. Relative URL: this page is served from the same /exec. */
+    var box2 = document.getElementById('ahDetailBox');
+    var it = findItem_(id) || {};
+    var rt = (type === 'KAIZEN') ? 'kaizen' : 'gemba';
+    var url = '?v2=1&action=record&type=' + rt + '&id=' + encodeURIComponent(id);
+    if (box2) {
+      box2.innerHTML =
+        '<div class="rc-hero"><span class="rc-id">' + escHtml(id) + '</span></div>' +
+        (it.description ? '<div class="rc-desc">' + escHtml(it.description) + '</div>' : '') +
+        '<div class="ah-card__actions">' +
+          '<button class="ah-ibtn start" data-url="' + escHtml(url) + '"' +
+            ' onclick="event.stopPropagation();top.location.href=this.dataset.url;">' +
+            '<span class="ah-ibtn-ic" aria-hidden="true">&#128196;</span>' +
+            '<span class="ah-ibtn-lbl">' +
+              (type === 'GEMBA' ? 'Open walk — every finding' : 'Open full record') +
+            '</span></button>' +
+        '</div>';
+    }
   } else {
     var box = document.getElementById('ahDetailBox');
     if (box) box.innerHTML = buildTaskDetailBody_(findItem_(id));

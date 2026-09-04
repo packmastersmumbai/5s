@@ -36,6 +36,19 @@ const say = (n, ok, d) => { R.push({ ok: !!ok }); console.log((ok ? 'PASS  ' : '
   say('is a real tap target', bBox && bBox.height >= 32 && bBox.width >= 40,
       bBox ? Math.round(bBox.width) + 'x' + Math.round(bBox.height) : 'none');
 
+  /* It previously rendered as a dark box on the dark rail -- present, but
+     invisible in practice. Require it to stand out from the rail and to be
+     labelled, not just a bare code. */
+  const vis = await fr.evaluate(() => {
+    const b = document.getElementById('pm5s-zone-btn');
+    const sb = b.closest('.sidebar');
+    return { btnBg: getComputedStyle(b).backgroundColor,
+             railBg: getComputedStyle(sb).backgroundColor,
+             caption: !!b.querySelector('.zb-cap') };
+  });
+  say('stands out from the rail', vis.btnBg !== vis.railBg, vis.btnBg + ' vs ' + vis.railBg);
+  say('is labelled, not a bare code', vis.caption);
+
   const before = (await fr.locator('#pm5s-zone-label').textContent() || '').trim();
 
   // CLICK it, as a user would.

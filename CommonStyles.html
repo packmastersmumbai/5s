@@ -1112,22 +1112,36 @@ body.lang-en .criterion-label-hi { display: none; }
   gap: 8px;
 }
 
-/* The working zone drives audits, kaizen and every record raised, so it is a
-   control on every page rather than a label that happened to say Z-01.
-   It is a button, not a <select>: .sidebar is 52px with overflow:hidden, so a
-   select rendered as a cramped badge with no arrow and its option list was
-   clipped. The picker below is appended to <body> and cannot be clipped. */
+/* WORKING ZONE — the control that decides which zone audits, kaizen and new
+   records belong to.
+
+   It lived in the 52px rail as a 44px dark box reading "--" on a dark ground:
+   present, but it read as a smudge in the corner rather than a control anyone
+   would find. It is now a labelled pill in the accent colour with the word
+   ZONE above the code, so it is legible at a glance and unmistakably
+   interactive. The picker still mounts on <body>, since the rail clips. */
 #pm5s-zone-btn {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 1px; width: 44px; min-height: 38px; margin: 0 auto 12px; cursor: pointer;
-  font-family: var(--font-mono, monospace); font-size: 11.5px; font-weight: 800;
-  color: #fff; background: rgba(255,255,255,.12);
-  border: 1px solid rgba(255,255,255,.28); border-radius: 8px;
+  gap: 0; width: 46px; min-height: 46px; margin: 8px auto 14px; padding: 4px 2px;
+  cursor: pointer; font-family: var(--font-mono, monospace);
+  color: #0F172A; background: var(--pm-accent, #F59E0B);
+  border: 0; border-radius: 9px;
+  box-shadow: 0 2px 8px rgba(245,158,11,.35);
 }
-#pm5s-zone-btn::after { content: '\25BE'; font-size: 9px; opacity: .8; line-height: 1; }
-#pm5s-zone-btn:hover { background: rgba(255,255,255,.22); border-color: rgba(255,255,255,.5); }
-#pm5s-zone-btn:focus-visible { outline: 2px solid var(--pm-accent, #F59E0B); outline-offset: 2px; }
-.sidebar.expanded #pm5s-zone-btn { width: calc(100% - 24px); flex-direction: row; gap: 6px; }
+#pm5s-zone-btn .zb-cap {
+  font-size: 7.5px; font-weight: 800; letter-spacing: .08em;
+  text-transform: uppercase; opacity: .75; line-height: 1;
+}
+#pm5s-zone-btn #pm5s-zone-label {
+  font-size: 12px; font-weight: 800; letter-spacing: .2px; line-height: 1.25;
+}
+#pm5s-zone-btn:hover { filter: brightness(1.08); }
+#pm5s-zone-btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.sidebar.expanded #pm5s-zone-btn {
+  width: calc(100% - 20px); flex-direction: row; gap: 7px; padding: 8px 10px;
+}
+.sidebar.expanded #pm5s-zone-btn .zb-cap { font-size: 9px; }
+.sidebar.expanded #pm5s-zone-btn #pm5s-zone-label { font-size: 13px; }
 
 .pm5s-zp-scrim { position: fixed; inset: 0; background: rgba(15,23,42,.55); z-index: 998; }
 .pm5s-zp {

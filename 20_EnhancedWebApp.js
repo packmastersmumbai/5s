@@ -696,6 +696,7 @@ function buildSidebar_(deployUrl, action, token, zone, zoneConfig) {
      static badge and its option list was cramped. A button that opens a
      full picker is unambiguous and cannot be clipped by the rail. */
   html += '  <button type="button" class="sidebar-zone-switcher" id="pm5s-zone-btn" title="Change working zone" aria-haspopup="dialog">\n';
+  html += '    <span class="zb-cap">Zone</span>\n';
   html += '    <span id="pm5s-zone-label">' + (current || '--') + '</span>\n';
   html += '  </button>\n';
 

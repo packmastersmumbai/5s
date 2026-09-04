@@ -373,6 +373,7 @@ body {
 .type-badge.RED_TAG  { background: var(--score-red-bg); color: var(--score-red); }
 .type-badge.KAIZEN   { background: #DBEAFE; color: #1D4ED8; }
 .type-badge.GEMBA    { background: #EDE9FE; color: #6D28D9; }
+.type-badge.AUDIT    { background: #DCFCE7; color: #15803D; }
 
 /* PRIORITY badge */
 .pri-badge {
@@ -1678,7 +1679,7 @@ function escHtml(s) {
 /* ── state ── */
 var CURRENT_USER = '<?= (typeof params !== "undefined" && params && params.currentUser) ? params.currentUser : "" ?>';
 var _filters = { type: '', status: 'OPEN', priority: '', zoneId: '' };
-var _lastCounts = { byType:{NC:0,TASK:0,RED_TAG:0,KAIZEN:0,GEMBA:0}, byStatus:{OPEN:0,IN_PROGRESS:0,CLOSED:0}, byPriority:{}, total:0 };
+var _lastCounts = { byType:{NC:0,TASK:0,RED_TAG:0,KAIZEN:0,GEMBA:0,AUDIT:0}, byStatus:{OPEN:0,IN_PROGRESS:0,CLOSED:0}, byPriority:{}, total:0 };
 var _rcaPendingId = null;
 
 /* ── tabs / chips ── */
@@ -1728,6 +1729,7 @@ function renderSummaryView() {
         if (t.RED_TAG) out.push('<b>' + t.RED_TAG + '</b> Red Tag' + (t.RED_TAG === 1 ? '' : 's'));
         if (t.KAIZEN)  out.push('<b>' + t.KAIZEN + '</b> Kaizen');
         if (t.GEMBA)   out.push('<b>' + t.GEMBA + '</b> Walk' + (t.GEMBA === 1 ? '' : 's'));
+        if (t.AUDIT)   out.push('<b>' + t.AUDIT + '</b> Audit' + (t.AUDIT === 1 ? '' : 's'));
         return out.join('') ? out.join('<span aria-hidden="true">&middot;</span>') : '';
       }
       function row(b) {
@@ -2154,7 +2156,7 @@ function applyFiltersAndRender_() {
 
   var counts = {
     byStatus:   { OPEN: 0, IN_PROGRESS: 0, CLOSED: 0 },
-    byType:     { NC: 0, TASK: 0, RED_TAG: 0, KAIZEN: 0, GEMBA: 0 },
+    byType:     { NC: 0, TASK: 0, RED_TAG: 0, KAIZEN: 0, GEMBA: 0, AUDIT: 0 },
     byPriority: { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 },
     byTypeStatus: (_allCounts && _allCounts.byTypeStatus) || {},
     total: 0
@@ -2210,12 +2212,12 @@ function renderCards(items) {
   _openRow = null;
 
   /* Group into collapsible sections by record type */
-  var groups = { NC: [], TASK: [], RED_TAG: [], KAIZEN: [], GEMBA: [] };
+  var groups = { NC: [], TASK: [], RED_TAG: [], KAIZEN: [], GEMBA: [], AUDIT: [] };
   items.forEach(function(a) { (groups[a.type] = groups[a.type] || []).push(a); });
 
-  var order = ['NC', 'TASK', 'RED_TAG', 'KAIZEN', 'GEMBA'];
+  var order = ['NC', 'TASK', 'RED_TAG', 'KAIZEN', 'GEMBA', 'AUDIT'];
   var emoji = { NC: '&#128995;', TASK: '&#128203;', RED_TAG: '&#128308;',
-                KAIZEN: '&#128161;', GEMBA: '&#128065;' };
+                KAIZEN: '&#128161;', GEMBA: '&#128065;', AUDIT: '&#128202;' };
   var html = '';
   order.forEach(function(t) {
     var rows = groups[t] || [];
@@ -2304,7 +2306,7 @@ function buildTable_(rows) {
       ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleRowDetail(' + openArgs + ',this);}"' +
       ' title="' + escHtml(a.title) + '">' +
       '<span class="ah-ttl-txt">' + escHtml(rowTitle_(a)) + '</span>' +
-      '<span class="ah-ttl-id">' + escHtml(a.id || '') + '</span></td>';
+      '<span class="ah-ttl-id">' + escHtml(rowId_(a)) + '</span></td>';
     html += '<td class="ah-td muted hide-sm" data-label="Zone">' + escHtml(a.zone || '') + '</td>';
     html += '<td class="ah-td muted hide-sm" data-label="Owner">' + escHtml(a.owner || '—') + '</td>';
     html += '<td class="ah-td hide-sm" data-label="Due">' + dueCell_(a, overdue) + '</td>';
@@ -2328,6 +2330,16 @@ function buildTable_(rows) {
    section is ~22 characters of label the grouping already provides. And three
    rows can share a title, zone, owner and due date -- real repeat findings that
    looked like the same record drawn three times. The id disambiguates them. */
+/* Every other record has a human id (NC-2026..., TK-2026...). An audit is keyed
+   by submission UUID, which is 36 characters of noise to a reader and tells
+   them nothing -- show when it was taken instead, which is how people actually
+   refer to an audit. */
+function rowId_(a) {
+  if (a.type !== 'AUDIT') return a.id || '';
+  var d = a.createdDate ? new Date(a.createdDate) : null;
+  return (d && !isNaN(d)) ? fmtDate_(a.createdDate) : '';
+}
+
 function rowTitle_(a) {
   var t = String(a.title || '');
   if (a.type === 'NC')   t = t.replace(/^Non-conformance:\s*/i, '');
@@ -2384,6 +2396,7 @@ function typeName(t) {
   if (t === 'RED_TAG') return 'Red Tag';
   if (t === 'KAIZEN') return 'Kaizen';
   if (t === 'GEMBA') return 'Gemba Walk';
+  if (t === 'AUDIT') return 'Audit';
   return t;
 }
 
@@ -2793,6 +2806,18 @@ function toggleRowDetail(type, id, el) {
         if (b) b.innerHTML = '<div class="ah-loading" style="color:var(--score-red)">' + escHtml(friendlyError_(e)) + '</div>';
       })
       .getNcDetail(id);
+  } else if (type === 'AUDIT') {
+    /* The Audits tab already renders full per-criterion detail (scores, Hindi
+       labels, remarks, photos, share links) inside openAuditDetail's modal.
+       Reuse it rather than growing a second renderer that would drift out of
+       step -- so the inline expander is dropped and the modal opens instead. */
+    var det0 = document.querySelector('tr.ah-detail-row');
+    if (det0) det0.parentNode.removeChild(det0);
+    tr.classList.remove('expanded');
+    el.setAttribute('aria-expanded', 'false');
+    _openRow = null;
+    openAuditDetail(id);
+    return;
   } else if (type === 'KAIZEN' || type === 'GEMBA') {
     /* Neither is a task, so the task detail body would render mostly blanks.
        Both already have a proper read-only record page (findings, savings,

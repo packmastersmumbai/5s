@@ -1864,9 +1864,46 @@ function getUnifiedActionList(filters) {
     Logger.log("getUnifiedActionList: Gemba read error — " + e.message);
   }
 
+  /* Submitted audits. Like a Gemba walk this is a completed event rather than
+     work to chase, so it is always CLOSED and never inflates the open counts.
+     The score is the whole signal, so it leads the title and drives priority:
+     below the pass mark is the audit someone has to act on. */
+  var auItems = [];
+  try {
+    var auRaw = (typeof getRecentAudits === "function") ? (getRecentAudits(0) || {}).audits : [];
+    if (Array.isArray(auRaw)) {
+      for (var q = 0; q < auRaw.length; q++) {
+        var au = auRaw[q];
+        if (zoneFilter && au.zoneId !== zoneFilter) continue;
+        var pct = Number(au.pct || 0);
+        auItems.push({
+          id:          au.submissionId,
+          type:        "AUDIT",
+          title:       "5S audit — " + pct + "%",
+          description: au.count + " criteria scored" +
+                       (au.photos ? " · " + au.photos + " photo" + (au.photos === 1 ? "" : "s") : ""),
+          zone:        au.zoneName,
+          zoneId:      au.zoneId,
+          owner:       _displayOwner_(au.auditor),
+          dueDate:     "",
+          rawStatus:   "SUBMITTED",
+          status:      "CLOSED",
+          priority:    pct < 70 ? "HIGH" : (pct < 85 ? "MEDIUM" : "LOW"),
+          ageDays:     daysSince(au.timestamp),
+          daysPastDue: 0,
+          isOverdue:   false,
+          createdDate: au.timestamp || "",
+          photos:      []
+        });
+      }
+    }
+  } catch (e) {
+    Logger.log("getUnifiedActionList: Audit read error — " + e.message);
+  }
+
 
   // ── full zone-filtered pool (used for counts) ─────────────────────────────
-  var pool = ncItems.concat(taskItems).concat(rtItems).concat(kzItems).concat(gwItems);
+  var pool = ncItems.concat(taskItems).concat(rtItems).concat(kzItems).concat(gwItems).concat(auItems);
 
   // ── counts pool ──────────────────────────────────────────────────────────
   // Counts deliberately IGNORE the status filter (each tab must show how many
@@ -1880,14 +1917,15 @@ function getUnifiedActionList(filters) {
   });
 
   var counts = {
-    byType:     { NC: 0, TASK: 0, RED_TAG: 0, KAIZEN: 0, GEMBA: 0 },
+    byType:     { NC: 0, TASK: 0, RED_TAG: 0, KAIZEN: 0, GEMBA: 0, AUDIT: 0 },
     byStatus:   { OPEN: 0, IN_PROGRESS: 0, CLOSED: 0 },
     byTypeStatus: {
       NC:      { OPEN: 0, IN_PROGRESS: 0, CLOSED: 0 },
       TASK:    { OPEN: 0, IN_PROGRESS: 0, CLOSED: 0 },
       RED_TAG: { OPEN: 0, IN_PROGRESS: 0, CLOSED: 0 },
       KAIZEN:  { OPEN: 0, IN_PROGRESS: 0, CLOSED: 0 },
-      GEMBA:   { OPEN: 0, IN_PROGRESS: 0, CLOSED: 0 }
+      GEMBA:   { OPEN: 0, IN_PROGRESS: 0, CLOSED: 0 },
+      AUDIT:   { OPEN: 0, IN_PROGRESS: 0, CLOSED: 0 }
     },
     byPriority: { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 },
     total:      countPool.length
@@ -2057,7 +2095,7 @@ function getActionsSummary(filters) {
       if (!map[key]) {
         map[key] = { key: key, label: label, zoneId: zoneId || "",
           total: 0, open: 0, inProgress: 0, closed: 0,
-          byType: { NC: 0, TASK: 0, RED_TAG: 0, KAIZEN: 0, GEMBA: 0 } };
+          byType: { NC: 0, TASK: 0, RED_TAG: 0, KAIZEN: 0, GEMBA: 0, AUDIT: 0 } };
       }
       return map[key];
     }

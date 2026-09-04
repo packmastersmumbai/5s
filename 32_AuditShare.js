@@ -52,6 +52,20 @@ function generateAuditPdf(submissionId) {
     if (!pdfUrl && folderId) {
       _fillAuditSlipView_(ss, detail, zoneCfg, overall, byPillar, ncCount);
       SpreadsheetApp.flush();
+      /* flush() commits the =IMAGE() formulas but does NOT wait for Sheets to
+         fetch each picture from Drive. Exporting immediately caught unresolved
+         images and printed them as the placeholder "[1]" instead of the photo —
+         on a report whose entire purpose is the photo. Give the fetches a
+         moment, scaled to how many there are, then flush again. */
+      var _imgCount = 0;
+      detail.items.forEach(function (it) {
+        var u = (it.photoUrls && it.photoUrls.length) ? it.photoUrls : (it.photoUrl ? [it.photoUrl] : []);
+        _imgCount += u.length;
+      });
+      if (_imgCount) {
+        Utilities.sleep(Math.min(2000 + _imgCount * 600, 12000));
+        SpreadsheetApp.flush();
+      }
       var slip = ss.getSheetByName(AUDIT_SLIP_SHEET);
       var url = "https://docs.google.com/spreadsheets/d/" + ss.getId() +
         "/export?format=pdf&gid=" + slip.getSheetId() +

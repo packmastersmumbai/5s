@@ -171,15 +171,14 @@ function createCAPA(zoneId, description, type, pillar, sqcdpDim, responsiblePers
       assignee: (typeof dwmResolveUser_ === "function") ? dwmResolveUser_(responsiblePerson) : (responsiblePerson || ""),
       creator: (typeof dwmResolveUser_ === "function") ? dwmResolveUser_(createdBy) : "",
       due: targetDateStr,
-      desc: "5S NC " + ncId + " · zone " + zoneId + (pillar ? " · " + pillar : ""),
-      photo: true
+      desc: "5S NC " + ncId + " · zone " + zoneId + (pillar ? " · " + pillar : "")
     });
   }
   if (typeof tg5sBroadcast_ === "function") {
     var ncResp = _tg5sWho_(responsiblePerson);
     var ncBy = _tg5sWho_(createdBy);
     tg5sBroadcast_(_tg5sCard_({
-      icon: "🔴", kind: "NC", id: ncId, link: _tg5sDeep_('?v2=1&action=record&type=nc&id=' + ncId),
+      kind: "NC", status: "open", id: ncId, link: _tg5sDeep_('?v2=1&action=record&type=nc&id=' + ncId),
       zoneId: zoneId, zoneName: (zoneConfig.name || ""),
       facts: [
         "⚠ " + TelegramLib.esc(description || ""),

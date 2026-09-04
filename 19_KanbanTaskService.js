@@ -190,7 +190,7 @@ function createTask(taskData) {
       var tOwner = _tg5sWho_(d.assignedTo);
       var tBy = _tg5sWho_(taskData.createdBy);
       tg5sBroadcast_(_tg5sCard_({
-        icon: "🗒️", kind: "Task", id: taskId, link: _tg5sDeep_('?v2=1&action=record&type=task&id=' + taskId),
+        kind: "Task", status: "open", id: taskId, link: _tg5sDeep_('?v2=1&action=record&type=task&id=' + taskId),
         zoneId: d.zoneId, zoneName: v2GetZoneName_(d.zoneId),
         facts: [
           "📌 " + TelegramLib.esc(d.title),
@@ -236,10 +236,22 @@ function updateTaskStatus(taskId, newStatus, remarks) {
           deferNotify_({ kind: "dwm", payload: {
             title: String(data[r][TASK_COL.TITLE] || "Task"), ref: taskId,
             status: (newStatus === STATUS.DONE ? "completed" : newStatus === STATUS.IN_PROGRESS ? "in-progress" : "open") } });
-          if (newStatus === STATUS.DONE) {
+          /* Progress, not just problems. The channel used to carry only the
+             raising of work; closure and in-progress went unannounced, so it
+             read as an endless list of failures. Both are posted now, through
+             the same card builder as everything else. */
+          if (newStatus === STATUS.DONE || newStatus === STATUS.IN_PROGRESS) {
+            var _closer = _tg5sWho_(v2GetCurrentUser_());
             deferNotify_({ kind: "telegram", payload: {
-              text: "✔️ <b>Task done</b> · " + String(data[r][TASK_COL.ZONE_ID]).trim() +
-                " — " + String(data[r][TASK_COL.TITLE] || taskId) + " by " + v2GetCurrentUser_(),
+              text: _tg5sCard_({
+                kind: "Task", status: (newStatus === STATUS.DONE ? "done" : "progress"),
+                link: _tg5sDeep_('?v2=1&action=record&type=task&id=' + taskId),
+                zoneId: String(data[r][TASK_COL.ZONE_ID]).trim(),
+                zoneName: v2GetZoneName_(String(data[r][TASK_COL.ZONE_ID]).trim()),
+                facts: [ TelegramLib.esc(String(data[r][TASK_COL.TITLE] || taskId)) ],
+                action: (newStatus === STATUS.DONE ? "done" : "in progress"),
+                by: _closer
+              }),
               buttons: [{ text: "🗒️ Open record", url: _tg5sDeep_('?v2=1&action=record&type=task&id=' + taskId) }] } });
           }
         }
@@ -383,14 +395,14 @@ function createRedTag(tagData) {
       var rOwner = _tg5sWho_(d.owner);
       var rBy = _tg5sWho_((tagData && tagData.createdBy) || v2GetCurrentUser_());
       tg5sBroadcast_(_tg5sCard_({
-        icon: "🏷️", kind: "Red Tag", id: tagId, link: _tg5sDeep_('?v2=1&action=record&type=rt&id=' + tagId),
+        kind: "Red Tag", status: "open", id: tagId, link: _tg5sDeep_('?v2=1&action=record&type=rt&id=' + tagId),
         zoneId: d.zoneId, zoneName: v2GetZoneName_(d.zoneId),
         facts: [
           "📦 " + TelegramLib.esc(d.itemDescription) + (d.itemCategory ? " · " + TelegramLib.esc(d.itemCategory) : ""),
           (rOwner ? "👤 " + TelegramLib.esc(rOwner) + " · " : "") + "🎯 " + TelegramLib.esc(d.proposedAction || "review & dispose"),
           (deadline ? "📅 due " + v2FormatDate_(deadline) : "")
         ],
-        action: "review & dispose (48h)",
+        action: "review & dispose" + (deadline ? " by " + v2FormatDate_(deadline) : ""),
         by: (rBy && rBy !== rOwner) ? rBy : ""
       }), [{ text: "🏷️ Open record", url: _tg5sDeep_('?v2=1&action=record&type=rt&id=' + tagId) }],
         d.photoUrl || "");
@@ -538,9 +550,19 @@ function advanceRedTagPhase(tagId, toPhase, notes) {
           status: (toPhase === STATUS.CLOSED || toPhase === STATUS.DISPOSED ? "completed" : toPhase === STATUS.EVALUATED ? "in-progress" : "open") });
       }
       if ((toPhase === STATUS.CLOSED || toPhase === STATUS.DISPOSED) && typeof tg5sBroadcast_ === "function") {
-        tg5sBroadcast_("✔️ <b>Red Tag " + toPhase.toLowerCase() + "</b> · " + String(data[r][RT_COL.ZONE_ID]).trim() +
-          " — " + String(data[r][RT_COL.ITEM_DESC] || tagId) + " by " + v2GetCurrentUser_(),
-          [{ text: "🏷️ Open record", url: _tg5sDeep_('?v2=1&action=record&type=rt&id=' + tagId) }]);
+        var _rtZone = String(data[r][RT_COL.ZONE_ID]).trim();
+        var _disp = String(data[r][RT_COL.DISPOSITION] || notes || "").trim();
+        tg5sBroadcast_(_tg5sCard_({
+          kind: "Red Tag", status: "done",
+          link: _tg5sDeep_('?v2=1&action=record&type=rt&id=' + tagId),
+          zoneId: _rtZone, zoneName: v2GetZoneName_(_rtZone),
+          facts: [
+            TelegramLib.esc(String(data[r][RT_COL.ITEM_DESC] || tagId)),
+            _disp ? TelegramLib.esc(_disp.substring(0, 120)) : ""
+          ],
+          action: toPhase.toLowerCase(),
+          by: _tg5sWho_(v2GetCurrentUser_())
+        }), [{ text: "🏷️ Open record", url: _tg5sDeep_('?v2=1&action=record&type=rt&id=' + tagId) }]);
       }
       return { success: true, message: "Red Tag " + tagId + " → " + toPhase };
     }
@@ -639,7 +661,7 @@ function createKaizenSuggestion(kzData) {
     sheet.appendRow(row);
     if (typeof tg5sBroadcast_ === "function") {
       tg5sBroadcast_(_tg5sCard_({
-        icon: "💡", kind: "Kaizen", id: kaizenId, link: _tg5sDeep_('?v2=1&action=kaizenboard&zone=' + d.zoneId),
+        kind: "Kaizen", status: "open", id: kaizenId, link: _tg5sDeep_('?v2=1&action=kaizenboard&zone=' + d.zoneId),
         zoneId: d.zoneId, zoneName: v2GetZoneName_(d.zoneId),
         facts: [
           "📌 " + TelegramLib.esc(d.title),
@@ -681,6 +703,34 @@ function updateKaizenStatus(kzId, newStatus, remarks, additionalFields) {
         }
         if (newStatus === STATUS.COMPLETED) updates[KZ_COL.COMPLETED_DATE] = new Date();
         v2BatchUpdateRow_(sheet, r + 1, updates, data[r]);
+        /* A kaizen being APPROVED or DELIVERED is the most motivating thing this
+           system produces and it was announced nowhere — only the suggestion was.
+           Verified savings carry the rupee figure, which is the whole point. */
+        if (typeof tg5sBroadcast_ === "function") {
+          var _kzMap = {};
+          _kzMap[STATUS.APPROVED]     = { status: "progress", action: "approved — implement" };
+          _kzMap[STATUS.IMPLEMENTING] = { status: "progress", action: "implementation started" };
+          _kzMap[STATUS.BENEFIT_VERIFIED] = { status: "done", action: "savings verified" };
+          _kzMap[STATUS.COMPLETED]    = { status: "done",     action: "implemented" };
+          var _kz = _kzMap[newStatus];
+          if (_kz) {
+            var _kzZone = String(data[r][KZ_COL.ZONE_ID] || "").trim();
+            var _sav = additionalFields.actualSavings || data[r][KZ_COL.ACTUAL_SAVINGS] || "";
+            var _kzFacts = [ TelegramLib.esc(String(data[r][KZ_COL.TITLE] || kzId)) ];
+            if (_sav && (newStatus === STATUS.COMPLETED || newStatus === STATUS.BENEFIT_VERIFIED)) {
+              _kzFacts.push("saving <b>₹" + TelegramLib.esc(String(_sav)) + "</b>" +
+                (additionalFields.verifiedBy ? " verified" : " (unverified)"));
+            }
+            tg5sBroadcast_(_tg5sCard_({
+              kind: "Kaizen", status: _kz.status,
+              link: _tg5sDeep_('?v2=1&action=kaizenboard&zone=' + _kzZone),
+              zoneId: _kzZone, zoneName: v2GetZoneName_(_kzZone),
+              facts: _kzFacts,
+              action: _kz.action,
+              by: _tg5sWho_(additionalFields.reviewer || additionalFields.verifiedBy || v2GetCurrentUser_())
+            }), [{ text: "💡 Open Kaizen", url: _tg5sDeep_('?v2=1&action=kaizenboard&zone=' + _kzZone) }]);
+          }
+        }
         return { success: true, message: "Kaizen " + kzId + " → " + newStatus };
       }
     }

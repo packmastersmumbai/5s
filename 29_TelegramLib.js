@@ -58,7 +58,46 @@ var TelegramLib = (function () {
   // Telegram returns 400 "can't parse entities" on malformed HTML; retry the
   // same text with tags stripped and no parse_mode so the message still lands.
   // buttons: optional array of {text, url} → rendered as a row of inline URL buttons.
+  // Telegram hard-rejects any sendMessage over 4096 characters. The daily digest
+  // grew past that (28 zones x a linked line each) and every send was failing
+  // silently — the digest simply stopped arriving and nothing said so. Split on
+  // line boundaries so an HTML tag is never cut in half, and never mid-<a>.
+  var TG_MAX = 3900;
+  function _chunk(text) {
+    var t = String(text == null ? '' : text);
+    if (t.length <= TG_MAX) return [t];
+    var out = [], cur = '';
+    t.split('\n').forEach(function (line) {
+      // A single line longer than the cap cannot be split safely on tags; send
+      // it alone and let Telegram's own truncation apply rather than corrupt it.
+      if (line.length > TG_MAX) {
+        if (cur) { out.push(cur); cur = ''; }
+        out.push(line.substring(0, TG_MAX));
+        return;
+      }
+      if ((cur + '\n' + line).length > TG_MAX) { out.push(cur); cur = line; }
+      else { cur = cur ? (cur + '\n' + line) : line; }
+    });
+    if (cur) out.push(cur);
+    return out;
+  }
+
   function postMessage(tok, to, text, buttons) {
+    var pieces = _chunk(text);
+    if (pieces.length > 1) {
+      // Buttons ride the LAST piece so the call-to-action sits under the whole
+      // message, not orphaned above the rest of it.
+      var allOk = true;
+      for (var i = 0; i < pieces.length; i++) {
+        var last = (i === pieces.length - 1);
+        if (!_postOne(tok, to, pieces[i], last ? buttons : null)) allOk = false;
+      }
+      return allOk;
+    }
+    return _postOne(tok, to, pieces[0], buttons);
+  }
+
+  function _postOne(tok, to, text, buttons) {
     var url = API + tok + '/sendMessage';
     var markup = null;
     if (buttons && buttons.length) {
@@ -76,6 +115,8 @@ var TelegramLib = (function () {
     var resp = post({ chat_id: to, text: text, parse_mode: 'HTML', disable_web_page_preview: true });
     if (resp.getResponseCode() === 200) return true;
     if (/can't parse entities/i.test(resp.getContentText())) {
+      Logger.log('TelegramLib HTML rejected, resending as plain text — ' +
+        resp.getContentText().substring(0, 160) + ' · text=' + String(text).substring(0, 200));
       var plain = post({ chat_id: to, text: String(text).replace(/<[^>]+>/g, ''), disable_web_page_preview: true });
       return plain.getResponseCode() === 200;
     }

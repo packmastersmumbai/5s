@@ -1169,6 +1169,22 @@ function updateNCStatus(ncId, newStatus) {
         sh.getRange(i + 1, 11).setValue(new Date()); // col 11 = actual_closure_date
       }
       CacheService.getScriptCache().removeAll(['KANBAN_DATA', 'ANALYTICS_KPIS']);
+      /* Closing an NC was silent — the channel announced every problem raised
+         and no problem solved. Non-blocking: a Telegram failure must not undo
+         a status write that has already committed. */
+      if (newStatus === 'Closed' && typeof tg5sBroadcast_ === 'function') {
+        try {
+          var ncZone = String(data[i][NC_COL.ZONE_ID] || '').trim();
+          tg5sBroadcast_(_tg5sCard_({
+            kind: 'NC', status: 'done',
+            link: _tg5sDeep_('?v2=1&action=record&type=nc&id=' + ncId),
+            zoneId: ncZone, zoneName: (typeof v2GetZoneName_ === 'function' ? v2GetZoneName_(ncZone) : ''),
+            facts: [ TelegramLib.esc(String(data[i][NC_COL.DESCRIPTION] || ncId)) ],
+            action: 'closed',
+            by: _tg5sWho_(v2GetCurrentUser_())
+          }), [{ text: '📋 Open record', url: _tg5sDeep_('?v2=1&action=record&type=nc&id=' + ncId) }]);
+        } catch (e) { Logger.log('NC close broadcast skipped: ' + e.message); }
+      }
       return { ok: true };
     }
   }

@@ -127,8 +127,16 @@ var DWM = (function () {
       method: 'get', muteHttpExceptions: true, followRedirects: true
     });
     var body = resp.getContentText();
-    try { return JSON.parse(body); }
+    var parsed;
+    try { parsed = JSON.parse(body); }
     catch (e) { return { ok: false, error: 'DWM: non-JSON response: ' + body.slice(0, 200) }; }
+    // A rejected signature is unfixable from this side without knowing WHAT was
+    // signed and how far apart the clocks are. Log both — never the secret.
+    if (parsed && !parsed.ok && /signature|sig/i.test(String(parsed.error || ''))) {
+      Logger.log('DWM sig rejected · ref=' + (fields.ref || '') +
+        ' · ts=' + params.ts + ' · signed=[' + _canonical(params) + ']');
+    }
+    return parsed;
   }
 
   /**
@@ -153,10 +161,18 @@ var DWM = (function () {
     try {
       var ss = (typeof v2GetSpreadsheet_ === 'function') ? v2GetSpreadsheet_() : SpreadsheetApp.getActiveSpreadsheet();
       if (!ss) return;
+      var HEAD = ['timestamp', 'ref', 'title', 'ok', 'taskId/updated', 'creator', 'assigned/unresolved', 'error'];
       var sheet = ss.getSheetByName('DwmSyncLog');
       if (!sheet) {
         sheet = ss.insertSheet('DwmSyncLog');
-        sheet.getRange(1, 1, 1, 8).setValues([['timestamp', 'ref', 'title', 'ok', 'taskId/updated', 'creator', 'assigned/unresolved', 'error']]);
+        sheet.getRange(1, 1, 1, HEAD.length).setValues([HEAD]);
+        sheet.setFrozenRows(1);
+      } else if (sheet.getLastColumn() < HEAD.length ||
+                 String(sheet.getRange(1, HEAD.length).getValue()) !== 'error') {
+        // Sheets created before creator/assigned/error were added keep a stale
+        // 6-column header, which makes anyone reading the log look for the error
+        // in the wrong column. Repair it in place; the data rows are already correct.
+        sheet.getRange(1, 1, 1, HEAD.length).setValues([HEAD]);
         sheet.setFrozenRows(1);
       }
       var unres = (result && result.unresolved && result.unresolved.length)
@@ -181,10 +197,17 @@ var DWM = (function () {
     var ts = Number(params.ts || 0);
     var skew = maxSkewSec || 300;
     var nowSec = Math.floor(Date.now() / 1000);
-    if (!ts || Math.abs(nowSec - ts) > skew) return { ok: false, error: 'stale or missing ts' };
+    if (!ts || Math.abs(nowSec - ts) > skew) {
+      Logger.log('DWM inbound ts rejected · ts=' + ts + ' · now=' + nowSec +
+        ' · skewSec=' + (ts ? (nowSec - ts) : 'n/a') + ' · allowed=' + skew);
+      return { ok: false, error: 'stale or missing ts' };
+    }
     var expect;
     try { expect = _sign(params); } catch (e) { return { ok: false, error: e.message }; }
-    if (String(params.sig) !== expect) return { ok: false, error: 'bad sig' };
+    if (String(params.sig) !== expect) {
+      Logger.log('DWM inbound sig mismatch · signed=[' + _canonical(params) + ']');
+      return { ok: false, error: 'bad sig' };
+    }
     return { ok: true };
   }
 

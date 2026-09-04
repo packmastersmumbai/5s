@@ -552,13 +552,26 @@ function submitQuickAudit(auditData) {
       });
       if (res && res.success !== false && typeof tg5sBroadcast_ === "function") {
         var pct = (res && res.percentage != null) ? res.percentage : null;
-        tg5sBroadcast_(_tg5sCard_({
-          icon: "✅", kind: "Daily Audit", link: _tg5sDeep_('?v2=1&action=zonematrix&zone=' + zoneId),
-          zoneId: zoneId, zoneName: v2GetZoneName_(zoneId),
-          facts: [ (pct != null ? "📊 Score " + pct + "%" : "📊 Submitted") ],
-          action: "review low-score items",
-          by: user
-        }), [{ text: "📊 Zone Records", url: _tg5sDeep_('?v2=1&action=zonematrix&zone=' + zoneId) }]);
+        /* A card on EVERY submission meant up to 28 messages a day saying
+           "Score 95%" — all noise, and it trained people to ignore the channel.
+           Only a score below the pass mark is news; a good score is already in
+           the daily digest. AUDIT_CARD_THRESHOLD (ScriptProperty) tunes it;
+           set it to 100 to restore the old always-post behaviour. */
+        var _thr = 80;
+        try {
+          var _p = PropertiesService.getScriptProperties().getProperty('AUDIT_CARD_THRESHOLD');
+          if (_p !== null && _p !== "" && !isNaN(Number(_p))) _thr = Number(_p);
+        } catch (e) {}
+        if (pct == null || pct < _thr) {
+          tg5sBroadcast_(_tg5sCard_({
+            kind: "Audit", status: (pct != null && pct < _thr) ? "blocked" : "info",
+            link: _tg5sDeep_('?v2=1&action=zonematrix&zone=' + zoneId),
+            zoneId: zoneId, zoneName: v2GetZoneName_(zoneId),
+            facts: [ (pct != null ? "Score <b>" + pct + "%</b> — below " + _thr + "%" : "Audit submitted") ],
+            action: "review low-score items",
+            by: user
+          }), [{ text: "📊 Zone Records", url: _tg5sDeep_('?v2=1&action=zonematrix&zone=' + zoneId) }]);
+        }
       }
       return res;
     }
@@ -631,7 +644,7 @@ function submitQuickAudit(auditData) {
                 assignee: (typeof dwmResolveUser_ === "function") ? dwmResolveUser_(user) : (user || ""),
                 creator: (typeof dwmResolveUser_ === "function") ? dwmResolveUser_(user) : "",
                 desc: "Auto-raised from audit · zone " + zoneId + " · " + cid,
-                due: Utilities.formatDate(new Date(now.getTime() + 7 * 86400000), TZ, "yyyy-MM-dd"), photo: true });
+                due: Utilities.formatDate(new Date(now.getTime() + 7 * 86400000), TZ, "yyyy-MM-dd") });
             }
           }
         } catch (e) { /* Non-blocking */ }

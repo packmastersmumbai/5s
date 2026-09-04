@@ -47,24 +47,67 @@ function _tg5sFirstPhoto_(photoUrls) {
   return m ? ('https://drive.google.com/uc?export=download&id=' + m[1]) : first;
 }
 
-// Compact 2-line broadcast card with a tappable record link:
-//   <icon> <b>Kind</b> <a href=link><id></a> · <zone> <name>
-//   <facts · joined> · → <action> · 👤 <by>
-// (Telegram already stamps the send time, so no date footer.)
-// opts: { icon, kind, id, link, zoneId, zoneName, facts:[str], action, by }
+// ── Formatting system ────────────────────────────────────────────
+// Telegram HTML supports ONLY <b> <i> <u> <s> <code> <pre> <a>. There is no
+// colour, no border, no table. So: "colour" = emoji, "border" = a Unicode rule,
+// "alignment" = <code>. Two independent axes, never merged into one glyph:
+//   TG5S_STATUS — how the record is DOING  (red = bad, green = good)
+//   TG5S_KIND   — what the record IS       (NC / Task / Red Tag / Kaizen / Gemba)
+// Merging them was the Actions Hub defect: a Task read green even when overdue.
+var TG5S_STATUS = {
+  blocked: '🔴', overdue: '🔴',
+  soon: '🟠', due: '🟠',
+  progress: '🟡', open: '🟡',
+  done: '🟢', good: '🟢',
+  info: '⚪'
+};
+var TG5S_KIND = {
+  'NC': '🔴', 'Task': '🗒️', 'Red Tag': '🏷️',
+  'Kaizen': '💡', 'Gemba': '👁', 'Audit': '📊'
+};
+var TG5S_RULE_HEAVY = '━━━━━━━━━━━━━━━━━━━━';   // between digest sections
+var TG5S_RULE_LIGHT = '────────────────────';   // inside a card
+var TG5S_BAR = '▎';                     // left bar on quoted finding text
+var TG5S_BULLET = '•', TG5S_SUB = '◦', TG5S_ARROW = '↳';
+
+// Cap the emoji budget. More than ~4 and the eye stops reading them as signal.
+function _tg5sCapEmoji_(text, max) {
+  var re = /[\u231A-\u27BF\u2B00-\u2BFF\uD83C-\uDBFF\uDC00-\uDFFF\uFE0F\u20E3]+/g;
+  var seen = 0;
+  return String(text || '').replace(re, function (m) {
+    seen++;
+    return seen <= (max || 4) ? m : '';
+  }).replace(/[ \t]{2,}/g, ' ').replace(/ +\n/g, '\n');
+}
+
+// Broadcast card. Status glyph and kind glyph stay distinct; the finding text is
+// quoted behind a left bar so it reads as evidence, not as prose.
+//   <kind-icon><status> <b>Kind</b> · <zone> <name>
+//   ▎ <first fact>
+//   • <fact> · <fact>
+//   ↳ <action> · 👤 <by>
+// opts: { icon, kind, id, link, zoneId, zoneName, facts:[str], action, by, status }
 function _tg5sCard_(opts) {
   var esc = (typeof TelegramLib !== 'undefined' && TelegramLib.esc)
     ? TelegramLib.esc : function (s) { return String(s == null ? '' : s); };
   // Full record ID is omitted here (long, low-signal in a chat feed) — the
   // "Open record" inline button carries it. Icon links to the record instead.
-  var icon = opts.icon || '🔔';
-  if (opts.link) icon = '<a href="' + esc(opts.link) + '">' + icon + '</a>';
-  var head = icon + ' <b>' + esc(opts.kind || '') + '</b>' +
+  var kindIcon = opts.icon || TG5S_KIND[opts.kind] || '🔔';
+  var status = opts.status ? (TG5S_STATUS[opts.status] || '') : '';
+  var lead = kindIcon + status;
+  if (opts.link) lead = '<a href="' + esc(opts.link) + '">' + lead + '</a>';
+  var head = lead + ' <b>' + esc(opts.kind || '') + '</b>' +
     ' · ' + esc(opts.zoneId || '') + (opts.zoneName ? ' ' + esc(opts.zoneName) : '');
-  var line2 = (opts.facts || []).filter(Boolean).join(' · ');
-  if (opts.action) line2 += (line2 ? ' · ' : '') + '→ ' + esc(opts.action);
-  if (opts.by) line2 += (line2 ? ' · ' : '') + '👤 ' + esc(opts.by);
-  return line2 ? head + '\n' + line2 : head;
+
+  var facts = (opts.facts || []).filter(Boolean);
+  var lines = [head];
+  if (facts.length) lines.push(TG5S_BAR + ' ' + facts[0]);
+  if (facts.length > 1) lines.push(TG5S_BULLET + ' ' + facts.slice(1).join(' · '));
+  var tail = '';
+  if (opts.action) tail = TG5S_ARROW + ' ' + esc(opts.action);
+  if (opts.by) tail += (tail ? ' · ' : TG5S_ARROW + ' ') + '👤 ' + esc(opts.by);
+  if (tail) lines.push(tail);
+  return _tg5sCapEmoji_(lines.join('\n'), 4);
 }
 
 // Raw deployed /exec URL + query — for inline button links (not an <a> tag).
@@ -135,6 +178,18 @@ function _tg5sDigestText_() {
     '🧰 Open tasks: <b>' + openTask + '</b> (' + overTask + ' overdue)   ' +
     '🏷️ Red tags: <b>' + redTags + '</b>';
 
+  // Integration health goes ABOVE the per-zone lists: those lists are long, and
+  // anything after them is what gets pushed off the end when the digest is split.
+  // syncTaskSafe swallows every DWM failure by design (an outage must not block a
+  // save), which meant a quarter of the integration could be broken while the app
+  // looked perfectly healthy. Surface it here or nowhere.
+  var dwm = _tg5sDwmFailures_(1);
+  if (dwm.failed > 0) {
+    out += '\n⚠ <b>' + dwm.failed + '</b> record' + (dwm.failed > 1 ? 's' : '') +
+      ' failed to sync to DWM in the last 24h' +
+      (dwm.topReason ? '\n' + TG5S_SUB + ' ' + TelegramLib.esc(dwm.topReason) : '');
+  }
+
   if (pending.length) {
     out += '\n\n🔴 <b>Audit not submitted (' + pending.length + '):</b>\n' +
       pending.map(function (z) { return '• ' + _tg5sZoneLink_(z.id) + ' ' + TelegramLib.esc(z.name); }).join('\n');
@@ -142,6 +197,38 @@ function _tg5sDigestText_() {
   out += _tg5sDigestSection_(grid, '⚠️', 'Overdue NCs', 'overdueCAPAs');
   out += _tg5sDigestSection_(grid, '🧰', 'Overdue tasks/actions', 'overdueTasks');
   out += _tg5sDigestSection_(grid, '🏷️', 'Active red tags', 'activeRedTags');
+
+  return out;
+}
+
+// Counts DwmSyncLog rows with ok=false in the last `days` days and returns the
+// most common error. Column order is fixed by DWM._logSync:
+//   0 timestamp · 1 ref · 2 title · 3 ok · 4 taskId · 5 creator · 6 assigned · 7 error
+// (Read by index, never by header — a stale header row is what made this log
+// misleading in the first place.)
+function _tg5sDwmFailures_(days) {
+  var out = { failed: 0, topReason: '' };
+  try {
+    var ss = (typeof v2GetSpreadsheet_ === 'function') ? v2GetSpreadsheet_() : null;
+    var sheet = ss && ss.getSheetByName('DwmSyncLog');
+    if (!sheet || sheet.getLastRow() < 2) return out;
+    // Only the tail matters; the log grows unbounded.
+    var want = Math.min(sheet.getLastRow() - 1, 500);
+    var rows = sheet.getRange(sheet.getLastRow() - want + 1, 1, want, 8).getValues();
+    var cutoff = new Date().getTime() - (days || 1) * 86400000;
+    var tally = {};
+    rows.forEach(function (r) {
+      var ts = (r[0] instanceof Date) ? r[0].getTime() : Date.parse(r[0]);
+      if (!ts || ts < cutoff) return;
+      if (r[3] === true || String(r[3]).toLowerCase() === 'true') return;
+      out.failed++;
+      var reason = String(r[7] || 'unknown error').slice(0, 70);
+      tally[reason] = (tally[reason] || 0) + 1;
+    });
+    var best = 0;
+    Object.keys(tally).forEach(function (k) { if (tally[k] > best) { best = tally[k]; out.topReason = k; } });
+    if (best > 1) out.topReason = out.topReason + ' (×' + best + ')';
+  } catch (e) { Logger.log('_tg5sDwmFailures_ skipped: ' + e.message); }
   return out;
 }
 

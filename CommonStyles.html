@@ -1113,27 +1113,42 @@ body.lang-en .criterion-label-hi { display: none; }
 }
 
 /* The working zone drives audits, kaizen and every record raised, so it is a
-   control on every page rather than a label that happened to say Z-01. */
-#pm5s-zone-select {
-  width: 44px;
-  min-height: 32px;
-  padding: 4px 2px;
-  font-family: var(--font-mono, monospace);
-  font-size: 12px;
-  font-weight: 700;
-  text-align: center;
-  color: #fff;
-  background: rgba(255,255,255,.12);
-  border: 1px solid rgba(255,255,255,.28);
-  border-radius: 7px;
-  cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
+   control on every page rather than a label that happened to say Z-01.
+   It is a button, not a <select>: .sidebar is 52px with overflow:hidden, so a
+   select rendered as a cramped badge with no arrow and its option list was
+   clipped. The picker below is appended to <body> and cannot be clipped. */
+#pm5s-zone-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1px; width: 44px; min-height: 38px; margin: 0 auto 12px; cursor: pointer;
+  font-family: var(--font-mono, monospace); font-size: 11.5px; font-weight: 800;
+  color: #fff; background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.28); border-radius: 8px;
 }
-#pm5s-zone-select:hover { background: rgba(255,255,255,.2); border-color: rgba(255,255,255,.45); }
-#pm5s-zone-select:focus-visible { outline: 2px solid var(--pm-accent, #F59E0B); outline-offset: 2px; }
-/* The option list renders in the OS menu, which is light on every platform. */
-#pm5s-zone-select option { color: #0F172A; background: #fff; }
+#pm5s-zone-btn::after { content: '\25BE'; font-size: 9px; opacity: .8; line-height: 1; }
+#pm5s-zone-btn:hover { background: rgba(255,255,255,.22); border-color: rgba(255,255,255,.5); }
+#pm5s-zone-btn:focus-visible { outline: 2px solid var(--pm-accent, #F59E0B); outline-offset: 2px; }
+.sidebar.expanded #pm5s-zone-btn { width: calc(100% - 24px); flex-direction: row; gap: 6px; }
+
+.pm5s-zp-scrim { position: fixed; inset: 0; background: rgba(15,23,42,.55); z-index: 998; }
+.pm5s-zp {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%,-50%); z-index: 999;
+  width: min(600px, 94vw); max-height: 82vh; overflow-y: auto;
+  background: #fff; border-radius: 14px; padding: 18px;
+  box-shadow: 0 24px 60px rgba(0,0,0,.3);
+}
+.pm5s-zp h4 { margin: 0 0 2px; font-size: 16px; font-weight: 800; color: #0F172A; }
+.pm5s-zp p { margin: 0 0 14px; font-size: 13px; color: #64748b; }
+.pm5s-zp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px,1fr)); gap: 8px; }
+.pm5s-zp-z {
+  display: flex; flex-direction: column; gap: 2px; align-items: flex-start;
+  padding: 10px 12px; min-height: 58px; text-align: left; cursor: pointer;
+  background: #fff; border: 1px solid #d4d8e2; border-radius: 10px; font: inherit; color: #0F172A;
+}
+.pm5s-zp-z:hover { border-color: #F59E0B; background: #fffbf2; }
+.pm5s-zp-z.on { border-color: #0F172A; background: #0F172A; color: #fff; }
+.pm5s-zp-z b { font-family: var(--font-mono, monospace); font-size: 12px; letter-spacing: .5px; }
+.pm5s-zp-z span { font-size: 12.5px; line-height: 1.25; }
+
 
 /* The zone's name only fits once the rail is expanded. */
 .sidebar-zone-name {

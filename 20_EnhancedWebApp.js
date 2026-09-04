@@ -691,24 +691,13 @@ function buildSidebar_(deployUrl, action, token, zone, zoneConfig) {
   var zoneIds = Object.keys(zc).sort();
   var current = zone || "";
 
-  html += '  <div class="sidebar-zone-switcher" id="pm5s-zone-switcher" title="Working zone">\n';
-  if (zoneIds.length) {
-    html += '    <select id="pm5s-zone-select" aria-label="Working zone">\n';
-    /* No zone yet: say so rather than implying Z-01 was chosen. */
-    if (!current) html += '      <option value="">--</option>\n';
-    for (var z = 0; z < zoneIds.length; z++) {
-      var zid = zoneIds[z];
-      var zname = String((zc[zid] || {}).name || zid).replace(/["<>]/g, "");
-      html += '      <option value="' + zid + '"' + (zid === current ? ' selected' : '') +
-              ' title="' + zid + ' \u2014 ' + zname + '">' + zid + '</option>\n';
-    }
-    html += '    </select>\n';
-    html += '    <span class="sidebar-zone-name">' +
-            String((zc[current] || {}).name || "Select zone").replace(/["<>]/g, "") + '</span>\n';
-  } else {
-    html += '    <span id="pm5s-zone-label">' + (current || "--") + '</span>\n';
-  }
-  html += '  </div>\n';
+  /* A <select> inside the 52px rail was the wrong control: .sidebar sets
+     overflow:hidden and appearance:none left no arrow, so it read as a
+     static badge and its option list was cramped. A button that opens a
+     full picker is unambiguous and cannot be clipped by the rail. */
+  html += '  <button type="button" class="sidebar-zone-switcher" id="pm5s-zone-btn" title="Change working zone" aria-haspopup="dialog">\n';
+  html += '    <span id="pm5s-zone-label">' + (current || '--') + '</span>\n';
+  html += '  </button>\n';
 
   // Menu items
   for (var i = 0; i < items.length; i++) {
@@ -730,36 +719,54 @@ function buildSidebar_(deployUrl, action, token, zone, zoneConfig) {
   // Sidebar state management script
   html += '<script>\n';
   html += '(function() {\n';
-  html += '  var zoneSel = document.getElementById("pm5s-zone-select");\n';
-  html += '  if (zoneSel) {\n';
-  html += '    /* Re-apply the remembered zone when a page is opened without ?zone=,\n';
-  html += '       so the zone chosen on the landing page survives navigation rather\n';
-  html += '       than the rail falling back to nothing. */\n';
-  html += '    if (!zoneSel.value) {\n';
-  html += '      var remembered = "";\n';
-  html += '      try { remembered = localStorage.getItem("pm5s_zone") || ""; } catch (e) {}\n';
-  html += '      if (remembered) {\n';
-  html += '        for (var oi = 0; oi < zoneSel.options.length; oi++) {\n';
-  html += '          if (zoneSel.options[oi].value !== remembered) continue;\n';
-  html += '          zoneSel.value = remembered;\n';
-  html += '          var nm = document.querySelector(".sidebar-zone-name");\n';
-  html += '          if (nm) nm.textContent = (zoneSel.options[oi].title.split("\u2014")[1] || remembered).trim();\n';
-  html += '          break;\n';
-  html += '        }\n';
-  html += '      }\n';
-  html += '    } else {\n';
-  html += '      try { localStorage.setItem("pm5s_zone", zoneSel.value); } catch (e) {}\n';
+  var zoneJson = JSON.stringify(zoneIds.map(function (z) {
+    return { id: z, name: String((zc[z] || {}).name || z) };
+  }));
+  html += '  var PM5S_ZONES = ' + zoneJson + ';\n';
+  html += '  var zoneBtn = document.getElementById("pm5s-zone-btn");\n';
+  html += '  if (zoneBtn) {\n';
+  html += '    var lbl = document.getElementById("pm5s-zone-label");\n';
+  html += '    if (lbl && (!lbl.textContent || lbl.textContent === "--")) {\n';
+  html += '      try {\n';
+  html += '        var rem = localStorage.getItem("pm5s_zone");\n';
+  html += '        if (rem) lbl.textContent = rem;\n';
+  html += '      } catch (e) {}\n';
   html += '    }\n';
-  html += '    zoneSel.addEventListener("change", function() {\n';
-  html += '      if (!this.value) return;\n';
-  html += '      try { localStorage.setItem("pm5s_zone", this.value); } catch (e) {}\n';
-  /* window.location.href inside the GAS sandbox is the googleusercontent
-     iframe URL, not the app's /exec, so rebuilding from it produced a
-     meaningless destination. Build from the deploy URL the sidebar already
-     has server-side. */
-  html += '      var dest = "' + deployUrl + '?v2=1&action=' + (action || "home") + tokenParam + '&zone=" + encodeURIComponent(this.value);\n';
-  html += '      try { window.top.location.href = dest; }\n';
-  html += '      catch (e) { window.location.href = dest; }\n';
+  html += '    zoneBtn.addEventListener("click", function () {\n';
+  html += '      if (document.getElementById("pm5s-zone-pop")) return;\n';
+  html += '      var cur = lbl ? lbl.textContent.trim() : "";\n';
+  html += '      var host = document.createElement("div");\n';
+  html += '      host.id = "pm5s-zone-pop";\n';
+  html += '      var scrim = document.createElement("div");\n';
+  html += '      scrim.className = "pm5s-zp-scrim";\n';
+  html += '      var card = document.createElement("div");\n';
+  html += '      card.className = "pm5s-zp";\n';
+  html += '      card.setAttribute("role", "dialog");\n';
+  html += '      var h4 = document.createElement("h4");\n';
+  html += '      h4.textContent = "Working zone";\n';
+  html += '      var pEl = document.createElement("p");\n';
+  html += '      pEl.textContent = "Audits, kaizen and new records use this zone.";\n';
+  html += '      var grid = document.createElement("div");\n';
+  html += '      grid.className = "pm5s-zp-grid";\n';
+  html += '      card.appendChild(h4); card.appendChild(pEl); card.appendChild(grid);\n';
+  html += '      host.appendChild(scrim); host.appendChild(card);\n';
+  html += '      PM5S_ZONES.forEach(function (z) {\n';
+  html += '        var b = document.createElement("button");\n';
+  html += '        b.type = "button";\n';
+  html += '        b.className = "pm5s-zp-z" + (z.id === cur ? " on" : "");\n';
+  html += '        b.innerHTML = "<b></b><span></span>";\n';
+  html += '        b.querySelector("b").textContent = z.id;\n';
+  html += '        b.querySelector("span").textContent = z.name;\n';
+  html += '        b.addEventListener("click", function () {\n';
+  html += '          try { localStorage.setItem("pm5s_zone", z.id); } catch (e) {}\n';
+  html += '          var dest = "' + deployUrl + '?v2=1&action=' + (action || 'home') + tokenParam + '&zone=" + encodeURIComponent(z.id);\n';
+  html += '          try { window.top.location.href = dest; }\n';
+  html += '          catch (e) { window.location.href = dest; }\n';
+  html += '        });\n';
+  html += '        grid.appendChild(b);\n';
+  html += '      });\n';
+  html += '      scrim.addEventListener("click", function () { host.remove(); });\n';
+  html += '      document.body.appendChild(host);\n';
   html += '    });\n';
   html += '  }\n';
   html += '  var sidebar = document.getElementById("pm5s-sidebar");\n';

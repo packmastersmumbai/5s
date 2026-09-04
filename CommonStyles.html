@@ -1040,8 +1040,14 @@ body.lang-en .criterion-label-hi { display: none; }
   padding: 12px 0;
   z-index: 110;
   transition: width 0.3s ease;
-  overflow: hidden;
+  /* overflow-x only: the rail must still clip sideways (that is what keeps a
+     52px rail a 52px rail), but clipping vertically hid the top of the zone
+     control whenever the viewport was short. */
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
 }
+.sidebar::-webkit-scrollbar { width: 0; height: 0; }
 
 .sidebar.expanded {
   width: 200px;
@@ -1122,16 +1128,28 @@ body.lang-en .criterion-label-hi { display: none; }
    interactive. The picker still mounts on <body>, since the rail clips. */
 #pm5s-zone-btn {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 0; width: 46px; min-height: 46px; margin: 8px auto 14px; padding: 4px 2px;
+  gap: 0; width: 46px; min-height: 52px;
+  /* 16px of headroom so the pill clears the GAS banner's shadow and does not
+     sit flush against the top edge, and a rule below it so it reads as the
+     working-zone control rather than the first nav icon. */
+  margin: 16px auto 12px; padding: 5px 2px;
+  position: relative;
   cursor: pointer; font-family: var(--font-mono, monospace);
   color: #0F172A; background: var(--pm-accent, #F59E0B);
   border: 0; border-radius: 9px;
   box-shadow: 0 2px 8px rgba(245,158,11,.35);
 }
 #pm5s-zone-btn .zb-cap {
-  font-size: 7.5px; font-weight: 800; letter-spacing: .08em;
-  text-transform: uppercase; opacity: .75; line-height: 1;
+  font-size: 8.5px; font-weight: 800; letter-spacing: .06em;
+  text-transform: uppercase; opacity: .85; line-height: 1.1;
 }
+/* A hairline under the zone control separates it from the nav icons; without it
+   the pill read as simply the first, oddly-coloured item in the list. */
+#pm5s-zone-btn::after {
+  content: ""; position: absolute; left: 50%; transform: translateX(-50%);
+  bottom: -7px; width: 22px; height: 1px; background: rgba(255,255,255,.16);
+}
+.sidebar.expanded #pm5s-zone-btn::after { width: calc(100% - 20px); }
 #pm5s-zone-btn #pm5s-zone-label {
   font-size: 12px; font-weight: 800; letter-spacing: .2px; line-height: 1.25;
 }

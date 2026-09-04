@@ -49,6 +49,17 @@ const say = (n, ok, d) => { R.push({ ok: !!ok }); console.log((ok ? 'PASS  ' : '
   say('stands out from the rail', vis.btnBg !== vis.railBg, vis.btnBg + ' vs ' + vis.railBg);
   say('is labelled, not a bare code', vis.caption);
 
+  /* The GAS host paints its own banner above the app frame. The app cannot see
+     or measure it, so a control flush against the top of the rail reads as
+     hidden on screen while every in-page check passes -- which is exactly how
+     this shipped twice. Require real headroom instead. */
+  say('clears the top edge', bBox && bBox.y >= 24,
+      bBox ? Math.round(bBox.y) + 'px from top (need >=24)' : 'no box');
+
+  /* And it must be separated from the nav, or it reads as the first nav icon. */
+  const gap = (bBox && hBox) ? (hBox.y - (bBox.y + bBox.height)) : -1;
+  say('is separated from the nav', gap >= 10, Math.round(gap) + 'px gap');
+
   const before = (await fr.locator('#pm5s-zone-label').textContent() || '').trim();
 
   // CLICK it, as a user would.

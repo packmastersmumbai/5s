@@ -565,12 +565,12 @@ function submitQuickAudit(auditData) {
         if (pct == null || pct < _thr) {
           tg5sBroadcast_(_tg5sCard_({
             kind: "Audit", status: (pct != null && pct < _thr) ? "blocked" : "info",
-            link: _tg5sDeep_('?v2=1&action=zonematrix&zone=' + zoneId),
+            link: _tg5sDeep_('?v2=1&action=record&type=audit&id=' + submissionId),
             zoneId: zoneId, zoneName: v2GetZoneName_(zoneId),
             facts: [ (pct != null ? "Score <b>" + pct + "%</b> — below " + _thr + "%" : "Audit submitted") ],
             action: "review low-score items",
             by: user
-          }), [{ text: "📊 Zone Records", url: _tg5sDeep_('?v2=1&action=zonematrix&zone=' + zoneId) }]);
+          }), [{ text: "📊 Open audit", url: _tg5sDeep_('?v2=1&action=record&type=audit&id=' + submissionId) }]);
         }
       }
       return res;

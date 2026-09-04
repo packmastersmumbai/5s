@@ -1483,6 +1483,50 @@ function _getPublicRecordUncached_(type, id) {
     }
     return null;
   }
+  if (type === 'audit' || type === 'au') {
+    var ad = getAuditDetail(id);
+    if (!ad || !ad.found) return null;
+    var ah = ad.header || {}, aItems = ad.items || [];
+    var aSum = 0, aMax = 0, aPhotos = [], aFileIds = [];
+    aItems.forEach(function (it) {
+      if (it.score !== null && it.score !== undefined && !isNaN(it.score)) { aSum += it.score; aMax += 4; }
+      (it.photoUrls || []).forEach(function (u) { if (u) aPhotos.push(u); });
+      (it.photoFileIds || []).forEach(function (f) { if (f) aFileIds.push(f); });
+    });
+    var aPct = aMax > 0 ? Math.round(100 * aSum / aMax) : 0;
+
+    /* The per-criterion scores ARE the audit; a header with a percentage and
+       nothing else is what the Telegram link used to land on. Reuse the same
+       findings block the Gemba view uses: low scores first, on a red bar. */
+    var aFind = aItems.map(function (it) {
+      var sc = (it.score === null || it.score === undefined || isNaN(it.score)) ? null : Number(it.score);
+      return {
+        q: it.label || it.criterionId,
+        a: sc === null ? '—' : (sc + '/4'),
+        fail: sc !== null && sc <= 2,
+        sqcdp: it.pillar || '',
+        category: it.remark || '',
+        photoUrls: it.photoUrls || [],
+        photoFileIds: it.photoFileIds || []
+      };
+    });
+    aFind.sort(function (x, y) { return (y.fail ? 1 : 0) - (x.fail ? 1 : 0); });
+
+    return {
+      type: 'Audit', id: id,
+      title: '5S audit — ' + aPct + '%',
+      status: aPct + '% scored',
+      zone: String(ah.zoneId || '') + (ah.zoneName ? ' — ' + ah.zoneName : ''),
+      photoUrls: aPhotos,
+      photoFileIds: aFileIds.length ? aFileIds : aPhotos.map(_extractDriveFileId_),
+      findings: aFind,
+      fields: [
+        { l: 'Auditor', v: String(ah.auditor || '') },
+        { l: 'Date', v: fmtD(ah.timestamp) },
+        { l: 'Criteria scored', v: String(aItems.length) },
+        { l: 'Score', v: aSum + ' of ' + aMax + ' (' + aPct + '%)' }
+      ] };
+  }
   if (type === 'kz' || type === 'kaizen') {
     var ks = ss.getSheetByName('KaizenSuggestions'); if (!ks) return null;
     var kd = ks.getDataRange().getValues();

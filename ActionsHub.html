@@ -1318,14 +1318,29 @@ body {
 }
 
 /* ── AUDIT EVIDENCE THUMBNAILS + HOVER PREVIEW ── */
-.ah-au-photos { display: flex; gap: 6px; flex-shrink: 0; }
+.ah-au-row {
+  display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap;
+  padding: 12px 0; border-bottom: 1px solid var(--border);
+}
+.ah-au-txt { flex: 1 1 240px; min-width: 0; }
+.ah-au-photos { display: flex; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
 .ah-au-thumb-wrap { position: relative; }
 .ah-au-thumb {
-  width: 56px; height: 56px; object-fit: cover; border-radius: 8px;
+  /* Was 56px square: enough to prove a photo existed, not to see the thing it
+     was taken to show. 4:3 at 180px reads at a glance and still leaves the
+     criterion text the majority of the row. */
+  width: 180px; aspect-ratio: 4 / 3; height: auto; object-fit: cover; border-radius: 8px;
   border: 1px solid var(--border); cursor: zoom-in; display: block;
+  background: var(--bg-subtle);
   transition: transform .15s ease, box-shadow .15s ease;
 }
-.ah-au-thumb:hover { transform: scale(2.4); z-index: 60; position: relative; box-shadow: var(--shadow-lg); }
+.ah-au-thumb:hover { transform: scale(1.15); z-index: 60; position: relative; box-shadow: var(--shadow-lg); }
+@media (max-width: 700px) {
+  /* On a phone the photo takes the full width under the text rather than
+     competing with it for a narrow row. */
+  .ah-au-photos { width: 100%; }
+  .ah-au-thumb { width: 100%; }
+}
 @media (hover: none) { .ah-au-thumb:hover { transform: none; } } /* no hover-zoom on touch — tap opens lightbox instead */
 
 /* ── PHOTO LIGHTBOX ── */
@@ -1378,6 +1393,7 @@ body {
 <div class="ah-type-tabs" id="ahTypeTabs">
   <button class="ah-type-tab active" data-type="ALL"     onclick="setTypeTab(this)">Records <span class="tab-badge is-pending" id="cntAll">–</span></button>
   <button class="ah-type-tab"        data-type="AUDITS"  onclick="setTypeTab(this)">Audits</button>
+  <button class="ah-type-tab"        data-type="WALKS"   onclick="setTypeTab(this)">Walks</button>
   <button class="ah-type-tab"        data-type="SUMMARY" onclick="setTypeTab(this)">Summary</button>
 </div>
 
@@ -1396,7 +1412,6 @@ body {
   <button class="ah-status-tab active" data-status="OPEN"        onclick="setStatusTab(this)">Open        <span class="tab-badge is-pending" id="cntOPEN">–</span></button>
   <button class="ah-status-tab"        data-status="IN_PROGRESS" onclick="setStatusTab(this)">In Progress <span class="tab-badge is-pending" id="cntIN_PROGRESS">–</span></button>
   <button class="ah-status-tab"        data-status="CLOSED"      onclick="setStatusTab(this)">Closed      <span class="tab-badge is-pending" id="cntCLOSED">–</span></button>
-  <button class="ah-status-tab"        data-status="LOGGED"      onclick="setStatusTab(this)">Walks &amp; Audits <span class="tab-badge is-pending" id="cntLOGGED">–</span></button>
 </div>
 
 <div class="ah-filter-row">
@@ -1680,7 +1695,7 @@ function escHtml(s) {
 /* ── state ── */
 var CURRENT_USER = '<?= (typeof params !== "undefined" && params && params.currentUser) ? params.currentUser : "" ?>';
 var _filters = { type: '', status: 'OPEN', priority: '', zoneId: '' };
-var _lastCounts = { byType:{NC:0,TASK:0,RED_TAG:0,KAIZEN:0,GEMBA:0,AUDIT:0}, byStatus:{OPEN:0,IN_PROGRESS:0,CLOSED:0,LOGGED:0}, byPriority:{}, total:0 };
+var _lastCounts = { byType:{NC:0,TASK:0,RED_TAG:0,KAIZEN:0,GEMBA:0,AUDIT:0}, byStatus:{OPEN:0,IN_PROGRESS:0,CLOSED:0}, byPriority:{}, total:0 };
 var _rcaPendingId = null;
 
 /* ── tabs / chips ── */
@@ -1689,16 +1704,19 @@ function setTypeTab(btn) {
   btn.classList.add('active');
   var t = btn.getAttribute('data-type');
   var isAudits = (t === 'AUDITS');
+  var isWalks = (t === 'WALKS');
   var isSummary = (t === 'SUMMARY');
+  var own = isAudits || isWalks || isSummary;   // views with their own renderer
   var st = document.getElementById('ahStatusTabs');
   var fr = document.querySelector('.ah-filter-row');
   var ft = document.getElementById('ahFilterToggle');
-  if (st) st.style.display = (isAudits || isSummary) ? 'none' : '';
+  if (st) st.style.display = own ? 'none' : '';
   /* NOTE: never set inline display on .ah-filter-row — it would override the
      .open class and permanently break the Filters toggle. Use a class instead. */
-  if (fr) fr.classList.toggle('hidden', isAudits || isSummary);
-  if (ft) ft.style.display = (isAudits || isSummary) ? 'none' : '';
+  if (fr) fr.classList.toggle('hidden', own);
+  if (ft) ft.style.display = own ? 'none' : '';
   if (isAudits) { renderAuditsView(); return; }
+  if (isWalks) { renderWalksView(); return; }
   if (isSummary) { renderSummaryView(); return; }
   _filters.type = t === 'ALL' ? '' : t;
   fetchAndRender();
@@ -1771,6 +1789,55 @@ function renderSummaryView() {
       document.getElementById('ahContent').innerHTML = '<div class="ah-empty">' + escHtml(friendlyError_(e)) + '</div>';
     })
     .getActionsSummary({});
+}
+
+/* ── Walks view (Gemba walks, newest first) ──
+   Same tile idiom as Audits: a walk is a scored record you scan, and the two
+   sit side by side as tabs, so they must read as siblings. The number that
+   leads is compliance %, and the findings count is what makes a walk worth
+   opening -- so it gets its own line rather than hiding in the stats row. */
+function renderWalksView() {
+  document.getElementById('ahContent').innerHTML = '<div class="ah-loading">Loading walks…</div>';
+  google.script.run
+    .withSuccessHandler(function(res) {
+      var walks = (res || []).slice().sort(function(a, b) {
+        return String(b.timestamp || '').localeCompare(String(a.timestamp || ''));
+      });
+      if (!walks.length) {
+        document.getElementById('ahContent').innerHTML = '<div class="ah-empty">No Gemba walks recorded yet.</div>';
+        return;
+      }
+      var html = '<div class="au-grid">' + walks.map(function(w) {
+        var pct = Number(w.compliancePct || 0);
+        var pcls = pct >= 80 ? 'g' : pct >= 60 ? 'a' : 'r';
+        var no = Number(w.noCount || 0);
+        return '<button type="button" class="au-tile" ' +
+          'onclick="openWalkRecord_(' + escHtml(JSON.stringify(w.walkId)) + ')">' +
+          '<span class="au-score ' + pcls + '">' + pct + '<i>%</i></span>' +
+          '<span class="au-body">' +
+            '<span class="au-zone">' + escHtml(w.zoneId || '') + '</span>' +
+            '<span class="au-name">' + escHtml(w.zoneName || '') + '</span>' +
+            '<span class="au-meta">' + escHtml(w.walkType || '') +
+              (w.timestamp ? ' &middot; ' + escHtml(String(w.timestamp)) : '') + '</span>' +
+            '<span class="au-stats">' +
+              '<span title="checks asked">&#9989; ' + (w.totalQuestions || 0) + '</span>' +
+              '<span title="findings">' + (no > 0 ? '&#10060; ' + no : '&#128077; 0') + '</span>' +
+            '</span>' +
+            '<span class="au-by" title="walked by">' + escHtml(auditorName_(w.walkerName)) + '</span>' +
+          '</span></button>';
+      }).join('') + '</div>';
+      document.getElementById('ahContent').innerHTML = html;
+    })
+    .withFailureHandler(function(e) {
+      document.getElementById('ahContent').innerHTML = '<div class="ah-empty">' + escHtml(friendlyError_(e)) + '</div>';
+    })
+    .getGembaWalkData({});
+}
+
+/* The walk record page already renders every finding with its question text,
+   SQCDP leg and category. Open it rather than duplicating that here. */
+function openWalkRecord_(walkId) {
+  top.location.href = '?v2=1&action=record&type=gemba&id=' + encodeURIComponent(walkId);
 }
 
 /* ── Audits view (per-criterion filled audits with photos) ── */
@@ -1923,9 +1990,13 @@ function openAuditDetail(submissionId) {
         var titleLine = escHtml(it.criterionId) +
           (it.label ? ' · ' + escHtml(it.label) : '') +
           ' <span style="color:var(--text-muted);font-weight:400">(' + escHtml(it.pillar) + ')</span>';
-        return '<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border)">' +
+        /* Three columns that hold their proportions: a fixed score chip, the
+           criterion text taking the slack, and the evidence at a size worth
+           looking at. min-width:0 stops a long criterion from pushing the
+           photo column off the row. */
+        return '<div class="ah-au-row">' +
           '<span class="ah-pct ' + scls + '" style="min-width:34px;font-weight:700">' + sc + '</span>' +
-          '<div style="flex:1"><div style="font-weight:600;font-size:13.5px">' + titleLine + '</div>' +
+          '<div class="ah-au-txt"><div style="font-weight:600;font-size:13.5px">' + titleLine + '</div>' +
           (it.labelHi ? '<div style="font-size:12.5px;color:var(--text-secondary);margin-top:2px">' + escHtml(it.labelHi) + '</div>' : '') +
           (it.remark ? '<div style="font-size:12.5px;color:var(--text-muted);margin-top:3px;font-style:italic">' + escHtml(it.remark) + '</div>' : '') +
           '</div>' + photo + '</div>';
@@ -2145,18 +2216,15 @@ function applyFiltersAndRender_() {
   var st = _filters.status || '', ty = _filters.type || '', pr = _filters.priority || '';
 
   var zn = _filters.zoneId || '';
-  /* Completed-event types. They are always CLOSED so they never inflate the
-     open counts the plant works from, but that also buried them behind the
-     Closed tab where nobody would look for them. LOGGED selects them by type
-     instead, and the three real status tabs exclude them so the working list
-     stays exactly what it was. */
+  /* Completed events -- a walk and an audit record what was found, they are
+     not work anyone chases. Each has its own view tab (Walks, Audits), so they
+     are excluded from the working list entirely instead of sitting under
+     Closed pretending to be finished work. */
   var LOGGED_TYPES = { GEMBA: 1, AUDIT: 1 };
 
   var match = function(i, skip) {
-    if (skip !== 'status' && st) {
-      if (st === 'LOGGED') { if (!LOGGED_TYPES[i.type]) return false; }
-      else if (LOGGED_TYPES[i.type] || i.status !== st) return false;
-    }
+    if (LOGGED_TYPES[i.type]) return false;
+    if (skip !== 'status' && st && i.status !== st) return false;
     if (skip !== 'type'     && ty && i.type     !== ty) return false;
     if (skip !== 'priority' && pr && i.priority !== pr) return false;
     /* Zone is filtered here rather than server-side so switching zone costs
@@ -2166,17 +2234,14 @@ function applyFiltersAndRender_() {
   };
 
   var counts = {
-    byStatus:   { OPEN: 0, IN_PROGRESS: 0, CLOSED: 0, LOGGED: 0 },
+    byStatus:   { OPEN: 0, IN_PROGRESS: 0, CLOSED: 0 },
     byType:     { NC: 0, TASK: 0, RED_TAG: 0, KAIZEN: 0, GEMBA: 0, AUDIT: 0 },
     byPriority: { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 },
     byTypeStatus: (_allCounts && _allCounts.byTypeStatus) || {},
     total: 0
   };
   _allItems.forEach(function(i) {
-    if (match(i, 'status')) {
-      if (LOGGED_TYPES[i.type]) counts.byStatus.LOGGED++;
-      else if (counts.byStatus[i.status] !== undefined) counts.byStatus[i.status]++;
-    }
+    if (match(i, 'status')   && counts.byStatus[i.status]     !== undefined) counts.byStatus[i.status]++;
     if (match(i, 'type')     && counts.byType[i.type]         !== undefined) counts.byType[i.type]++;
     if (match(i, 'priority') && counts.byPriority[i.priority] !== undefined) counts.byPriority[i.priority]++;
   });
@@ -2207,16 +2272,11 @@ function updateBadges(counts) {
   // Status badges reflect the selected type tab (fall back to all-types totals)
   var ss = bs;
   if (_filters.type && counts.byTypeStatus && counts.byTypeStatus[_filters.type]) {
-    /* byTypeStatus comes from the server and knows only the three real
-       statuses; LOGGED is a client-side pseudo-status, so carry it across or
-       the Walks & Audits badge reads 0 whenever a type tab is active. */
     ss = counts.byTypeStatus[_filters.type];
-    if (ss.LOGGED === undefined) ss = Object.assign({}, ss, { LOGGED: bs.LOGGED || 0 });
   }
   setTxt('cntOPEN',        ss.OPEN        || 0);
   setTxt('cntIN_PROGRESS', ss.IN_PROGRESS || 0);
   setTxt('cntCLOSED',      ss.CLOSED      || 0);
-  setTxt('cntLOGGED',      ss.LOGGED      || 0);
 }
 
 /* ── render cards ── */
@@ -2234,7 +2294,7 @@ function renderCards(items) {
   var groups = { NC: [], TASK: [], RED_TAG: [], KAIZEN: [], GEMBA: [], AUDIT: [] };
   items.forEach(function(a) { (groups[a.type] = groups[a.type] || []).push(a); });
 
-  var order = ['NC', 'TASK', 'RED_TAG', 'KAIZEN', 'GEMBA', 'AUDIT'];
+  var order = ['NC', 'TASK', 'RED_TAG', 'KAIZEN'];
   var emoji = { NC: '&#128995;', TASK: '&#128203;', RED_TAG: '&#128308;',
                 KAIZEN: '&#128161;', GEMBA: '&#128065;', AUDIT: '&#128202;' };
   var html = '';

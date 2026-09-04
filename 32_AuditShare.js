@@ -255,12 +255,25 @@ function _auditDateSlug_(ts) {
 function _fillAuditSlipView_(ss, detail, zoneCfg, overall, byPillar, ncCount) {
   var tz = (typeof TZ !== "undefined" && TZ) ? TZ : (Session.getScriptTimeZone() || "Asia/Kolkata");
   var sh = ss.getSheetByName(AUDIT_SLIP_SHEET);
-  if (!sh) sh = ss.insertSheet(AUDIT_SLIP_SHEET); else sh.clear();
+  if (!sh) {
+    sh = ss.insertSheet(AUDIT_SLIP_SHEET);
+  } else {
+    /* clear() wipes values and formats but NOT row heights, so the 150pt photo
+       rows from the previous audit survived and turned whatever landed on them
+       into a giant empty band. Reset the heights before rebuilding. */
+    sh.clear();
+    var _prev = sh.getMaxRows();
+    if (_prev > 1) { try { sh.setRowHeights(1, _prev, 21); } catch (e) {} }
+  }
   try { sh.getDataRange().setFontFamily("Arial").setFontSize(9); } catch (e) {}
 
   var GREEN = "#1b5e20", AMBER = "#b45309", RED = "#b71c1c";
   var band = overall >= 80 ? GREEN : overall >= 60 ? AMBER : RED;
-  var W = 6;   // columns A..F
+  var W = 6;   // columns A..F carry the table; G..H hold extra photos
+  /* Evidence sizing. 200pt wide against a 150pt row is 4:3, so a phone photo
+     fills the cell instead of being letterboxed, and at that size a reader can
+     actually see what was wrong. Was 84pt x 70pt. */
+  var PHOTO_COL_W = 200, PHOTO_ROW_H = 150;
 
   // Title
   sh.getRange(1, 1, 1, W).merge()
@@ -291,11 +304,18 @@ function _fillAuditSlipView_(ss, detail, zoneCfg, overall, byPillar, ncCount) {
   ];
   var r = 3;
   pairs.forEach(function (pr) {
-    sh.getRange(r, 1).setValue(pr[0]).setFontWeight("bold").setBackground("#eceff1");
-    sh.getRange(r, 2, 1, 2).merge().setValue(pr[1]).setWrap(true);
-    sh.getRange(r, 4).setValue(pr[2]).setFontWeight("bold").setBackground("#eceff1");
-    sh.getRange(r, 5, 1, 2).merge().setValue(pr[3]).setWrap(true);
+    /* Column A is 26pt — sized for a row number, not for "Auditor / ऑडिटर",
+       which printed as "Aud". The label spans A:B and the value C:D so both
+       have room at any zoom. */
+    sh.getRange(r, 1, 1, 2).merge().setValue(pr[0])
+      .setFontWeight("bold").setBackground("#eceff1").setWrap(true).setVerticalAlignment("middle");
+    sh.getRange(r, 3, 1, 2).merge().setValue(pr[1])
+      .setWrap(true).setVerticalAlignment("middle");
+    sh.getRange(r, 5).setValue(pr[2])
+      .setFontWeight("bold").setBackground("#eceff1").setWrap(true).setVerticalAlignment("middle");
+    sh.getRange(r, 6).setValue(pr[3]).setWrap(true).setVerticalAlignment("middle");
     sh.getRange(r, 1, 1, W).setBorder(true, true, true, true, true, null);
+    sh.setRowHeight(r, 30);
     r++;
   });
 
@@ -312,18 +332,34 @@ function _fillAuditSlipView_(ss, detail, zoneCfg, overall, byPillar, ncCount) {
     pcts.push(b ? Math.round(100 * b.sum / (4 * b.n)) + "%" : "\u2014");
   });
   names.push("OVERALL"); pcts.push(overall + "%");
-  sh.getRange(r, 1, 1, W).setValues([names]).setFontSize(8).setWrap(true)
-    .setHorizontalAlignment("center").setBackground("#eceff1");
-  sh.getRange(r + 1, 1, 1, W).setValues([pcts]).setFontSize(13).setFontWeight("bold")
-    .setHorizontalAlignment("center");
-  for (var c = 1; c <= W; c++) {
-    var raw = pcts[c - 1];
-    if (raw === "\u2014") continue;
-    var v = parseInt(raw, 10);
-    sh.getRange(r + 1, c).setFontColor(v >= 80 ? GREEN : v >= 60 ? AMBER : RED);
+
+  /* Six cells across six columns of widths 26/212/40/40/132/200 gave each
+     pillar a different amount of room: "S4 · Standardise" wrapped to three
+     lines in 40pt while "S2 · Set in Order" floated in 212pt, and the score
+     under the narrow ones was clipped. Two header rows of three cells each,
+     merged in pairs, give every pillar an equal, adequate share. */
+  var cells = [[0, 1], [2, 3], [4, 5]];   // A:B, C:D, E:F
+  for (var g = 0; g < 2; g++) {           // two rows of three pillars
+    var rowTop = r + g * 2;
+    for (var k = 0; k < 3; k++) {
+      var idx = g * 3 + k;
+      var c0 = cells[k][0] + 1, span = 2;
+      sh.getRange(rowTop, c0, 1, span).merge().setValue(names[idx])
+        .setFontSize(9).setWrap(true).setHorizontalAlignment("center")
+        .setVerticalAlignment("middle").setBackground("#eceff1");
+      var cell = sh.getRange(rowTop + 1, c0, 1, span).merge().setValue(pcts[idx])
+        .setFontSize(16).setFontWeight("bold").setHorizontalAlignment("center")
+        .setVerticalAlignment("middle");
+      if (pcts[idx] !== "\u2014") {
+        var v = parseInt(pcts[idx], 10);
+        cell.setFontColor(v >= 80 ? GREEN : v >= 60 ? AMBER : RED);
+      }
+    }
+    sh.setRowHeight(rowTop, 20);
+    sh.setRowHeight(rowTop + 1, 28);
+    sh.getRange(rowTop, 1, 2, W).setBorder(true, true, true, true, true, true);
   }
-  sh.getRange(r, 1, 2, W).setBorder(true, true, true, true, true, true);
-  r += 3;
+  r += 5;
 
   // Failing items first - the reason the report exists
   var fails = detail.items.filter(function (it) { return it.score != null && it.score <= 1; });
@@ -359,26 +395,52 @@ function _fillAuditSlipView_(ss, detail, zoneCfg, overall, byPillar, ncCount) {
   var n = 0;
   detail.items.forEach(function (it) {
     n++;
-    sh.getRange(r, 1).setValue(n).setHorizontalAlignment("center").setFontSize(8);
+    sh.getRange(r, 1).setValue(n).setHorizontalAlignment("center").setFontSize(8)
+      .setVerticalAlignment("top");
     // English + Hindi. labelHi only became available once getAuditDetail
     // resolved labels from the zone criteria - they were empty strings before.
     sh.getRange(r, 2).setValue((it.label || it.criterionId) + (it.labelHi ? "\n" + it.labelHi : ""))
-      .setWrap(true).setFontSize(9);
-    sh.getRange(r, 3).setValue(it.pillar).setHorizontalAlignment("center").setFontSize(8);
+      .setWrap(true).setFontSize(9).setVerticalAlignment("top");
+    sh.getRange(r, 3).setValue(it.pillar).setHorizontalAlignment("center").setFontSize(8)
+      .setVerticalAlignment("top");
     var sc = (it.score == null) ? "\u2014" : it.score;
     sh.getRange(r, 4).setValue(sc).setHorizontalAlignment("center").setFontWeight("bold")
+      .setVerticalAlignment("top")
       .setBackground(it.score == null ? "#ffffff" : it.score <= 1 ? "#fee2e2" : it.score <= 2 ? "#fff3cd" : "#e6f4ea")
       .setFontColor(it.score == null ? "#000000" : it.score <= 1 ? RED : it.score <= 2 ? AMBER : GREEN);
-    sh.getRange(r, 5).setValue(it.remark || "").setWrap(true).setFontSize(9);
-    // every photo, not only the first
+    sh.getRange(r, 5).setValue(it.remark || "").setWrap(true).setFontSize(9)
+      .setVerticalAlignment("top");
+    /* The comment said "every photo" but only urls[0] was ever drawn, at 84pt
+       in a 70pt row -- a stamp you cannot read on a printed report. IMAGE mode
+       1 fits the picture to the cell, so the row height is what actually sets
+       the size. Extra photos go into the columns to the right of the table
+       rather than being reduced to a note nobody opens. */
     var urls = (it.photoUrls && it.photoUrls.length) ? it.photoUrls : (it.photoUrl ? [it.photoUrl] : []);
     if (urls.length) {
-      sh.getRange(r, 6).setFormula('=IMAGE("' + urls[0] + '")');
-      sh.setRowHeight(r, 70);
-      if (urls.length > 1) sh.getRange(r, 5).setNote(urls.length + " photos attached");
+      sh.getRange(r, 6).setFormula('=IMAGE("' + urls[0] + '", 1)');
+      sh.setRowHeight(r, PHOTO_ROW_H);
+    } else {
+      sh.setRowHeight(r, 34);
     }
     sh.getRange(r, 1, 1, W).setBorder(true, true, true, true, null, null);
     r++;
+
+    /* Extra shots for the same criterion get a full-width row of their own.
+       The comment above this block used to claim "every photo" while drawing
+       only urls[0]; the rest were a cell note nobody opens. */
+    if (urls.length > 1) {
+      var extra = urls.slice(1, 4);
+      sh.getRange(r, 1, 1, 2).merge()
+        .setValue("\u21b3 " + (urls.length - 1) + " more photo" + (urls.length === 2 ? "" : "s"))
+        .setFontSize(8).setFontStyle("italic").setVerticalAlignment("middle")
+        .setHorizontalAlignment("right");
+      for (var pi = 0; pi < extra.length; pi++) {
+        sh.getRange(r, 3 + pi).setFormula('=IMAGE("' + extra[pi] + '", 1)');
+      }
+      sh.setRowHeight(r, PHOTO_ROW_H);
+      sh.getRange(r, 1, 1, W).setBorder(true, true, true, true, null, null);
+      r++;
+    }
   });
 
   // Sign-off
@@ -403,8 +465,17 @@ function _fillAuditSlipView_(ss, detail, zoneCfg, overall, byPillar, ncCount) {
               Utilities.formatDate(new Date(), tz, "dd-MMM-yyyy HH:mm"))
     .setBackground("#f5f5f5").setFontStyle("italic").setFontSize(8).setHorizontalAlignment("center");
 
-  sh.setColumnWidth(1, 34);  sh.setColumnWidth(2, 250); sh.setColumnWidth(3, 46);
-  sh.setColumnWidth(4, 46);  sh.setColumnWidth(5, 190); sh.setColumnWidth(6, 84);
+  /* A4 portrait at the default margins gives roughly 750pt of usable width.
+     The old split spent 84 of it on the photo -- the one column a reader
+     actually studies -- so evidence printed as a thumbnail. Rebalanced: text
+     still leads, evidence is legible, and the two extra photo columns hold any
+     further shots for the same criterion. */
+  /* Total stays 650pt, the width the export was already tuned for: fitw=true
+     scales the whole sheet to the page, so widening the sheet would have
+     shrunk the very photo this change exists to enlarge. The 84pt spent on
+     evidence is re-cut from the two text columns instead. */
+  sh.setColumnWidth(1, 26);  sh.setColumnWidth(2, 212); sh.setColumnWidth(3, 40);
+  sh.setColumnWidth(4, 40);  sh.setColumnWidth(5, 132); sh.setColumnWidth(6, PHOTO_COL_W);
   try { sh.setHiddenGridlines(true); } catch (e) {}
 }
 

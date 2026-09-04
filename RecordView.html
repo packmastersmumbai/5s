@@ -88,6 +88,12 @@
   .fi.ok .fa { color: #64748B; }
   .fi .fq { color: var(--ink); }
   .fi .ftag { display: block; margin-top: 3px; font-size: 11.5px; color: var(--ink2); }
+  .fpics { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .fpic {
+    width: 168px; max-width: 100%; aspect-ratio: 4 / 3; object-fit: cover;
+    border-radius: 8px; border: 1px solid var(--line); cursor: zoom-in;
+    background: var(--line-lt);
+  }
   .fmore { margin-top: 4px; font-size: 12.5px; color: var(--ink2); cursor: pointer;
            background: none; border: 0; padding: 6px 0; text-decoration: underline; }
   .tasklist { margin-top: 4px; }
@@ -111,10 +117,14 @@
     font-size: 12px; font-weight: 700; color: var(--ink2); text-transform: uppercase;
     letter-spacing: .04em; margin: 18px 0 8px;
   }
-  .gal { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
-  @media (min-width: 500px) { .gal { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); } }
+  /* Evidence photos were 84-100px squares -- big enough to prove a photo
+     exists, too small to see what it shows, which is the only reason it was
+     taken. Sized so a phone gets two per row and a desktop three or four, and
+     4:3 rather than 1:1 so a shot of a shelf is not cropped square. */
+  .gal { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  @media (min-width: 500px) { .gal { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); } }
   .gal-thumb {
-    width: 100%; aspect-ratio: 1; border-radius: 10px; object-fit: cover;
+    width: 100%; aspect-ratio: 4 / 3; border-radius: 10px; object-fit: cover;
     border: 1px solid var(--line); cursor: zoom-in;
     transition: transform .15s ease, box-shadow .15s ease;
     background: var(--line-lt); /* visible placeholder while the image itself loads */
@@ -281,10 +291,22 @@ function buildFindings_(rec){
 
   function row(x){
     var tag = [x.sqcdp ? 'SQCDP ' + x.sqcdp : '', x.category || ''].filter(Boolean).join(' \u00b7 ');
+    /* An audit criterion carries its own photo. Showing it beside the score is
+       the whole point of having taken it; one gallery at the bottom loses
+       which criterion it belongs to. Registered into the lightbox array so
+       clicking still opens it full-size. */
+    var pics = '';
+    (x.photoUrls || []).forEach(function(u){
+      var gi = _lbUrls.indexOf(u);
+      if (gi < 0) { _lbUrls.push(u); _lbFileIds.push(''); gi = _lbUrls.length - 1; }
+      pics += '<img class="fpic" src="' + esc(u) + '" onclick="openLb(' + gi + ')" ' +
+              'alt="Evidence" loading="lazy" decoding="async">';
+    });
     return '<div class="fi ' + (x.fail ? 'no' : 'ok') + '">' +
              '<span class="fa">' + esc(x.a) + '</span>' +
              '<span class="fq">' + esc(x.q) +
                (tag ? '<span class="ftag">' + esc(tag) + '</span>' : '') +
+               (pics ? '<span class="fpics">' + pics + '</span>' : '') +
              '</span></div>';
   }
 

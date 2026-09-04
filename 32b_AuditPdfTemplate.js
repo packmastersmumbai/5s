@@ -20,25 +20,34 @@
  * meters that show shortfall as a bar rather than only a number, failures given
  * the most space because they are the reason the report exists, and evidence
  * printed large enough to actually examine.
- *   - Oswald (condensed grotesque) for data and headings: industrial signage.
- *   - Source Serif for the criterion text: long bilingual lines need a serif.
- *   - Ink on paper stock (#12100E on #FAF8F5), one accent per verdict band.
- *   - A 4px rule under the masthead and hairlines elsewhere; no boxed-in cells.
+ *   - IBM Plex throughout: the family drawn for technical documentation, and
+ *     the only one here with a matched Devanagari companion — so the Hindi line
+ *     shares the Latin line's skeleton and weight instead of being a borrowed
+ *     face sitting beside it. Condensed for data, Mono for identifiers.
+ *   - Cool neutrals at one temperature; never #000. One accent per verdict.
+ *   - Hairlines and negative space instead of boxes: five bordered meter tiles
+ *     repeated the same frame five times across the page.
  */
 
 /** Fonts and palette in one place so the whole document stays coherent. */
 var APDF = {
-  ink: '#12100E',
-  ink2: '#4A443C',
-  ink3: '#8A8175',
-  paper: '#FAF8F5',
-  rule: '#DDD6CB',
-  green: '#1F6F43',
-  amber: '#B4690E',
-  red: '#A81E1E',
-  greenBg: '#E9F3EC',
-  amberBg: '#FBF1E0',
-  redBg: '#F9E9E9'
+  /* Cool neutral greys, one consistent temperature throughout — the previous
+     warm-brown greys read as "document template" rather than as an instrument.
+     Never pure black: 0E1116 keeps weight without the flatness #000 prints. */
+  ink: '#0E1116',
+  ink2: '#454C56',
+  ink3: '#8A929E',
+  paper: '#FFFFFF',
+  rule: '#DDE1E6',
+  ruleSoft: '#EEF0F2',
+  /* Desaturated status colours. Print exaggerates saturation, and a report that
+     shouts in three colours at once ranks nothing. */
+  green: '#14683C',
+  amber: '#9A6206',
+  red: '#A32020',
+  greenBg: '#F1F7F3',
+  amberBg: '#FCF6EA',
+  redBg: '#FBF0F0'
 };
 
 /** Verdict band: the one colour that carries the report's judgement. */
@@ -184,107 +193,150 @@ function buildAuditReportHtml_(detail, zoneCfg, overall, byPillar, ncCount) {
   }).join('');
 
   return '<!DOCTYPE html><html><head><meta charset="utf-8">' +
-  '<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;500;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Noto+Sans+Devanagari:wght@400;600&display=swap" rel="stylesheet">' +
+  /* IBM Plex: designed for technical documentation, and the only family here
+     with a matched Devanagari companion — so the Hindi line shares the Latin
+     line's skeleton, weight and rhythm instead of being a borrowed face sitting
+     awkwardly beside it. Condensed carries the data; Mono carries identifiers,
+     which is what a mono is actually for. */
+  '<link href="https://fonts.googleapis.com/css2?' +
+    'family=IBM+Plex+Sans:wght@400;450;600;700&' +
+    'family=IBM+Plex+Sans+Condensed:wght@500;600;700&' +
+    'family=IBM+Plex+Sans+Devanagari:wght@400;500&' +
+    'family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">' +
   '<style>' +
   '@page { size: A4; margin: 14mm 13mm 16mm; }' +
   '* { box-sizing: border-box; }' +
   'body { margin:0; background:' + APDF.paper + '; color:' + APDF.ink + ';' +
-    " font-family:'Source Serif 4',Georgia,serif; font-size:9.5pt; line-height:1.45; }" +
+    " font-family:'IBM Plex Sans',system-ui,sans-serif; font-size:9pt;" +
+    ' line-height:1.45; -webkit-font-smoothing:antialiased; }' +
+  // One class for every Hindi string, so the Devanagari never inherits a Latin face.
+  ".hi { font-family:'IBM Plex Sans Devanagari','IBM Plex Sans',sans-serif; }" +
   // masthead
-  '.mast { display:flex; align-items:flex-end; justify-content:space-between;' +
-    ' border-bottom:3px solid ' + APDF.ink + '; padding-bottom:6px; }' +
-  ".mast-l { font-family:'Oswald',sans-serif; font-weight:700; font-size:19pt;" +
-    ' letter-spacing:.02em; text-transform:uppercase; line-height:1; }' +
-  '.mast-l i { font-style:normal; font-weight:300; color:' + APDF.ink3 + '; }' +
-  ".mast-r { font-family:'Oswald',sans-serif; font-weight:300; font-size:8pt;" +
-    ' text-align:right; color:' + APDF.ink2 + '; text-transform:uppercase; letter-spacing:.08em; }' +
+  /* The masthead is a nameplate, not a banner: a tight lockup on a single hard
+     rule. Weight and letterspacing carry the hierarchy, not size. */
+  '.mast { display:flex; align-items:baseline; justify-content:space-between;' +
+    ' border-bottom:1.5pt solid ' + APDF.ink + '; padding-bottom:5px; }' +
+  ".mast-l { font-family:'IBM Plex Sans Condensed',sans-serif; font-weight:700;" +
+    ' font-size:15pt; letter-spacing:.01em; text-transform:uppercase; line-height:1; }' +
+  '.mast-l i { font-style:normal; font-weight:500; color:' + APDF.ink3 + '; }' +
+  ".mast-r { font-family:'IBM Plex Mono',monospace; font-weight:400; font-size:7pt;" +
+    ' text-align:right; color:' + APDF.ink3 + '; letter-spacing:.04em; line-height:1.5; }' +
   // verdict
-  '.vd { display:flex; align-items:stretch; margin-top:12px; border:1px solid ' + APDF.rule + ';' +
-    ' background:' + band.bg + '; }' +
-  '.vd-s { flex:0 0 118px; text-align:center; padding:10px 4px 8px; border-right:1px solid ' + APDF.rule + '; }' +
-  ".vd-n { font-family:'Oswald',sans-serif; font-weight:700; font-size:40pt; line-height:.86;" +
-    ' color:' + band.c + '; letter-spacing:-.02em; }' +
-  '.vd-n i { font-style:normal; font-size:17pt; font-weight:500; }' +
-  ".vd-l { font-family:'Oswald',sans-serif; font-weight:500; font-size:6.5pt; letter-spacing:.14em;" +
-    ' text-transform:uppercase; color:' + APDF.ink2 + '; margin-top:3px; }' +
-  '.vd-b { flex:1; padding:10px 14px; }' +
-  ".vd-t { font-family:'Oswald',sans-serif; font-weight:700; font-size:14pt; letter-spacing:.04em;" +
-    ' text-transform:uppercase; color:' + band.c + '; line-height:1.1; }' +
-  '.vd-sub { font-size:9pt; color:' + APDF.ink2 + '; margin-top:1px; }' +
+  /* No outline box. A 3pt bar on the left edge carries the verdict colour and
+     the block sits on tinted stock — a boxed panel inside a bordered page just
+     stacks frames. */
+  '.vd { display:flex; align-items:stretch; margin-top:14px;' +
+    ' border-left:3pt solid ' + band.c + '; background:' + band.bg + '; }' +
+  '.vd-s { flex:0 0 104px; text-align:center; padding:11px 6px 9px;' +
+    ' border-right:1px solid ' + APDF.rule + '; }' +
+  ".vd-n { font-family:'IBM Plex Sans Condensed',sans-serif; font-weight:600; font-size:38pt;" +
+    ' line-height:.84; color:' + band.c + '; letter-spacing:-.03em;' +
+    ' font-feature-settings:\'tnum\' 1; }' +
+  '.vd-n i { font-style:normal; font-size:14pt; font-weight:500; letter-spacing:0; }' +
+  ".vd-l { font-family:'IBM Plex Mono',monospace; font-weight:400; font-size:6pt;" +
+    ' letter-spacing:.16em; text-transform:uppercase; color:' + APDF.ink3 + '; margin-top:5px; }' +
+  '.vd-b { flex:1; padding:11px 14px 10px; }' +
+  ".vd-t { font-family:'IBM Plex Sans Condensed',sans-serif; font-weight:600; font-size:13pt;" +
+    ' letter-spacing:.02em; text-transform:uppercase; color:' + band.c + '; line-height:1.05; }' +
+  '.vd-sub { font-size:8.5pt; color:' + APDF.ink2 + '; margin-top:2px; }' +
   /* A long auditor email crushed the last field into a two-line wrap. Fixed
      shares stop one value from starving its neighbours, and the email is
      allowed to break rather than push the row apart. */
-  '.vd-f { display:flex; gap:14px; margin-top:8px; padding-top:7px; border-top:1px solid ' + APDF.rule + '; }' +
+  '.vd-f { display:flex; gap:16px; margin-top:9px; padding-top:8px;' +
+    ' border-top:1px solid ' + APDF.rule + '; }' +
   '.vd-f > div { flex:1 1 0; min-width:0; }' +
   '.vd-f > div:first-child { flex:1.5 1 0; }' +
-  '.vd-f span { word-break:break-word; }' +
-  ".vd-f b { display:block; font-family:'Oswald',sans-serif; font-weight:500; font-size:6.5pt;" +
-    ' letter-spacing:.12em; text-transform:uppercase; color:' + APDF.ink3 + '; }' +
-  '.vd-f span { font-size:9.5pt; }' +
-  // meters
-  '.mtrs { display:flex; gap:5px; margin-top:12px; }' +
-  '.mtr { flex:1; border:1px solid ' + APDF.rule + '; padding:7px 6px 7px; text-align:center;' +
-    ' background:#fff; }' +
-  '.mtr-bar { margin-top:5px; font-size:9px; line-height:1; letter-spacing:-0.5px;' +
+  ".vd-f b { display:block; font-family:'IBM Plex Mono',monospace; font-weight:400;" +
+    ' font-size:5.8pt; letter-spacing:.14em; text-transform:uppercase;' +
+    ' color:' + APDF.ink3 + '; margin-bottom:1px; }' +
+  '.vd-f span { font-size:9pt; font-weight:450; word-break:break-word; }' +
+  /* Meters: five boxed tiles became five columns divided by hairlines. Boxing
+     each one repeated a frame five times across the page; a rule between them
+     says the same thing with a tenth of the ink. Left-aligned so the pillar
+     keys form a vertical reading edge instead of five floating centres. */
+  '.mtrs { display:flex; margin-top:14px; border-top:1px solid ' + APDF.rule + ';' +
+    ' border-bottom:1px solid ' + APDF.rule + '; }' +
+  '.mtr { flex:1; padding:8px 10px 9px; }' +
+  '.mtr + .mtr { border-left:1px solid ' + APDF.ruleSoft + '; }' +
+  '.mtr-bar { margin-top:6px; font-size:8.5px; line-height:1; letter-spacing:-0.5px;' +
     ' white-space:nowrap; }' +
-  '.mtr-bar .off { color:' + APDF.rule + '; }' +
-  ".mtr-k { font-family:'Oswald',sans-serif; font-weight:700; font-size:8pt; letter-spacing:.1em;" +
-    ' color:' + APDF.ink3 + '; }' +
-  ".mtr-n { font-family:'Oswald',sans-serif; font-weight:500; font-size:8.5pt; text-transform:uppercase;" +
-    ' letter-spacing:.02em; margin-top:1px; }' +
-  ".mtr-hi { font-family:'Noto Sans Devanagari',sans-serif; font-size:7pt; color:" + APDF.ink3 + '; }' +
-  ".mtr-v { font-family:'Oswald',sans-serif; font-weight:700; font-size:19pt; line-height:1.1; margin-top:2px; }" +
-  '.mtr-v i { font-style:normal; font-size:9pt; font-weight:500; }' +
+  '.mtr-bar .off { color:' + APDF.ruleSoft + '; }' +
+  ".mtr-k { font-family:'IBM Plex Mono',monospace; font-weight:500; font-size:6.5pt;" +
+    ' letter-spacing:.14em; color:' + APDF.ink3 + '; }' +
+  ".mtr-n { font-family:'IBM Plex Sans Condensed',sans-serif; font-weight:600; font-size:8pt;" +
+    ' text-transform:uppercase; letter-spacing:.03em; margin-top:2px; line-height:1.15; }' +
+  ".mtr-hi { font-family:'IBM Plex Sans Devanagari',sans-serif; font-size:7pt;" +
+    ' color:' + APDF.ink3 + '; line-height:1.3; }' +
+  ".mtr-v { font-family:'IBM Plex Sans Condensed',sans-serif; font-weight:600; font-size:17pt;" +
+    " line-height:1.1; margin-top:4px; letter-spacing:-.02em; font-feature-settings:'tnum' 1; }" +
+  '.mtr-v i { font-style:normal; font-size:8pt; font-weight:500; letter-spacing:0; }' +
   // sections
-  '.sec { margin-top:16px; }' +
+  '.sec { margin-top:18px; }' +
   '.sec--break { page-break-before:auto; }' +
-  ".sec-h { font-family:'Oswald',sans-serif; font-weight:500; font-size:10pt; letter-spacing:.12em;" +
-    ' text-transform:uppercase; margin:0 0 7px; padding-bottom:4px;' +
-    ' border-bottom:2px solid ' + APDF.ink + '; display:flex; align-items:baseline; gap:8px; }' +
+  /* A small, hard-set label on a hairline. The 2pt rule read as a divider
+     competing with the masthead; a heading should mark a start, not shout. */
+  ".sec-h { font-family:'IBM Plex Sans Condensed',sans-serif; font-weight:600; font-size:8.5pt;" +
+    ' letter-spacing:.16em; text-transform:uppercase; margin:0 0 8px; padding-bottom:5px;' +
+    ' border-bottom:1px solid ' + APDF.ink + '; display:flex; align-items:baseline; gap:8px; }' +
   '.sec-h--red { border-bottom-color:' + APDF.red + '; color:' + APDF.red + '; }' +
-  ".sec-h-hi { font-family:'Noto Sans Devanagari',sans-serif; font-weight:400; font-size:8pt;" +
-    ' letter-spacing:0; color:' + APDF.ink3 + '; }' +
-  '.sec-h-n { margin-left:auto; font-size:9pt; color:' + APDF.ink3 + '; letter-spacing:.06em; }' +
+  ".sec-h-hi { font-family:'IBM Plex Sans Devanagari',sans-serif; font-weight:400; font-size:7.5pt;" +
+    ' letter-spacing:0; text-transform:none; color:' + APDF.ink3 + '; }' +
+  ".sec-h-n { margin-left:auto; font-family:'IBM Plex Mono',monospace; font-size:7.5pt;" +
+    ' color:' + APDF.ink3 + '; letter-spacing:.04em; }' +
   // failures
-  '.fail { display:flex; gap:10px; align-items:flex-start; padding:7px 9px; margin-bottom:4px;' +
-    ' background:' + APDF.redBg + '; border-left:3px solid ' + APDF.red + '; page-break-inside:avoid; }' +
-  ".fail-sc { font-family:'Oswald',sans-serif; font-weight:700; font-size:15pt; line-height:1;" +
-    ' color:' + APDF.red + '; flex:0 0 auto; width:16px; text-align:center; }' +
-  '.fail-b { flex:1; }' +
-  '.fail-t { font-weight:600; font-size:10pt; line-height:1.25; }' +
-  ".fail-hi { font-family:'Noto Sans Devanagari',sans-serif; font-size:8.5pt; color:" + APDF.ink2 + '; }' +
-  '.fail-r { font-size:8.5pt; font-style:italic; color:' + APDF.ink2 + '; margin-top:2px; }' +
-  ".fail-p { font-family:'Oswald',sans-serif; font-size:7.5pt; letter-spacing:.1em; color:" + APDF.red + ';' +
-    ' flex:0 0 auto; padding-top:3px; }' +
+  '.fail { display:flex; gap:11px; align-items:flex-start; padding:8px 10px; margin-bottom:3px;' +
+    ' background:' + APDF.redBg + '; border-left:2.5pt solid ' + APDF.red + '; page-break-inside:avoid; }' +
+  ".fail-sc { font-family:'IBM Plex Sans Condensed',sans-serif; font-weight:600; font-size:14pt;" +
+    ' line-height:1.05; color:' + APDF.red + '; flex:0 0 auto; width:15px; text-align:center; }' +
+  '.fail-b { flex:1; min-width:0; }' +
+  '.fail-t { font-weight:600; font-size:9.5pt; line-height:1.3; }' +
+  ".fail-hi { font-family:'IBM Plex Sans Devanagari',sans-serif; font-size:8pt;" +
+    ' color:' + APDF.ink2 + '; line-height:1.45; }' +
+  '.fail-r { font-size:8pt; color:' + APDF.ink2 + '; margin-top:3px;' +
+    ' padding-left:7px; border-left:1px solid ' + APDF.rule + '; }' +
+  ".fail-p { font-family:'IBM Plex Mono',monospace; font-size:7pt; letter-spacing:.08em;" +
+    ' color:' + APDF.red + '; flex:0 0 auto; padding-top:3px; }' +
   // evidence
   '.ev { display:flex; flex-wrap:wrap; gap:10px; }' +
   '.ev-i { margin:0; width:calc(50% - 5px); page-break-inside:avoid; }' +
   '.ev-i img { width:100%; height:210px; object-fit:cover; display:block;' +
     ' border:1px solid ' + APDF.rule + '; }' +
-  '.ev-i figcaption { display:flex; gap:6px; align-items:baseline; margin-top:4px; }' +
-  ".ev-sc { font-family:'Oswald',sans-serif; font-weight:700; font-size:11pt; flex:0 0 auto; }" +
-  '.ev-t { font-size:9pt; line-height:1.3; color:' + APDF.ink2 + '; }' +
+  '.ev-i figcaption { display:flex; gap:7px; align-items:baseline; margin-top:5px; }' +
+  ".ev-sc { font-family:'IBM Plex Sans Condensed',sans-serif; font-weight:600; font-size:10.5pt;" +
+    ' flex:0 0 auto; line-height:1; }' +
+  '.ev-t { font-size:8.5pt; line-height:1.35; color:' + APDF.ink2 + '; }' +
   // criteria table
   'table { width:100%; border-collapse:collapse; }' +
-  'thead th { font-family:\'Oswald\',sans-serif; font-weight:500; font-size:7pt; letter-spacing:.12em;' +
-    ' text-transform:uppercase; color:' + APDF.ink3 + '; text-align:left; padding:0 6px 4px;' +
-    ' border-bottom:1px solid ' + APDF.ink + '; }' +
-  'tbody td { padding:5px 6px; border-bottom:1px solid ' + APDF.rule + '; vertical-align:top; }' +
+  "thead th { font-family:'IBM Plex Mono',monospace; font-weight:400; font-size:6.5pt;" +
+    ' letter-spacing:.14em; text-transform:uppercase; color:' + APDF.ink3 + ';' +
+    ' text-align:left; padding:0 7px 5px; border-bottom:1px solid ' + APDF.ink + '; }' +
+  /* Hairline rules only, and the softer tone: 15 rows of full-strength rule
+     turned the list into a ladder you read instead of the criteria. */
+  'tbody td { padding:6px 7px; border-bottom:1px solid ' + APDF.ruleSoft + '; vertical-align:top; }' +
   'tbody tr { page-break-inside:avoid; }' +
-  ".c-n { width:20px; font-family:'Oswald',sans-serif; font-size:8pt; color:" + APDF.ink3 + '; }' +
-  '.c-en { display:block; font-size:9.5pt; line-height:1.3; }' +
-  ".c-hi { display:block; font-family:'Noto Sans Devanagari',sans-serif; font-size:8pt; color:" + APDF.ink2 + '; }' +
-  '.c-r { display:block; font-size:8pt; font-style:italic; color:' + APDF.ink3 + '; margin-top:1px; }' +
-  ".c-p { width:26px; font-family:'Oswald',sans-serif; font-size:8pt; color:" + APDF.ink3 + '; }' +
-  '.c-s { width:30px; text-align:right; }' +
-  ".pip { font-family:'Oswald',sans-serif; font-weight:700; font-size:10pt; display:inline-block;" +
-    ' min-width:19px; padding:1px 0; text-align:center; }' +
+  'tbody tr:last-child td { border-bottom:1px solid ' + APDF.rule + '; }' +
+  ".c-n { width:20px; font-family:'IBM Plex Mono',monospace; font-size:7pt;" +
+    ' color:' + APDF.ink3 + '; padding-top:7px; }' +
+  '.c-en { display:block; font-size:9pt; line-height:1.35; font-weight:450; }' +
+  ".c-hi { display:block; font-family:'IBM Plex Sans Devanagari',sans-serif; font-size:7.5pt;" +
+    ' color:' + APDF.ink2 + '; line-height:1.5; }' +
+  '.c-r { display:block; font-size:7.5pt; color:' + APDF.ink3 + '; margin-top:3px;' +
+    ' padding-left:7px; border-left:1px solid ' + APDF.rule + '; }' +
+  ".c-p { width:26px; font-family:'IBM Plex Mono',monospace; font-size:7pt;" +
+    ' color:' + APDF.ink3 + '; padding-top:7px; }' +
+  '.c-s { width:32px; text-align:right; }' +
+  ".pip { font-family:'IBM Plex Sans Condensed',sans-serif; font-weight:600; font-size:9.5pt;" +
+    " display:inline-block; min-width:18px; padding:1px 0; text-align:center;" +
+    " font-feature-settings:'tnum' 1; }" +
   '.pip.g { color:' + APDF.green + '; } .pip.a { color:' + APDF.amber + '; }' +
+  /* Reversed white-on-red is the one place a fill is used in the table, and it
+     works because the converter paints backgrounds behind glyphs. */
   '.pip.r { color:#fff; background:' + APDF.red + '; } .pip.na { color:' + APDF.ink3 + '; }' +
   // footer
-  '.foot { margin-top:14px; padding-top:6px; border-top:1px solid ' + APDF.rule + ';' +
-    " font-family:'Oswald',sans-serif; font-weight:300; font-size:7pt; letter-spacing:.08em;" +
-    ' text-transform:uppercase; color:' + APDF.ink3 + '; display:flex; justify-content:space-between; }' +
+  '.foot { margin-top:16px; padding-top:6px; border-top:1px solid ' + APDF.rule + ';' +
+    " font-family:'IBM Plex Mono',monospace; font-weight:400; font-size:6.5pt;" +
+    ' letter-spacing:.06em; text-transform:uppercase; color:' + APDF.ink3 + ';' +
+    ' display:flex; justify-content:space-between; }' +
   '</style></head><body>' +
 
   '<div class="mast"><div class="mast-l">Pack Masters <i>/ 5S Audit</i></div>' +
@@ -299,10 +351,10 @@ function buildAuditReportHtml_(detail, zoneCfg, overall, byPillar, ncCount) {
         (ncCount === 1 ? ' non-conformity' : ' non-conformities') +
         ' &middot; ' + items.length + ' criteria</div>' +
       '<div class="vd-f">' +
-        '<div><b>Zone / ज़ोन</b><span>' + _apdfEsc_(h.zoneId) + ' — ' + _apdfEsc_(h.zoneName) + '</span></div>' +
-        '<div><b>Date / दिनांक</b><span>' + _apdfEsc_(when) + '</span></div>' +
-        '<div><b>Auditor / ऑडिटर</b><span>' + _apdfEsc_(h.auditor || '—') + '</span></div>' +
-        '<div><b>Leader / लीडर</b><span>' + _apdfEsc_(zoneCfg.leader || '—') + '</span></div>' +
+        '<div><b>Zone <span class="hi">/ ज़ोन</span></b><span>' + _apdfEsc_(h.zoneId) + ' — ' + _apdfEsc_(h.zoneName) + '</span></div>' +
+        '<div><b>Date <span class="hi">/ दिनांक</span></b><span>' + _apdfEsc_(when) + '</span></div>' +
+        '<div><b>Auditor <span class="hi">/ ऑडिटर</span></b><span>' + _apdfEsc_(h.auditor || '—') + '</span></div>' +
+        '<div><b>Leader <span class="hi">/ लीडर</span></b><span>' + _apdfEsc_(zoneCfg.leader || '—') + '</span></div>' +
       '</div></div></div>' +
 
   '<div class="mtrs">' + meters + '</div>' +
@@ -311,7 +363,7 @@ function buildAuditReportHtml_(detail, zoneCfg, overall, byPillar, ncCount) {
 
   '<section class="sec"><h2 class="sec-h">All criteria<span class="sec-h-hi">सभी मानदंड</span>' +
     '<span class="sec-h-n">' + items.length + '</span></h2>' +
-    '<table><thead><tr><th></th><th>Criterion / मानदंड</th><th>Pillar</th>' +
+    '<table><thead><tr><th></th><th>Criterion <span class="hi">/ मानदंड</span></th><th>Pillar</th>' +
     '<th style="text-align:right">Score</th></tr></thead><tbody>' + rows + '</tbody></table></section>' +
 
   '<div class="foot"><span>Pack Masters 5S &middot; FRM/5S/01</span>' +

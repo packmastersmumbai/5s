@@ -1396,6 +1396,7 @@ body {
   <button class="ah-status-tab active" data-status="OPEN"        onclick="setStatusTab(this)">Open        <span class="tab-badge is-pending" id="cntOPEN">–</span></button>
   <button class="ah-status-tab"        data-status="IN_PROGRESS" onclick="setStatusTab(this)">In Progress <span class="tab-badge is-pending" id="cntIN_PROGRESS">–</span></button>
   <button class="ah-status-tab"        data-status="CLOSED"      onclick="setStatusTab(this)">Closed      <span class="tab-badge is-pending" id="cntCLOSED">–</span></button>
+  <button class="ah-status-tab"        data-status="LOGGED"      onclick="setStatusTab(this)">Walks &amp; Audits <span class="tab-badge is-pending" id="cntLOGGED">–</span></button>
 </div>
 
 <div class="ah-filter-row">
@@ -1679,7 +1680,7 @@ function escHtml(s) {
 /* ── state ── */
 var CURRENT_USER = '<?= (typeof params !== "undefined" && params && params.currentUser) ? params.currentUser : "" ?>';
 var _filters = { type: '', status: 'OPEN', priority: '', zoneId: '' };
-var _lastCounts = { byType:{NC:0,TASK:0,RED_TAG:0,KAIZEN:0,GEMBA:0,AUDIT:0}, byStatus:{OPEN:0,IN_PROGRESS:0,CLOSED:0}, byPriority:{}, total:0 };
+var _lastCounts = { byType:{NC:0,TASK:0,RED_TAG:0,KAIZEN:0,GEMBA:0,AUDIT:0}, byStatus:{OPEN:0,IN_PROGRESS:0,CLOSED:0,LOGGED:0}, byPriority:{}, total:0 };
 var _rcaPendingId = null;
 
 /* ── tabs / chips ── */
@@ -2144,8 +2145,18 @@ function applyFiltersAndRender_() {
   var st = _filters.status || '', ty = _filters.type || '', pr = _filters.priority || '';
 
   var zn = _filters.zoneId || '';
+  /* Completed-event types. They are always CLOSED so they never inflate the
+     open counts the plant works from, but that also buried them behind the
+     Closed tab where nobody would look for them. LOGGED selects them by type
+     instead, and the three real status tabs exclude them so the working list
+     stays exactly what it was. */
+  var LOGGED_TYPES = { GEMBA: 1, AUDIT: 1 };
+
   var match = function(i, skip) {
-    if (skip !== 'status'   && st && i.status   !== st) return false;
+    if (skip !== 'status' && st) {
+      if (st === 'LOGGED') { if (!LOGGED_TYPES[i.type]) return false; }
+      else if (LOGGED_TYPES[i.type] || i.status !== st) return false;
+    }
     if (skip !== 'type'     && ty && i.type     !== ty) return false;
     if (skip !== 'priority' && pr && i.priority !== pr) return false;
     /* Zone is filtered here rather than server-side so switching zone costs
@@ -2155,14 +2166,17 @@ function applyFiltersAndRender_() {
   };
 
   var counts = {
-    byStatus:   { OPEN: 0, IN_PROGRESS: 0, CLOSED: 0 },
+    byStatus:   { OPEN: 0, IN_PROGRESS: 0, CLOSED: 0, LOGGED: 0 },
     byType:     { NC: 0, TASK: 0, RED_TAG: 0, KAIZEN: 0, GEMBA: 0, AUDIT: 0 },
     byPriority: { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 },
     byTypeStatus: (_allCounts && _allCounts.byTypeStatus) || {},
     total: 0
   };
   _allItems.forEach(function(i) {
-    if (match(i, 'status')   && counts.byStatus[i.status]     !== undefined) counts.byStatus[i.status]++;
+    if (match(i, 'status')) {
+      if (LOGGED_TYPES[i.type]) counts.byStatus.LOGGED++;
+      else if (counts.byStatus[i.status] !== undefined) counts.byStatus[i.status]++;
+    }
     if (match(i, 'type')     && counts.byType[i.type]         !== undefined) counts.byType[i.type]++;
     if (match(i, 'priority') && counts.byPriority[i.priority] !== undefined) counts.byPriority[i.priority]++;
   });
@@ -2193,11 +2207,16 @@ function updateBadges(counts) {
   // Status badges reflect the selected type tab (fall back to all-types totals)
   var ss = bs;
   if (_filters.type && counts.byTypeStatus && counts.byTypeStatus[_filters.type]) {
+    /* byTypeStatus comes from the server and knows only the three real
+       statuses; LOGGED is a client-side pseudo-status, so carry it across or
+       the Walks & Audits badge reads 0 whenever a type tab is active. */
     ss = counts.byTypeStatus[_filters.type];
+    if (ss.LOGGED === undefined) ss = Object.assign({}, ss, { LOGGED: bs.LOGGED || 0 });
   }
   setTxt('cntOPEN',        ss.OPEN        || 0);
   setTxt('cntIN_PROGRESS', ss.IN_PROGRESS || 0);
   setTxt('cntCLOSED',      ss.CLOSED      || 0);
+  setTxt('cntLOGGED',      ss.LOGGED      || 0);
 }
 
 /* ── render cards ── */

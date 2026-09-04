@@ -15,7 +15,7 @@
  * report is now typeset instead of tabulated.
  *
  * DESIGN — industrial control document, not a business report.
- * This is printed, signed and filed on a factory floor, so it reads like an
+ * This is printed and read on a factory floor, so it reads like an
  * instrument panel: a heavy score block you can judge across a room, pillar
  * meters that show shortfall as a bar rather than only a number, failures given
  * the most space because they are the reason the report exists, and evidence
@@ -257,13 +257,13 @@ function buildAuditReportHtml_(detail, zoneCfg, overall, byPillar, ncCount) {
   ".fail-p { font-family:'Oswald',sans-serif; font-size:7.5pt; letter-spacing:.1em; color:" + APDF.red + ';' +
     ' flex:0 0 auto; padding-top:3px; }' +
   // evidence
-  '.ev { display:flex; flex-wrap:wrap; gap:8px; }' +
-  '.ev-i { margin:0; width:calc(33.333% - 6px); page-break-inside:avoid; }' +
-  '.ev-i img { width:100%; height:104px; object-fit:cover; display:block;' +
+  '.ev { display:flex; flex-wrap:wrap; gap:10px; }' +
+  '.ev-i { margin:0; width:calc(50% - 5px); page-break-inside:avoid; }' +
+  '.ev-i img { width:100%; height:210px; object-fit:cover; display:block;' +
     ' border:1px solid ' + APDF.rule + '; }' +
-  '.ev-i figcaption { display:flex; gap:5px; align-items:baseline; margin-top:3px; }' +
-  ".ev-sc { font-family:'Oswald',sans-serif; font-weight:700; font-size:9pt; flex:0 0 auto; }" +
-  '.ev-t { font-size:7.5pt; line-height:1.25; color:' + APDF.ink2 + '; }' +
+  '.ev-i figcaption { display:flex; gap:6px; align-items:baseline; margin-top:4px; }' +
+  ".ev-sc { font-family:'Oswald',sans-serif; font-weight:700; font-size:11pt; flex:0 0 auto; }" +
+  '.ev-t { font-size:9pt; line-height:1.3; color:' + APDF.ink2 + '; }' +
   // criteria table
   'table { width:100%; border-collapse:collapse; }' +
   'thead th { font-family:\'Oswald\',sans-serif; font-weight:500; font-size:7pt; letter-spacing:.12em;' +
@@ -281,12 +281,8 @@ function buildAuditReportHtml_(detail, zoneCfg, overall, byPillar, ncCount) {
     ' min-width:19px; padding:1px 0; text-align:center; }' +
   '.pip.g { color:' + APDF.green + '; } .pip.a { color:' + APDF.amber + '; }' +
   '.pip.r { color:#fff; background:' + APDF.red + '; } .pip.na { color:' + APDF.ink3 + '; }' +
-  // sign-off + footer
-  '.sign { display:flex; gap:10px; margin-top:18px; page-break-inside:avoid; }' +
-  '.sign div { flex:1; border-top:1px solid ' + APDF.ink + '; padding-top:5px; height:46px; }' +
-  ".sign b { font-family:'Oswald',sans-serif; font-weight:500; font-size:7pt; letter-spacing:.1em;" +
-    ' text-transform:uppercase; color:' + APDF.ink3 + '; }' +
-  '.foot { margin-top:12px; padding-top:6px; border-top:1px solid ' + APDF.rule + ';' +
+  // footer
+  '.foot { margin-top:14px; padding-top:6px; border-top:1px solid ' + APDF.rule + ';' +
     " font-family:'Oswald',sans-serif; font-weight:300; font-size:7pt; letter-spacing:.08em;" +
     ' text-transform:uppercase; color:' + APDF.ink3 + '; display:flex; justify-content:space-between; }' +
   '</style></head><body>' +
@@ -317,12 +313,6 @@ function buildAuditReportHtml_(detail, zoneCfg, overall, byPillar, ncCount) {
     '<span class="sec-h-n">' + items.length + '</span></h2>' +
     '<table><thead><tr><th></th><th>Criterion / मानदंड</th><th>Pillar</th>' +
     '<th style="text-align:right">Score</th></tr></thead><tbody>' + rows + '</tbody></table></section>' +
-
-  '<div class="sign">' +
-    '<div><b>Auditor / ऑडिटर</b></div>' +
-    '<div><b>Zone Leader / लीडर</b></div>' +
-    '<div><b>Reviewed by / समीक्षा</b></div>' +
-  '</div>' +
 
   '<div class="foot"><span>Pack Masters 5S &middot; FRM/5S/01</span>' +
     '<span>Generated ' + _apdfEsc_(generated) + '</span></div>' +

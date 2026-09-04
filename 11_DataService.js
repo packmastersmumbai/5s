@@ -1403,6 +1403,121 @@ function _getPublicRecordUncached_(type, id) {
     }
     return null;
   }
+  if (type === 'gw' || type === 'gemba' || type === 'walk') {
+    var gs = ss.getSheetByName('GembaWalks'); if (!gs) return null;
+    var gd = gs.getDataRange().getValues();
+    for (var r3 = 1; r3 < gd.length; r3++) {
+      if (String(gd[r3][GW_COL.WALK_ID]).trim() !== id) continue;
+      var w = gd[r3];
+      var wType = String(w[GW_COL.WALK_TYPE] || '');
+
+      /* The walk's whole value is WHICH checks failed. Stored as
+         {questionId: "yes"|"no"|"na"}, a question id on its own means nothing to
+         a reader, so pair each answer with its question text. The config is the
+         only place that mapping exists; if it has moved on since the walk, fall
+         back to the raw id rather than dropping the finding. */
+      var qText = {};
+      try {
+        /* Look in the walk's own type first, then every other type. Walk types
+           have been renamed since (a walk recorded as "Safety" predates
+           "Health & Safety"), and a type-only lookup silently degraded every
+           older walk to a list of bare question ids. Question ids are unique
+           across the whole config (verified: 62 questions, no collisions), so
+           the wider search cannot pick the wrong text. */
+        var _cfg = {};
+        try { _cfg = JSON.parse(PropertiesService.getScriptProperties()
+                .getProperty("GEMBA_WALK_CONFIG") || "{}"); } catch (e2) {}
+        var _types = Object.keys(_cfg);
+        if (_cfg[wType]) _types = [wType].concat(_types.filter(function (t) { return t !== wType; }));
+        _types.forEach(function (t) {
+          (_cfg[t] || []).forEach(function (q) {
+            if (qText[q.questionId]) return;   // first match wins (own type)
+            qText[q.questionId] = { text: q.text, sqcdp: q.sqcdp || "", category: q.category || "" };
+          });
+        });
+      } catch (e) {}
+
+      var answers = {};
+      try { answers = JSON.parse(String(w[GW_COL.RESPONSES_JSON] || '{}')); } catch (e) {}
+
+      var findings = [];
+      Object.keys(answers).forEach(function (qId) {
+        var a = String(answers[qId]).toLowerCase();
+        var meta = qText[qId] || {};
+        findings.push({
+          q: meta.text || qId,
+          a: a === 'yes' ? 'Yes' : a === 'no' ? 'No' : a === 'na' ? 'N/A' : String(answers[qId]),
+          fail: a === 'no',
+          sqcdp: meta.sqcdp || '',
+          category: meta.category || ''
+        });
+      });
+      // Failures first — that is what anyone opening the record came to see.
+      findings.sort(function (x, y) { return (y.fail ? 1 : 0) - (x.fail ? 1 : 0); });
+
+      var taskIds = [];
+      try { taskIds = JSON.parse(String(w[GW_COL.TASK_IDS_JSON] || '[]')) || []; } catch (e) {}
+
+      var gPhotos = String(w[GW_COL.PHOTO_URLS] || '').split(',').filter(Boolean);
+      var noN = Number(w[GW_COL.NO_COUNT] || 0);
+      return {
+        type: 'Gemba Walk', id: id,
+        title: wType + ' walk — ' + noN + ' finding' + (noN === 1 ? '' : 's'),
+        status: String(w[GW_COL.COMPLIANCE_PCT] || 0) + '% compliant',
+        zone: String(w[GW_COL.ZONE_ID] || '') +
+              (w[GW_COL.ZONE_NAME] ? ' — ' + String(w[GW_COL.ZONE_NAME]) : ''),
+        photoUrls: gPhotos,
+        photoFileIds: gPhotos.map(_extractDriveFileId_),
+        findings: findings,
+        taskIds: taskIds,
+        fields: [
+          { l: 'Walk type', v: wType },
+          { l: 'Walked by', v: String(w[GW_COL.WALKER_NAME] || '') },
+          { l: 'Date', v: fmtD(w[GW_COL.TIMESTAMP]) },
+          { l: 'Checks', v: String(w[GW_COL.TOTAL_Q] || 0) + ' asked · ' +
+              String(w[GW_COL.YES_COUNT] || 0) + ' pass · ' + noN + ' fail · ' +
+              String(w[GW_COL.NA_COUNT] || 0) + ' n/a' },
+          { l: 'Observations', v: String(w[GW_COL.OBSERVATIONS] || '') },
+          { l: 'Actions raised', v: taskIds.length ? taskIds.join(', ') : 'none' }
+        ] };
+    }
+    return null;
+  }
+  if (type === 'kz' || type === 'kaizen') {
+    var ks = ss.getSheetByName('KaizenSuggestions'); if (!ks) return null;
+    var kd = ks.getDataRange().getValues();
+    for (var r4 = 1; r4 < kd.length; r4++) {
+      if (String(kd[r4][KZ_COL.KAIZEN_ID]).trim() !== id) continue;
+      var k = kd[r4];
+      var kPhotos = String(k[KZ_COL.PHOTO_URL] || '').split(',').filter(Boolean);
+      var money = function (x) {
+        var n = Number(x);
+        return (x === '' || x == null || isNaN(n)) ? '' : '₹' + n.toLocaleString('en-IN');
+      };
+      return {
+        type: 'Kaizen', id: id,
+        title: String(k[KZ_COL.TITLE] || ''),
+        status: String(k[KZ_COL.STATUS] || ''),
+        zone: String(k[KZ_COL.ZONE_ID] || '') +
+              (k[KZ_COL.ZONE_NAME] ? ' — ' + String(k[KZ_COL.ZONE_NAME]) : ''),
+        photoUrls: kPhotos,
+        photoFileIds: kPhotos.map(_extractDriveFileId_),
+        fields: [
+          { l: 'Suggested by', v: String(k[KZ_COL.SUBMITTER] || '') },
+          { l: 'Category', v: String(k[KZ_COL.CATEGORY] || '') },
+          { l: 'Idea', v: String(k[KZ_COL.DESCRIPTION] || '') },
+          { l: 'Expected benefit', v: String(k[KZ_COL.EXPECTED_BENEFIT] || '') },
+          { l: 'Estimated saving', v: money(k[KZ_COL.EST_SAVINGS]) },
+          { l: 'Actual saving', v: money(k[KZ_COL.ACTUAL_SAVINGS]) },
+          { l: 'Reviewer', v: String(k[KZ_COL.REVIEWER] || '') },
+          { l: 'Assigned to', v: String(k[KZ_COL.ASSIGNED_TO] || '') },
+          { l: 'Target date', v: fmtD(k[KZ_COL.TARGET_DATE]) },
+          { l: 'Completed', v: fmtD(k[KZ_COL.COMPLETED_DATE]) },
+          { l: 'Submitted', v: fmtD(k[KZ_COL.CREATED]) }
+        ] };
+    }
+    return null;
+  }
   return null;
 }
 

@@ -57,7 +57,7 @@ function getEnhancedSheetDefinitions_() {
         "category", "title", "description", "photo_url", "expected_benefit",
         "estimated_savings", "status", "reviewer", "review_date", "review_remarks",
         "assigned_to", "target_date", "completion_date", "actual_savings",
-        "benefit_verified_by", "verification_date"
+        "implementation_notes", "benefit_verified_by", "verification_date"
       ]
     },
     {

@@ -661,7 +661,7 @@ function createKaizenSuggestion(kzData) {
     sheet.appendRow(row);
     if (typeof tg5sBroadcast_ === "function") {
       tg5sBroadcast_(_tg5sCard_({
-        kind: "Kaizen", status: "open", id: kaizenId, link: _tg5sDeep_('?v2=1&action=kaizenboard&zone=' + d.zoneId),
+        kind: "Kaizen", status: "open", id: kaizenId, link: _tg5sDeep_('?v2=1&action=record&type=kaizen&id=' + kaizenId),
         zoneId: d.zoneId, zoneName: v2GetZoneName_(d.zoneId),
         facts: [
           "📌 " + TelegramLib.esc(d.title),
@@ -671,7 +671,7 @@ function createKaizenSuggestion(kzData) {
         ],
         action: "review & approve",
         by: d.submitterName || "5S"
-      }), [{ text: "💡 Open Kaizen", url: _tg5sDeep_('?v2=1&action=kaizenboard&zone=' + d.zoneId) }]);
+      }), [{ text: "💡 Open Kaizen", url: _tg5sDeep_('?v2=1&action=record&type=kaizen&id=' + kaizenId) }]);
     }
     return { success: true, kaizenId: kaizenId, message: "Kaizen suggestion submitted." };
   }, "createKaizenSuggestion", { success: false, kaizenId: "", message: "Server error." });
@@ -723,12 +723,12 @@ function updateKaizenStatus(kzId, newStatus, remarks, additionalFields) {
             }
             tg5sBroadcast_(_tg5sCard_({
               kind: "Kaizen", status: _kz.status,
-              link: _tg5sDeep_('?v2=1&action=kaizenboard&zone=' + _kzZone),
+              link: _tg5sDeep_('?v2=1&action=record&type=kaizen&id=' + kzId),
               zoneId: _kzZone, zoneName: v2GetZoneName_(_kzZone),
               facts: _kzFacts,
               action: _kz.action,
               by: _tg5sWho_(additionalFields.reviewer || additionalFields.verifiedBy || v2GetCurrentUser_())
-            }), [{ text: "💡 Open Kaizen", url: _tg5sDeep_('?v2=1&action=kaizenboard&zone=' + _kzZone) }]);
+            }), [{ text: "💡 Open Kaizen", url: _tg5sDeep_('?v2=1&action=record&type=kaizen&id=' + kzId) }]);
           }
         }
         return { success: true, message: "Kaizen " + kzId + " → " + newStatus };

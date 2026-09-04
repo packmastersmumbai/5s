@@ -71,6 +71,29 @@
   .badge.NCR    { background: var(--red-bg);   color: var(--red); }
   .badge.Task   { background: var(--green-bg); color: var(--green); }
   .badge.RedTag { background: var(--amber-bg); color: var(--amber); }
+  .badge.GembaWalk { background: #EDE9FE; color: #6D28D9; }
+  .badge.Kaizen    { background: #DBEAFE; color: #1D4ED8; }
+
+  /* Gemba findings. A walk is a list of checks and the only thing a reader
+     actually wants is which ones failed, so a failure is a full row with a red
+     bar, and the passes collapse into a quiet block underneath. */
+  .fh { margin: 18px 0 8px; font-size: 12.5px; font-weight: 700; color: var(--ink2);
+        text-transform: uppercase; letter-spacing: .04em; }
+  .fi { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px;
+        border-radius: 8px; margin-bottom: 6px; font-size: 13.5px; line-height: 1.45; }
+  .fi.no { background: var(--red-bg); border-left: 3px solid var(--red); }
+  .fi.ok { background: #F8FAFC; border-left: 3px solid #CBD5E1; }
+  .fi .fa { font-weight: 800; flex: 0 0 auto; font-size: 12px; padding-top: 1px; }
+  .fi.no .fa { color: var(--red); }
+  .fi.ok .fa { color: #64748B; }
+  .fi .fq { color: var(--ink); }
+  .fi .ftag { display: block; margin-top: 3px; font-size: 11.5px; color: var(--ink2); }
+  .fmore { margin-top: 4px; font-size: 12.5px; color: var(--ink2); cursor: pointer;
+           background: none; border: 0; padding: 6px 0; text-decoration: underline; }
+  .tasklist { margin-top: 4px; }
+  .tasklist a { display: inline-block; margin: 0 6px 6px 0; padding: 5px 10px;
+                background: var(--green-bg); color: var(--green); border-radius: 6px;
+                font-size: 12.5px; font-weight: 700; text-decoration: none; }
   .st {
     font-size: 11px; font-weight: 700; color: var(--ink2); padding: 3px 10px;
     border: 1px solid var(--line); border-radius: 20px; text-transform: uppercase; letter-spacing: .04em;
@@ -232,9 +255,78 @@ function render(rec){
     '<div class="id">' + esc(rec.id) + ' · ' + esc(rec.zone) + '</div>' +
     '<div class="ti">' + esc(rec.title) + '</div>' +
     '<table class="tbl">' + rows + '</table>' +
+    buildFindings_(rec) +
+    buildTaskLinks_(rec) +
     gallery +
     buildQuickAction_(rec) +
     '<a class="signin" href="' + DU + '?v2=1&action=login&next=' + encodeURIComponent(next) + '" target="_top">Sign in for full access</a>';
+}
+
+/* Gemba findings. Failures are shown in full and first; passes are collapsed
+   behind a toggle so a 30-question walk does not bury its two problems. */
+function buildFindings_(rec){
+  var f = rec.findings || [];
+  /* A walk with counts but no per-question answers is a seeded/legacy row. Say
+     so, rather than rendering nothing and letting the reader assume the walk
+     found no problems -- the header may well claim "3 findings". */
+  if (!f.length) {
+    if (rec.type !== 'Gemba Walk') return '';
+    return '<div class="fh">Findings</div>' +
+           '<div class="fi ok"><span class="fa">—</span><span class="fq">' +
+           'Per-question answers were not recorded for this walk, so the individual ' +
+           'checks cannot be shown. The counts above are what was saved.</span></div>';
+  }
+  var fails = f.filter(function(x){ return x.fail; });
+  var passes = f.filter(function(x){ return !x.fail; });
+
+  function row(x){
+    var tag = [x.sqcdp ? 'SQCDP ' + x.sqcdp : '', x.category || ''].filter(Boolean).join(' \u00b7 ');
+    return '<div class="fi ' + (x.fail ? 'no' : 'ok') + '">' +
+             '<span class="fa">' + esc(x.a) + '</span>' +
+             '<span class="fq">' + esc(x.q) +
+               (tag ? '<span class="ftag">' + esc(tag) + '</span>' : '') +
+             '</span></div>';
+  }
+
+  var html = '';
+  if (fails.length) {
+    html += '<div class="fh">Findings \u2014 ' + fails.length + ' failed</div>' +
+            fails.map(row).join('');
+  }
+  if (passes.length) {
+    html += '<div id="passWrap" style="display:none">' +
+              '<div class="fh">Passed \u2014 ' + passes.length + '</div>' +
+              passes.map(row).join('') +
+            '</div>' +
+            '<button type="button" class="fmore" id="passToggle" onclick="togglePasses_()">' +
+              'Show ' + passes.length + ' passed check' + (passes.length===1?'':'s') +
+            '</button>';
+  }
+  if (!fails.length && passes.length) {
+    html = '<div class="fh">Findings</div>' +
+           '<div class="fi ok"><span class="fa">\u2713</span><span class="fq">' +
+           'Every check passed on this walk.</span></div>' + html;
+  }
+  return html;
+}
+
+function togglePasses_(){
+  var w = document.getElementById('passWrap'), b = document.getElementById('passToggle');
+  if (!w || !b) return;
+  var open = w.style.display !== 'none';
+  w.style.display = open ? 'none' : 'block';
+  b.textContent = (open ? 'Show ' : 'Hide ') + w.querySelectorAll('.fi').length + ' passed checks';
+}
+
+/* The actions a walk raised are the point of doing it — link straight to them. */
+function buildTaskLinks_(rec){
+  var t = rec.taskIds || [];
+  if (!t.length) return '';
+  return '<div class="fh">Actions raised</div><div class="tasklist">' +
+    t.map(function(id){
+      return '<a href="' + DU + '?v2=1&action=record&type=task&id=' + encodeURIComponent(id) +
+             '" target="_top">' + esc(id) + '</a>';
+    }).join('') + '</div>';
 }
 
 /* ── Quick action (no login) — narrow, safe verbs per type/status.

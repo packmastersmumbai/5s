@@ -54,6 +54,24 @@ function doGet(e) {
   var formType = params.type || "";
   var token = params.token || "";
 
+  /* QR codes printed for the floor encode '?zone=Z-XX' with no action. Those
+     scans used to land on the zone landing page, one tap short of the audit.
+     A named zone with no action and no explicit form type IS the scan, so it
+     implies quickaudit. Doing the rewrite here (rather than in the zone branch
+     far below) means the auth bypass and the V2_ALWAYS dispatcher both see the
+     real action, and existing printed codes keep working unchanged. */
+  if (!action && zoneId && !formType) {
+    /* Validate BEFORE rewriting. Without this an unknown zone (a mistyped or
+       retired QR code) skipped the "Invalid Zone" error and opened a Quick
+       Audit for a zone that does not exist, because the rewrite ran ahead of
+       the validation in the zone branch below. */
+    var _qrCfg = getZoneConfig();
+    if (_qrCfg && _qrCfg[zoneId]) {
+      action = "quickaudit";
+      params.action = "quickaudit";
+    }
+  }
+
   try {
     // ── JSONP API (GitHub Pages cross-origin calls) ──
     if (params.fn && params.callback) {
@@ -119,8 +137,20 @@ function doGet(e) {
            the full 28-zone list instead of that zone's page — byte-identical to
            the bare root URL. The zone branch further down already handles it;
            this was intercepting before it could run. */
+        /* The bare landing URL asks for a PIN. Zone selection is no longer a
+           gate: every view defaults to all zones, and a zone is a filter the
+           user may apply afterwards. QR scans are unaffected — they carry a
+           zone, so the rewrite at the top of doGet turned them into the
+           quickaudit worker action before this branch was reached. */
         if (!action && !params.zone) {
-          return serveZoneSelector_();
+          var rootTmpl = HtmlService.createTemplateFromFile("PinLogin");
+          rootTmpl.deployUrl = getDeployUrl_();
+          rootTmpl.clearStaleToken = token ? true : false;
+          rootTmpl.nextQs = "v2=1&action=insights";
+          return rootTmpl.evaluate()
+            .setTitle("PackMasters 5S \u2014 Login")
+            .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+            .addMetaTag("viewport", "width=device-width, initial-scale=1");
         }
         /* A named zone with no action is a floor worker off a QR code: fall
            through to the zone landing page rather than demanding a PIN. */

@@ -652,6 +652,15 @@ function buildPageChrome_(deployUrl, action, token, zone, zoneConfig, pageType) 
   };
   var create = CREATE[action] || null;
 
+  /* The status filter defaulted to OPEN on every page. That is the right
+     question for work you owe -- tasks and issues -- but an audit or a walk is
+     finished the moment it is recorded, so on those pages the default matched
+     nothing and the page looked broken: all 27 audits, all 34 NCs, all 11
+     walks and 12 of 13 kaizens are not OPEN and were hidden. Only Tasks, with
+     101 open rows, appeared to work. */
+  var STATUS_DEFAULT = { tasks: "OPEN", issues: "OPEN" };
+  var statusDefault = STATUS_DEFAULT.hasOwnProperty(action) ? STATUS_DEFAULT[action] : "";
+
   var zc = zoneConfig || {};
   var zoneIds = Object.keys(zc).sort();
   var zoneJson = JSON.stringify(zoneIds.map(function (z) {
@@ -670,7 +679,8 @@ function buildPageChrome_(deployUrl, action, token, zone, zoneConfig, pageType) 
     html += '  <button type="button" class="pm5s-filter" id="fltZone" aria-haspopup="dialog">' +
             '<span id="fltZoneTxt">All zones</span>' + caret + '</button>\n';
     html += '  <button type="button" class="pm5s-filter" id="fltStatus" aria-haspopup="dialog">' +
-            '<span id="fltStatusTxt">Open</span>' + caret + '</button>\n';
+            '<span id="fltStatusTxt">' + (statusDefault === "OPEN" ? "Open" : "All status") +
+            '</span>' + caret + '</button>\n';
     html += '  <button type="button" class="pm5s-filter" id="fltPriority" aria-haspopup="dialog">' +
             '<span id="fltPriorityTxt">All priority</span>' + caret + '</button>\n';
     html += '  <button type="button" class="pm5s-filter-clear" id="fltClear" hidden>Clear</button>\n';
@@ -696,8 +706,14 @@ function buildPageChrome_(deployUrl, action, token, zone, zoneConfig, pageType) 
   html += '  var KEY = "pm5s_filters_v1";\n';
   html += '  var STATUS = [["","All status"],["OPEN","Open"],["IN_PROGRESS","In progress"],["CLOSED","Closed"]];\n';
   html += '  var PRIO = [["","All priority"],["CRITICAL","Critical"],["HIGH","High"],["MEDIUM","Medium"],["LOW","Low"]];\n';
-  html += '  var f = { zone: "", status: "OPEN", priority: "" };\n';
+  html += '  var STATUS_DEFAULT = ' + JSON.stringify(statusDefault) + ';\n';
+  html += '  var f = { zone: "", status: STATUS_DEFAULT, priority: "" };\n';
   html += '  try { var raw = sessionStorage.getItem(KEY); if (raw) { var o = JSON.parse(raw); if (o) f = o; } } catch(e){}\n';
+  /* Status is per page, so it must NOT ride sessionStorage between pages the
+     way zone and priority do: carrying "Open" from Tasks onto Audits would
+     re-hide all 27 rows and reintroduce the bug one navigation later. Zone and
+     priority still carry -- they mean the same thing everywhere. */
+  html += '  f.status = STATUS_DEFAULT;\n';
   html += '  var ZONE_FROM_URL = ' + JSON.stringify(zone) + ';\n';
   /* A zone in the URL is an explicit instruction (a QR code, a shared link) and
      outranks whatever was left in the session. */
@@ -713,9 +729,9 @@ function buildPageChrome_(deployUrl, action, token, zone, zoneConfig, pageType) 
   html += '    document.getElementById("fltPriorityTxt").textContent = label(PRIO, f.priority);\n';
   /* Only non-defaults are marked, so the dot means "you changed this". */
   html += '    z.classList.toggle("on", !!f.zone);\n';
-  html += '    st.classList.toggle("on", f.status !== "OPEN");\n';
+  html += '    st.classList.toggle("on", f.status !== STATUS_DEFAULT);\n';
   html += '    pr.classList.toggle("on", !!f.priority);\n';
-  html += '    var n = (f.zone?1:0) + (f.status!=="OPEN"?1:0) + (f.priority?1:0);\n';
+  html += '    var n = (f.zone?1:0) + (f.status!==STATUS_DEFAULT?1:0) + (f.priority?1:0);\n';
   html += '    var c = document.getElementById("fltClear");\n';
   html += '    c.hidden = (n === 0); c.textContent = "Clear (" + n + ")";\n';
   html += '    apply();\n';
@@ -798,7 +814,7 @@ function buildBottomNav_(deployUrl, action, token, zone) {
     ["insights",   "insights", "Analytics"],
     ["audits",     "audits",   "Audits"],
     ["issues",     "issues",   "Issues"],
-    ["kaizenlist", "kaizen",   "Kaizen"],
+    ["kaizenboard","kaizen",   "Kaizen"],
     ["tasks",      "tasks",    "Tasks"],
     ["walks",      "walks",    "Walks"]
   ];
@@ -811,7 +827,7 @@ function buildBottomNav_(deployUrl, action, token, zone) {
     quickaudit: "audits", audithistory: "audits",
     actionlist: "issues", kanban: "issues", redtag: "issues",
     redtagboard: "issues", raiseredtag: "issues", capa: "issues",
-    kaizen: "kaizenlist", kaizenboard: "kaizenlist",
+    kaizen: "kaizenboard", kaizenlist: "kaizenboard",
     taskboard: "tasks",
     gembawalk: "walks", gembaboard: "walks"
   };

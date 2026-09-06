@@ -11,7 +11,9 @@
 
    This is the A3/PDCA sheet that TPM and ISO assessors expect, split into
    numbered steps so a floor worker on a phone meets one question at a time. */
-body { background: var(--bg-page); padding-bottom: 96px; }
+body { background: var(--bg-page);
+       /* room for the submit bar AND the nav beneath it */
+       padding-bottom: calc(96px + var(--pm5s-nav-h, 57px)); }
 
 .kz-doc { max-width: 780px; margin: 0 auto; }
 
@@ -152,9 +154,15 @@ body { background: var(--bg-page); padding-bottom: 96px; }
 }
 .kz-ph-add:hover { border-color: var(--pm-primary); color: var(--pm-primary); }
 
-/* Submit bar */
+/* Submit bar.
+   It sat at bottom:0 with z-index 40; the bottom nav added last session sits
+   at the same edge with z-index 110, so the nav covered the Submit button and
+   swallowed every click on it -- the form could be filled in but never sent.
+   The bar now clears the nav and outranks it. --pm5s-nav-h tracks the nav's
+   compact state (57 / 48 / 44px), so a fixed offset cannot go stale. */
 .kz-bar {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  position: fixed; left: 0; right: 0; z-index: 120;
+  bottom: var(--pm5s-nav-h, 57px);
   display: flex; align-items: center; gap: 12px;
   padding: 10px 16px; background: var(--bg-card);
   border-top: 1px solid var(--border); box-shadow: 0 -2px 14px rgba(0,0,0,.07);

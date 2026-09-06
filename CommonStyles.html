@@ -1242,8 +1242,15 @@ body { padding-top: 44px; }
   opacity: 1; max-height: 14px;
   transition: opacity .2s ease, max-height .22s ease, margin .22s ease;
 }
+/* The nav's height, published so fixed elements above it (the Kaizen submit
+   bar) can clear it. It changes with the compact state and on short
+   landscape viewports, so each of those states restates it here rather than
+   letting a constant elsewhere go stale. */
+:root { --pm5s-nav-h: 57px; }
+
 /* Collapsed: labels fade and the bar tightens. */
 .bottom-nav.compact .bn-item { height: 48px; }
+:root:has(.bottom-nav.compact) { --pm5s-nav-h: 48px; }
 .bottom-nav.compact .bn-lbl { opacity: 0; max-height: 0; margin-top: -3px; }
 /* Reduced motion: never collapse, never animate. */
 .bottom-nav.labels-locked .bn-lbl { opacity: 1 !important; max-height: 14px !important; }
@@ -1536,6 +1543,7 @@ input, select, textarea { font-size: max(16px, 1em); }
   .zone-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
   .pm-header { padding: 8px 16px; }
   .bottom-nav { height: 44px; }
+  :root { --pm5s-nav-h: 44px; }
   /* Short viewport: labels stay collapsed and the bar sits at its floor. */
   .bn-item { height: 44px; font-size: 10px; }
   .bn-lbl { opacity: 0; max-height: 0; }

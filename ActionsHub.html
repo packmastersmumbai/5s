@@ -1408,7 +1408,7 @@ body {
 <!-- Status tabs are ALWAYS visible: they are how you reach In Progress and
      Closed records. They used to sit inside .ah-filter-row (display:none until
      the Filters toggle was pressed), which made those two views unreachable. -->
-<div class="ah-status-tabs" id="ahStatusTabs" style="display:none">
+<div class="ah-status-tabs" id="ahStatusTabs" role="tablist">
   <button class="ah-status-tab active" data-status="OPEN"        onclick="setStatusTab(this)">Open        <span class="tab-badge is-pending" id="cntOPEN">–</span></button>
   <button class="ah-status-tab"        data-status="IN_PROGRESS" onclick="setStatusTab(this)">In Progress <span class="tab-badge is-pending" id="cntIN_PROGRESS">–</span></button>
   <button class="ah-status-tab"        data-status="CLOSED"      onclick="setStatusTab(this)">Closed      <span class="tab-badge is-pending" id="cntCLOSED">–</span></button>
@@ -1699,7 +1699,13 @@ var CURRENT_USER = '<?= (typeof params !== "undefined" && params && params.curre
    rail then owns zone, status and priority for every page alike, so the hub no
    longer keeps its own copies of those controls. */
 var PAGE_TYPE = '<?= (typeof params !== "undefined" && params && params.only) ? String(params.only).replace(/[^A-Z_]/g, "") : "" ?>';
-var _filters = { type: PAGE_TYPE, status: 'OPEN', priority: '', zoneId: '' };
+/* Seeded from the rail's per-page default rather than a hardcoded OPEN --
+   see buildPageChrome_. On Audits, Walks and Kaizen this is "" (all). */
+var STATUS_DEFAULT = (function () {
+  try { return (window.PM5S_FILTERS && window.PM5S_FILTERS.status !== undefined)
+    ? window.PM5S_FILTERS.status : ''; } catch (e) { return ''; }
+})();
+var _filters = { type: PAGE_TYPE, status: STATUS_DEFAULT, priority: '', zoneId: '' };
 
 /* Adopt whatever the rail already holds, then follow it. Without this a filter
    set on Tasks would be visibly active in the rail while this list ignored it. */
@@ -1707,7 +1713,7 @@ var _filters = { type: PAGE_TYPE, status: 'OPEN', priority: '', zoneId: '' };
   function adopt(f) {
     if (!f) return;
     _filters.zoneId = f.zone || '';
-    _filters.status = (f.status === undefined) ? 'OPEN' : f.status;
+    _filters.status = (f.status === undefined) ? STATUS_DEFAULT : f.status;
     _filters.priority = f.priority || '';
     _filters.type = PAGE_TYPE;          // the page's type always wins
     if (typeof applyFiltersAndRender_ === 'function' && window._allItems) {
@@ -2246,8 +2252,17 @@ function applyFiltersAndRender_() {
      Closed pretending to be finished work. */
   var LOGGED_TYPES = { GEMBA: 1, AUDIT: 1 };
 
+  /* ...but only while this list is the mixed working list. Audits and Walks
+     are now pages of their own, and on those pages this blanket exclusion
+     dropped every single row: 27 audits and 11 walks loaded into _allItems and
+     were then filtered straight back out, so both pages rendered empty no
+     matter what the status filter said. The dedicated renderAuditsView /
+     renderWalksView that justified the exclusion are unreachable -- their only
+     caller is setTypeTab, a handler for type tabs deleted last session. */
+  var IS_LOGGED_PAGE = !!LOGGED_TYPES[PAGE_TYPE];
+
   var match = function(i, skip) {
-    if (LOGGED_TYPES[i.type]) return false;
+    if (!IS_LOGGED_PAGE && LOGGED_TYPES[i.type]) return false;
     if (skip !== 'status' && st && i.status !== st) return false;
     if (skip !== 'type'     && ty && i.type     !== ty) return false;
     if (skip !== 'priority' && pr && i.priority !== pr) return false;
@@ -2318,7 +2333,12 @@ function renderCards(items) {
   var groups = { NC: [], TASK: [], RED_TAG: [], KAIZEN: [], GEMBA: [], AUDIT: [] };
   items.forEach(function(a) { (groups[a.type] = groups[a.type] || []).push(a); });
 
-  var order = ['NC', 'TASK', 'RED_TAG', 'KAIZEN'];
+  /* AUDIT and GEMBA were omitted here for the same reason they were excluded
+     from match(): their own renderers were meant to draw them. Those renderers
+     are unreachable, so on the Audits and Walks pages the rows survived the
+     filter, were grouped, and were then simply never emitted -- the section
+     loop had no entry to print them under. */
+  var order = ['NC', 'TASK', 'RED_TAG', 'KAIZEN', 'AUDIT', 'GEMBA'];
   var emoji = { NC: '&#128995;', TASK: '&#128203;', RED_TAG: '&#128308;',
                 KAIZEN: '&#128161;', GEMBA: '&#128065;', AUDIT: '&#128202;' };
   var html = '';
@@ -3894,6 +3914,27 @@ renderCards = function(items) {
 
 /* ── init ── */
 loadZones();
+
+/* Tasks is the one page where status is the primary axis of the work -- what
+   is open, what is moving, what is done -- so it keeps the tab strip. The
+   strip has been in the DOM all along but nothing ever showed it: setTypeTab,
+   its only caller, handles type tabs that were deleted last session and so
+   never runs. Where the strip shows, the rail's Status picker steps aside:
+   two controls for one value could disagree on screen, which is why the strip
+   was pulled in the first place. */
+(function () {
+  var strip = document.getElementById('ahStatusTabs');
+  var rail  = document.getElementById('fltStatus');
+  var show  = (PAGE_TYPE === 'TASK');
+  if (strip) strip.style.display = show ? '' : 'none';
+  if (rail)  rail.style.display  = show ? 'none' : '';
+  if (!show) return;
+  var cur = _filters.status || 'OPEN';
+  document.querySelectorAll('.ah-status-tab').forEach(function (b) {
+    b.classList.toggle('active', b.getAttribute('data-status') === cur);
+  });
+})();
+
 fetchAndRender();
 </script>
 

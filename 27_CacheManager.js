@@ -96,7 +96,7 @@ function v2InvalidateCache(sheetName, zoneId) {
        still changes the all-zones list. */
     if (typeof invalidateActionListCache_ === 'function') {
       invalidateActionListCache_();
-      invalidated.push('pm5s_actionlist_v1');
+      invalidated.push(ACTION_LIST_CACHE_KEY);
     }
 
     // Get dependent cache keys for this sheet

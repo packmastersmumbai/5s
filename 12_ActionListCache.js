@@ -6,18 +6,27 @@
  * payload. Every record page paid that on load, which is why Audits and Issues
  * sat on a spinner for seven-plus seconds.
  *
- * The whole plant fits in one CacheService entry (97 KB against the 100 KB
- * per-key ceiling), and reading it back costs ~48ms — 44x faster than
- * rebuilding it. So the list is built once, cached, and sliced per type in
- * memory; the PIN screen warms it while the user is still tapping digits, so
- * the first page after sign-in reads a cache that is already hot.
+ * The whole plant is cached across as many keys as it needs (100 KB each) and
+ * read back in ~76ms — far faster than rebuilding it. The list is built once,
+ * cached, and sliced per type in memory; the PIN screen warms it while the
+ * user is still tapping digits, so the first page after sign-in reads a cache
+ * that is already hot.
  *
  * Correctness over speed: any write invalidates the blob (hooked into
  * v2InvalidateCache), and the TTL is deliberately short. A stale action list
  * is worse than a slow one — it shows work that is already done.
  */
 
-var ACTION_LIST_CACHE_KEY = 'pm5s_actionlist_v1';
+/* The key carries a build stamp because CacheService is script-scoped, not
+   version-scoped: a `clasp push` does NOT clear it (verified — the entry was
+   still present straight after a push). Without the stamp, a deploy that
+   changed a record's shape would keep serving the old shape until the TTL
+   expired, and the new code would read fields that were not in the cached
+   rows. Bump this string in the same commit as any change to what
+   getUnifiedActionList returns; the old entry is then simply orphaned and
+   ages out on its own. */
+var ACTION_LIST_BUILD = '2026-09-07a';
+var ACTION_LIST_CACHE_KEY = 'pm5s_actionlist_' + ACTION_LIST_BUILD;
 
 /* Six minutes. Long enough to cover a sign-in plus a walk through every page,
    short enough that a write from another device surfaces quickly even if its
@@ -35,13 +44,13 @@ function getActionListCached_(force) {
 
   if (!force) {
     try {
-      var hit = cache.get(ACTION_LIST_CACHE_KEY);
+      var hit = readChunked_(cache);
       if (hit) {
         var parsed = JSON.parse(hit);
         if (parsed && parsed.items) return parsed;
       }
     } catch (e) {
-      /* A corrupt or truncated entry must not take the page down with it —
+      /* A corrupt or half-expired entry must not take the page down with it —
          fall through and rebuild. */
       Logger.log('actionlist cache read failed: ' + e.message);
     }
@@ -49,20 +58,58 @@ function getActionListCached_(force) {
 
   var fresh = getUnifiedActionList({});
   try {
-    var blob = JSON.stringify(fresh);
-    /* CacheService rejects values over 100 KB. The payload measured 97 KB and
-       grows with the record count, so this will eventually cross the line:
-       skip the cache rather than throw, and the page still renders — slowly,
-       but correctly. */
-    if (blob.length < 100000) {
-      cache.put(ACTION_LIST_CACHE_KEY, blob, ACTION_LIST_TTL);
-    } else {
-      Logger.log('actionlist too large to cache: ' + blob.length + ' bytes');
-    }
+    writeChunked_(cache, JSON.stringify(fresh));
   } catch (e) {
     Logger.log('actionlist cache write failed: ' + e.message);
   }
   return fresh;
+}
+
+/* CacheService caps a single value at 100 KB. The payload measured 99,362
+   bytes — 99% of the ceiling — so it was days of new records away from
+   silently falling back to the slow path with nothing to show why. Splitting
+   it across keys costs one extra round trip (76ms for two chunks, measured)
+   and removes the cliff.
+
+   An index key holds the chunk count so a reader knows how many to ask for,
+   and getAll fetches them in one call. */
+var ACTION_LIST_CHUNK = 60000;
+
+function chunkKeys_(n) {
+  var keys = [];
+  for (var i = 0; i < n; i++) keys.push(ACTION_LIST_CACHE_KEY + '_' + i);
+  return keys;
+}
+
+function writeChunked_(cache, blob) {
+  var parts = [];
+  for (var i = 0; i < blob.length; i += ACTION_LIST_CHUNK) {
+    parts.push(blob.substring(i, i + ACTION_LIST_CHUNK));
+  }
+  var map = {};
+  chunkKeys_(parts.length).forEach(function (k, n) { map[k] = parts[n]; });
+  cache.putAll(map, ACTION_LIST_TTL);
+  /* The index is written LAST and expires FIRST (a few seconds early), so a
+     reader can never find an index pointing at chunks that have already gone.
+     A missing index just means a rebuild, which is correct; a torn read would
+     mean corrupt JSON. */
+  cache.put(ACTION_LIST_CACHE_KEY + '_n', String(parts.length), ACTION_LIST_TTL - 10);
+}
+
+function readChunked_(cache) {
+  var n = parseInt(cache.get(ACTION_LIST_CACHE_KEY + '_n'), 10);
+  if (!n || n < 1) return null;
+  var keys = chunkKeys_(n);
+  var got = cache.getAll(keys);
+  var out = '';
+  for (var i = 0; i < keys.length; i++) {
+    var part = got[keys[i]];
+    /* Any missing chunk makes the whole blob unusable — rebuild rather than
+       parse a hole. */
+    if (part === null || part === undefined) return null;
+    out += part;
+  }
+  return out;
 }
 
 /**
@@ -70,7 +117,14 @@ function getActionListCached_(force) {
  * new NC or a closed task shows up immediately rather than after the TTL.
  */
 function invalidateActionListCache_() {
-  try { CacheService.getScriptCache().remove(ACTION_LIST_CACHE_KEY); } catch (e) {}
+  try {
+    var cache = CacheService.getScriptCache();
+    var n = parseInt(cache.get(ACTION_LIST_CACHE_KEY + '_n'), 10) || 0;
+    /* Drop the index first: from that moment no reader can assemble the blob,
+       so the chunks going a moment later cannot produce a torn read. */
+    cache.remove(ACTION_LIST_CACHE_KEY + '_n');
+    if (n > 0) cache.removeAll(chunkKeys_(n));
+  } catch (e) {}
 }
 
 /**
@@ -90,7 +144,7 @@ function getActionListFast(filters) {
 
   var cache = CacheService.getScriptCache();
   var wasCached = false;
-  try { wasCached = !!cache.get(ACTION_LIST_CACHE_KEY); } catch (e) {}
+  try { wasCached = !!cache.get(ACTION_LIST_CACHE_KEY + '_n'); } catch (e) {}
 
   var all = getActionListCached_(false);
   var items = all.items || [];

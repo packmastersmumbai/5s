@@ -28,7 +28,8 @@
   body{font-family:'Plus Jakarta Sans',sans-serif;background:#f4f5f8;min-height:100vh}
 
   /* ── Header ── */
-  .iv-header{background:var(--iv-ink);color:#fff;padding:10px 16px;display:flex;align-items:center;gap:10px}
+  .iv-header{background:#0F172A;color:#fff;padding:10px 16px;display:flex;align-items:center;gap:10px}
+  [data-theme="dark"] .iv-header{background:var(--bg-card);border-bottom:1px solid var(--iv-line)}
   .iv-back{color:rgba(255,255,255,.7);text-decoration:none;font-size:12px;padding:3px 8px;border:1px solid rgba(255,255,255,.2);border-radius:6px;white-space:nowrap}
   .iv-back:hover{color:#fff}
   .iv-header h1{font-size:14px;font-weight:600;flex:1}
@@ -43,20 +44,87 @@
 
   /* ── Body ── */
   /* Responsive grid: cards pair up 2-across on desktop, stack on mobile. */
-  .iv-body{padding:12px;display:grid;grid-template-columns:1fr;gap:12px;align-content:start;max-width:1400px;margin:0 auto}
-  @media(min-width:820px){.iv-body{grid-template-columns:1fr 1fr}}
+  .iv-body{padding:12px;display:grid;grid-template-columns:minmax(0,1fr);gap:12px;align-content:start;max-width:1400px;margin:0 auto}
+  @media(min-width:820px){.iv-body{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
   /* Let wrappers pass their card children straight into the grid. */
   #iv-chart-section,.ncr-row,#iv-ranking-section,#iv-heatmap-section{display:contents}
   /* Wide/tall cards span the full row. */
-  #iv-kpi-section,.s-card--wide{grid-column:1/-1}
+  #iv-kpi-section,.s-card--wide,.iv-sec{grid-column:1/-1}
+  /* Cards size to their content. Row-stretch gave the short pillar card the
+     height of the tall trend chart beside it — ~200px of nothing under five
+     donuts, which read as a rendering fault rather than a layout choice. */
+  .s-card{align-self:start}
 
   /* ── Section card ── */
-  .s-card{background:#fff;border-radius:10px;border:1px solid var(--iv-line);padding:14px 16px;min-width:0}
-  .s-title{font-size:11px;font-weight:700;color:#5a6070;letter-spacing:.5px;text-transform:uppercase;margin-bottom:12px}
+  .s-card{background:var(--bg-card);border-radius:12px;border:1px solid var(--iv-line);padding:14px 16px;min-width:0}
+  .s-title{font-size:11px;font-weight:700;color:var(--iv-ink2);letter-spacing:.5px;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+  .s-note{font-size:10px;font-weight:600;letter-spacing:.02em;text-transform:none;color:var(--iv-ink3)}
+
+  /* ── Section headings. The page had none: nine cards floated with nothing
+     saying which question each answered. ───────────────────────────────── */
+  .iv-sec{display:flex;align-items:center;gap:10px;margin:22px 2px 10px}
+  .iv-sec:first-of-type{margin-top:14px}
+  .iv-sec h2{font-size:13px;font-weight:700;letter-spacing:-.01em;color:var(--iv-ink);margin:0;white-space:nowrap}
+  .iv-sec span{font-size:11px;color:var(--iv-ink3);white-space:nowrap}
+  .iv-sec::after{content:'';flex:1;height:1px;background:var(--iv-line)}
+
+  /* ── Headline block ─────────────────────────────────────────────────── */
+  .iv-head{display:grid;grid-template-columns:minmax(240px,300px) 1fr;gap:12px;align-items:stretch}
+  @media(max-width:720px){.iv-head{grid-template-columns:1fr}}
+  .iv-hero{display:flex;align-items:center;gap:16px;padding:16px;border-radius:12px;
+    background:var(--bg-card);border:1px solid var(--iv-line)}
+  .iv-hero-ring{position:relative;flex:none;width:104px;height:104px}
+  .iv-hero-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    gap:1px;font-variant-numeric:tabular-nums}
+  .iv-hero-num b{font-size:25px;font-weight:750;letter-spacing:-.03em;color:var(--iv-ink)}
+  .iv-hero-num i{font-size:13px;font-style:normal;font-weight:600;color:var(--iv-ink3);align-self:flex-start;margin-top:6px}
+  .iv-hero-l{font-size:12px;font-weight:700;color:var(--iv-ink);letter-spacing:.01em}
+  .iv-hero-s{font-size:11px;color:var(--iv-ink2);margin-top:4px;line-height:1.45}
+
+  .iv-figs{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px}
+  /* State rides the VALUE, not a bar down the side: a coloured left border on
+     every tile is decoration competing with the number it labels, and the
+     number is already coloured. */
+  .iv-fig{padding:11px 12px;border-radius:11px;background:var(--bg-card);
+    border:1px solid var(--iv-line);
+    display:flex;flex-direction:column;justify-content:center;min-width:0}
+  .iv-fig.t-red{border-color:color-mix(in oklab,var(--iv-red) 32%,var(--iv-line))}
+  .iv-fig.t-amber{border-color:color-mix(in oklab,var(--iv-amber) 32%,var(--iv-line))}
+  .iv-fig-l{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--iv-ink3)}
+  .iv-fig-v{font-size:21px;font-weight:700;letter-spacing:-.02em;color:var(--iv-ink);
+    font-variant-numeric:tabular-nums;margin:3px 0 1px}
+  .iv-fig.t-red .iv-fig-v{color:var(--iv-red)}
+  .iv-fig.t-amber .iv-fig-v{color:var(--iv-amber)}
+  .iv-fig.t-green .iv-fig-v{color:var(--iv-green)}
+  .iv-fig-s{font-size:10.5px;color:var(--iv-ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  /* ── Pillar donuts ──────────────────────────────────────────────────── */
+  .ivdonuts{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:10px}
+  .ivdonut{text-align:center;animation:ivRise .42s cubic-bezier(.16,1,.3,1) both}
+  @keyframes ivRise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .ivdonut-c{position:relative;width:76px;height:76px;margin:0 auto 6px}
+  .ivdonut-n{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:17px;font-weight:750;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .ivdonut-n i{font-size:10px;font-style:normal;font-weight:600;opacity:.75;margin-left:1px}
+  .ivna{font-size:12px;font-weight:600;color:var(--iv-ink3)}
+  .ivdonut-k{font-size:11px;font-weight:700;color:var(--iv-ink)}
+  .ivdonut-l{font-size:10px;color:var(--iv-ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* A pillar under target earns a mark, so the shortfall is not carried by
+     arc length alone. */
+  .ivdonut.under .ivdonut-k::after{content:' ▾';color:var(--iv-amber);font-size:9px}
+
+  .ivring-t{stroke:var(--iv-line)}
+  /* The arc draws itself once on load: the motion IS the measurement, so the
+     eye lands on how far each ring travelled. */
+  .ivring-v{transition:stroke-dashoffset .9s cubic-bezier(.22,1,.36,1)}
+  @media(prefers-reduced-motion:reduce){
+    .ivring-v{transition:none}
+    .ivdonut{animation:none}
+  }
 
   /* ── KPI strip ── */
   .kpi-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
-  .kpi-card{background:#fff;border-radius:10px;border:1px solid var(--iv-line);padding:12px 14px}
+  .kpi-card{background:var(--bg-card);border-radius:10px;border:1px solid var(--iv-line);padding:12px 14px}
   .kpi-label{font-size:10px;font-weight:700;color:var(--iv-ink3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px}
   .kpi-value{font-size:22px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--iv-ink);line-height:1}
   .kpi-sub{font-size:10px;color:var(--iv-ink3);margin-top:3px}
@@ -111,7 +179,7 @@
   .sqcdp-tiles-grid{display:grid;gap:10px;grid-template-columns:repeat(2,1fr)}
   @media(min-width:600px){.sqcdp-tiles-grid{grid-template-columns:repeat(3,1fr)}}
   @media(min-width:900px){.sqcdp-tiles-grid{grid-template-columns:repeat(5,1fr)}}
-  .sqcdp-tile{border-radius:10px;border:1px solid var(--iv-line);padding:12px;position:relative;background:#fff}
+  .sqcdp-tile{border-radius:10px;border:1px solid var(--iv-line);padding:12px;position:relative;background:var(--bg-card)}
   .sqcdp-tile-dim{font-size:10px;font-weight:700;color:var(--iv-ink2);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px}
   .sqcdp-tile-val{font-size:20px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--iv-ink);line-height:1.1}
   .sqcdp-tile-target{font-size:10px;color:var(--iv-ink3);margin-top:2px}
@@ -164,7 +232,24 @@
   .pareto-track{flex:1;height:16px;background:var(--iv-line-lt);border-radius:4px;overflow:hidden}
   .pareto-fill{height:100%;border-radius:4px;background:var(--iv-purple);transition:width .5s ease}
   .pareto-pct{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--iv-ink2);width:34px;text-align:right;flex-shrink:0}
-  .pareto-empty{font-size:12px;color:var(--iv-ink3);padding:16px 0;text-align:center}
+  .pareto-empty{font-size:12px;color:var(--iv-ink3);padding:22px 12px;text-align:center;
+    display:flex;flex-direction:column;gap:5px;align-items:center}
+  .pareto-empty b{font-size:13px;font-weight:650;color:var(--iv-ink2)}
+  .pareto-empty span{max-width:34ch;line-height:1.5}
+
+  /* ── Zone picker ── */
+  .iv-zonewrap{display:flex;flex-direction:column;gap:8px;min-width:0}
+  .iv-zonetoggle{display:inline-flex;align-items:center;gap:8px;align-self:flex-start;
+    padding:6px 11px;border-radius:999px;cursor:pointer;
+    background:var(--bg-card);border:1px solid var(--iv-line);color:var(--iv-ink);
+    font-size:12px;transition:border-color .15s,background .15s}
+  .iv-zonetoggle:hover{border-color:var(--iv-ink3)}
+  .iv-zt-l{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--iv-ink3)}
+  .iv-zonetoggle b{font-weight:650}
+  .iv-zt-c{font-size:9px;color:var(--iv-ink3);transition:transform .18s}
+  .iv-zonewrap.open .iv-zt-c{transform:rotate(180deg)}
+  .iv-zonechips{display:none;flex-wrap:wrap;gap:5px}
+  .iv-zonewrap.open .iv-zonechips{display:flex}
 
   /* ── Utilities ── */
   .iv-loading{text-align:center;padding:40px;color:var(--iv-ink3)}
@@ -222,7 +307,46 @@ var _paretoActivePillar = 'S';
 
 var PILLARS = ['S1','S2','S3','S4','S5'];
 var PILLAR_NAMES  = {S1:'Sort',S2:'Set in Order',S3:'Shine',S4:'Standardize',S5:'Sustain'};
-var PILLAR_COLORS = {S1:'#e85c2e',S2:'#7c56d4',S3:'#2ba86e',S4:'#d4a010',S5:'#c04aaa'};
+/* Categorical series colours, run through the palette validator rather than
+   chosen by eye. The set this replaced failed twice: Sort/Set orange-vs-green
+   sat at deltaE 5.5 for protanopes, and Sustain/Set at 12.2 for NORMAL vision
+   — two of five pillars were not reliably distinguishable on a factory floor.
+
+     light  L 0.43-0.77 · worst CVD pair deltaE 9.5 · normal floor 24.0 — PASS
+     dark   L 0.48-0.67 · worst CVD pair deltaE 6.8 · normal floor 20.9 — PASS
+
+   Dark is stepped separately, not lightened from light: an automatic flip left
+   three of five outside the lightness band. Both modes carry one WARN (a 6-8
+   CVD pair in dark, one sub-3:1 contrast in light) which is legal only with
+   secondary encoding — every series here is direct-labelled, never colour
+   alone. */
+var PILLAR_COLORS_LIGHT = {S1:'#C2255C',S2:'#1C7ED6',S3:'#2B8A3E',S4:'#F08C00',S5:'#6741D9'};
+var PILLAR_COLORS_DARK  = {S1:'#DB4A82',S2:'#3286DB',S3:'#2E9A4C',S4:'#C87008',S5:'#8362E6'};
+var PILLAR_COLORS = PILLAR_COLORS_LIGHT;
+
+function ivIsDark_() {
+  try { return document.documentElement.getAttribute('data-theme') === 'dark'; }
+  catch (e) { return false; }
+}
+function ivSyncPalette_() {
+  PILLAR_COLORS = ivIsDark_() ? PILLAR_COLORS_DARK : PILLAR_COLORS_LIGHT;
+}
+ivSyncPalette_();
+
+/* The trend is a <canvas>: unlike the CSS around it, it does not repaint when
+   the theme changes, so a switch left light-mode series and a near-white grid
+   on a dark surface. Watch the attribute and redraw. */
+(function () {
+  try {
+    new MutationObserver(function () {
+      ivSyncPalette_();
+      if (typeof renderChartSections === 'function' && typeof _trend !== 'undefined' && _trend) {
+        renderChartSections();
+        if (typeof ivDrawRings_ === 'function') ivDrawRings_();
+      }
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  } catch (e) {}
+})();
 var SQCDP_DIMS = [
   {key:'S',label:'Safety',color:'#e85c2e'},
   {key:'Q',label:'Quality',color:'#7c56d4'},
@@ -292,16 +416,45 @@ function stampUpdated(){
 }
 
 /* ── Zone filter ── */
+/* 28 chips wrapped to two rows before any data was visible, and a wall of
+   equal chips is not scannable — you hunt for the one you want. It collapses
+   to a single control naming the current zone; opening it reveals the same
+   chips, which stay the right affordance ONCE you are choosing. */
+function ivToggleZones_() {
+  var w = document.getElementById('iv-zonewrap');
+  if (!w) return;
+  var open = w.classList.toggle('open');
+  var b = document.getElementById('iv-zonetoggle');
+  if (b) b.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
 function buildZoneFilters(zones){
   var all=['ALL'].concat(zones);
-  document.getElementById('zone-filters').innerHTML=all.map(function(z){
+  var chips = all.map(function(z){
     return '<button class="iv-filter-btn'+(z===_zoneFilter?' active':'')+'" onclick="setZoneFilter(\''+escHtml(z)+'\')">'+escHtml(z)+'</button>';
   }).join('');
+  var label = _zoneFilter === 'ALL' ? 'All zones' : _zoneFilter;
+  document.getElementById('zone-filters').innerHTML =
+    '<div id="iv-zonewrap" class="iv-zonewrap">' +
+      '<button id="iv-zonetoggle" class="iv-zonetoggle" type="button" aria-expanded="false"' +
+        ' onclick="ivToggleZones_()">' +
+        '<span class="iv-zt-l">Zone</span>' +
+        '<b id="iv-zonecur">' + escHtml(label) + '</b>' +
+        '<span class="iv-zt-c">\u25BE</span>' +
+      '</button>' +
+      '<div class="iv-zonechips">' + chips + '</div>' +
+    '</div>';
 }
 
 function setZoneFilter(z){
   _zoneFilter=z;
   document.querySelectorAll('.iv-filter-btn').forEach(function(b){b.classList.toggle('active',b.textContent===z);});
+  var cur=document.getElementById('iv-zonecur');
+  if(cur)cur.textContent = (z==='ALL'?'All zones':z);
+  /* Close on choose: the picker has done its job and the data below is what
+     the user came for. */
+  var w=document.getElementById('iv-zonewrap');
+  if(w)w.classList.remove('open');
   if(_trend)renderChartSections();
   if(_sqcdp)renderSqcdpSection();
   // Reset pareto cache for the new zone and reload the active tab in place.
@@ -310,27 +463,88 @@ function setZoneFilter(z){
 }
 
 /* ── KPI strip ── */
+/* A ring gauge for one bounded percentage. Not a chart of anything — a single
+   figure needs no plot — but the arc makes "how far from target" legible
+   before the number is read, which a bare stat tile cannot do. */
+function ivRing_(pct, color, size, stroke) {
+  size = size || 84; stroke = stroke || 8;
+  var r = (size - stroke) / 2, c = 2 * Math.PI * r;
+  var off = c * (1 - Math.max(0, Math.min(100, pct)) / 100);
+  return '<svg class="ivring" width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + ' ' + size + '" aria-hidden="true">' +
+    '<circle class="ivring-t" cx="' + size/2 + '" cy="' + size/2 + '" r="' + r + '" fill="none" stroke-width="' + stroke + '"/>' +
+    '<circle class="ivring-v" cx="' + size/2 + '" cy="' + size/2 + '" r="' + r + '" fill="none" stroke-width="' + stroke + '"' +
+      ' stroke="' + color + '" stroke-linecap="round"' +
+      ' stroke-dasharray="' + c.toFixed(1) + '" stroke-dashoffset="' + c.toFixed(1) + '"' +
+      ' data-off="' + off.toFixed(1) + '" transform="rotate(-90 ' + size/2 + ' ' + size/2 + ')"/>' +
+  '</svg>';
+}
+
 function renderKPIs(kpis){
   var best=kpis.bestZone?escHtml(kpis.bestZone):'—';
   var worst=kpis.worstZone?escHtml(kpis.worstZone):'—';
-  return '<div class="kpi-strip">'+
-    '<div class="kpi-card accent-green"><div class="kpi-label">Plant Avg</div><div class="kpi-value">'+(kpis.plantAvg||0)+'<span style="font-size:13px;font-weight:400">%</span></div><div class="kpi-sub">Best:'+best+' · Worst:'+worst+'</div></div>'+
-    '<div class="kpi-card accent-blue"><div class="kpi-label">Zones on Target</div><div class="kpi-value">'+(kpis.zonesOnTarget||0)+'<span style="font-size:13px;font-weight:400">/'+(kpis.totalZones||28)+'</span></div><div class="kpi-sub">≥80% score</div></div>'+
-    '<div class="kpi-card accent-red"><div class="kpi-label">Open NCRs</div><div class="kpi-value">'+(kpis.openNCs||0)+'</div><div class="kpi-sub">Pending action</div></div>'+
-    '<div class="kpi-card accent-amber"><div class="kpi-label">Overdue NCRs</div><div class="kpi-value">'+(kpis.overdueNCs||0)+'</div><div class="kpi-sub">Past target date</div></div>'+
-    '<div class="kpi-card"><div class="kpi-label">Active Red Tags</div><div class="kpi-value">'+(kpis.activeRedTags||0)+'</div><div class="kpi-sub">Pending disposal</div></div>'+
-    '<div class="kpi-card accent-green"><div class="kpi-label">Closure Rate</div><div class="kpi-value">'+(kpis.closureRate||0)+'<span style="font-size:13px;font-weight:400">%</span></div><div class="kpi-sub">NC closure</div></div>'+
-    '<div class="kpi-card"><div class="kpi-label">Avg NC Age</div><div class="kpi-value">'+(kpis.avgAgeDays||0)+'<span style="font-size:13px;font-weight:400">d</span></div><div class="kpi-sub">Days open</div></div>'+
+  var avg = Number(kpis.plantAvg||0);
+  var onT = Number(kpis.zonesOnTarget||0), totZ = Number(kpis.totalZones||28);
+  var clos = Number(kpis.closureRate||0);
+  /* Status colour, not a series colour: these are states, not identities. */
+  var avgCol = avg >= 80 ? 'var(--score-green)' : avg >= 70 ? 'var(--score-amber)' : 'var(--score-red)';
+  var closCol = clos >= 80 ? 'var(--score-green)' : clos >= 60 ? 'var(--score-amber)' : 'var(--score-red)';
+
+  /* One headline, then the figures that qualify it. The seven equal cards this
+     replaced made a 0 as prominent as the plant average. */
+  return '<div class="iv-head">' +
+    '<div class="iv-hero">' +
+      '<div class="iv-hero-ring">' + ivRing_(avg, avgCol, 104, 10) +
+        '<div class="iv-hero-num"><b>' + avg.toFixed(1) + '</b><i>%</i></div>' +
+      '</div>' +
+      '<div class="iv-hero-txt">' +
+        '<div class="iv-hero-l">Plant average</div>' +
+        '<div class="iv-hero-s">Best ' + best + ' · Worst ' + worst + '</div>' +
+        '<div class="iv-hero-s">' + onT + ' of ' + totZ + ' zones at or above 80%</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="iv-figs">' +
+      ivFig_('Open NCs', kpis.openNCs||0, 'Pending action', (kpis.openNCs>0?'red':'')) +
+      ivFig_('Overdue', kpis.overdueNCs||0, 'Past target', (kpis.overdueNCs>0?'amber':'')) +
+      ivFig_('Red tags', kpis.activeRedTags||0, 'Awaiting disposal', (kpis.activeRedTags>0?'amber':'')) +
+      ivFig_('Closure', clos + '%', 'NCs closed', (clos>=80?'green':clos>=60?'amber':'red')) +
+      ivFig_('Avg age', (kpis.avgAgeDays||0) + 'd', 'While open', '') +
+    '</div>' +
+  '</div>';
+}
+
+function ivFig_(label, value, sub, tone) {
+  return '<div class="iv-fig' + (tone ? ' t-' + tone : '') + '">' +
+    '<div class="iv-fig-l">' + escHtml(label) + '</div>' +
+    '<div class="iv-fig-v">' + escHtml(String(value)) + '</div>' +
+    '<div class="iv-fig-s">' + escHtml(sub) + '</div>' +
   '</div>';
 }
 
 /* ── Pillar bars ── */
+/* Five bounded percentages that share a scale and are compared against each
+   other and against 80%. A donut per pillar reads the shortfall as an arc gap;
+   five tracked bars stacked in a card read as a list of numbers with
+   decoration. Each carries its name and value as text, so identity never
+   depends on the hue — which the validator requires for the one CVD pair in
+   the 6-8 band. */
 function renderPillarBars(){
-  var html='<div class="s-card"><div class="s-title">Current Pillar Scores</div><div class="pillar-grid">';
-  PILLARS.forEach(function(p){
-    var score=latestScore(p);var pct=score!==null?score:0;
-    html+='<div class="pillar-bar-wrap"><div class="pillar-bar-label"><span class="pillar-name">'+p+' '+escHtml(PILLAR_NAMES[p])+'</span><span class="pillar-pct" style="color:'+PILLAR_COLORS[p]+'">'+(score!==null?pct+'%':'N/A')+'</span></div>'+
-      '<div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:'+PILLAR_COLORS[p]+'"></div></div></div>';
+  ivSyncPalette_();
+  var html='<div class="s-card"><div class="s-title">Pillar scores' +
+           '<span class="s-note">target 80%</span></div><div class="ivdonuts">';
+  PILLARS.forEach(function(p, i){
+    var score=latestScore(p);
+    var pct=score!==null?score:0;
+    var col=PILLAR_COLORS[p];
+    var miss = score !== null && score < 80;
+    html += '<div class="ivdonut' + (miss ? ' under' : '') + '" style="animation-delay:' + (i*60) + 'ms">' +
+      '<div class="ivdonut-c">' + ivRing_(pct, col, 76, 7) +
+        '<div class="ivdonut-n" style="color:' + col + '">' +
+          (score !== null ? pct + '<i>%</i>' : '<span class="ivna">n/a</span>') +
+        '</div>' +
+      '</div>' +
+      '<div class="ivdonut-k">' + p + '</div>' +
+      '<div class="ivdonut-l">' + escHtml(PILLAR_NAMES[p]) + '</div>' +
+    '</div>';
   });
   html+='</div></div>';return html;
 }
@@ -358,7 +572,8 @@ function renderTrendChart(months){
     var yMax=Math.min(100,Math.ceil((dMax+3)/5)*5);
     if(yMax-yMin<10){yMin=Math.max(0,yMax-10);}
     function yOf(v){return PAD.top+ch-((v-yMin)/((yMax-yMin)||1))*ch;}
-    ctx.strokeStyle='#f0f2f5';ctx.lineWidth=1;
+    /* Recessive against either surface: the grid is a reference, not a mark. */
+    ctx.strokeStyle=ivIsDark_()?'rgba(255,255,255,.09)':'rgba(15,23,42,.07)';ctx.lineWidth=1;
     for(var t=0;t<=4;t++){
       var gv=yMin+(yMax-yMin)*t/4,gy=yOf(gv);
       ctx.beginPath();ctx.moveTo(PAD.left,gy);ctx.lineTo(PAD.left+cw,gy);ctx.stroke();
@@ -557,7 +772,15 @@ function openParetoTab(pillar){
 function renderParetoBars(data){
   var pb=document.getElementById('iv-pareto-body');if(!pb)return;
   var causes=data&&data.causes?data.causes:[];
-  if(!causes.length){pb.innerHTML='<div class="pareto-empty">No root cause data for this pillar</div>';return;}
+  if(!causes.length){
+    /* An empty pillar is a fact, not an error — say which one and where the
+       data does live, rather than leaving a blank card that reads as broken. */
+    pb.innerHTML='<div class="pareto-empty">' +
+      '<b>No root causes recorded</b>' +
+      '<span>Nothing has been logged against this dimension yet. ' +
+      'Root causes are captured when an NC is closed.</span></div>';
+    return;
+  }
   var top=causes.slice(0,8);
   var maxPct=top[0]?top[0].percentage||0:100;
   var color=SQCDP_DIMS.filter(function(d){return d.key===_paretoActivePillar;})[0];
@@ -597,17 +820,21 @@ function tryRenderAll(){
   if(!document.getElementById('iv-kpi-section')){
     body.innerHTML=
       '<div id="iv-kpi-section">'+(_kpis?renderKPIs(_kpis):'<div class="iv-loading"><div class="spin"></div></div>')+'</div>'+
+      ivSec_('5S performance','how the pillars are scoring, and where they are heading')+
       '<div id="iv-chart-section">'+(_trend?renderPillarBars()+renderTrendChart(months):'<div class="iv-loading"><div class="spin"></div><p style="margin-top:10px;font-size:12px">Loading trend data…</p></div>')+'</div>'+
-      '<div class="s-card"><div class="s-title">SQCDP Operational Status</div><div id="iv-sqcdp-section"><div class="iv-loading"><div class="spin"></div></div></div></div>'+
+      ivSec_('Operational status','today\u2019s SQCDP position and what is driving the NCs')+
+      '<div class="s-card"><div class="s-title">SQCDP status</div><div id="iv-sqcdp-section"><div class="iv-loading"><div class="spin"></div></div></div></div>'+
       renderParetoSection()+
       '<div class="ncr-row">'+
         '<div id="iv-pillar-nc">'+(_kpis?renderPillarNCs(_kpis.pillarNCs):'')+'</div>'+
         '<div id="iv-sqcdp-nc">'+(_kpis?renderSqcdpNCs(_kpis.sqcdpHeatmap):'')+'</div>'+
       '</div>'+
+      ivSec_('By zone','which areas are carrying the plant and which are behind')+
       '<div id="iv-ranking-section">'+(_kpis?renderZoneRanking(_kpis.zoneScores):'')+'</div>'+
       '<div id="iv-heatmap-section">'+(_trend?renderHeatmap(months,allZones):'')+'</div>';
     if(_sqcdp)renderSqcdpSection();
     openParetoTab(_paretoActivePillar);   // auto-load the active tab's data
+    ivDrawRings_();
   } else {
     // Patch individual sections
     if(_kpis){
@@ -618,12 +845,39 @@ function tryRenderAll(){
     }
     if(_trend)renderChartSections();
     if(_sqcdp)renderSqcdpSection();
+    ivDrawRings_();
   }
 
   if(_kpis){
     document.getElementById('iv-meta').textContent=
       (allZones.length||_kpis.totalZones||28)+' zones · Plant avg '+(_kpis.plantAvg||0)+'%';
   }
+}
+
+/* A section heading spans the grid; the rule after the title is what turns a
+   run of cards into a report with parts. */
+function ivSec_(title, note) {
+  return '<div class="iv-sec"><h2>' + escHtml(title) + '</h2>' +
+         (note ? '<span>' + escHtml(note) + '</span>' : '') + '</div>';
+}
+
+/* Rings render at zero and are released on the next frame, so the arc draws
+   itself from empty. Doing it in CSS alone would need the final value in the
+   stylesheet; doing it here keeps the value with the data.
+
+   requestAnimationFrame twice: once to let the browser paint the zero state,
+   once to change it — a single frame would coalesce both into no transition. */
+function ivDrawRings_() {
+  var els = document.querySelectorAll('.ivring-v[data-off]');
+  if (!els.length) return;
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () {
+      Array.prototype.forEach.call(els, function (el, i) {
+        el.style.transitionDelay = (i * 45) + 'ms';
+        el.style.strokeDashoffset = el.getAttribute('data-off');
+      });
+    });
+  });
 }
 
 /* ── Data loads (three parallel calls) ── */

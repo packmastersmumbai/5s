@@ -1164,15 +1164,28 @@ function updateNCStatus(ncId, newStatus) {
   var data = sh.getDataRange().getValues();
   for (var i = 1; i < data.length; i++) {
     if (String(data[i][0]) === String(ncId)) {
-      sh.getRange(i + 1, 12).setValue(newStatus); // col 12 = status (1-based)
-      if (newStatus === 'Closed') {
-        sh.getRange(i + 1, 11).setValue(new Date()); // col 11 = actual_closure_date
+      /* These two writes were off by three columns, and the comments asserting
+         otherwise are why it survived. Verified against the live header:
+           index 10 = corrective_action   index 11 = preventive_action
+           index 14 = status              index 15 = closure_date
+         so 1-based those are 15 and 16, not 12 and 11. Every close through this
+         function wrote "Closed" into preventive_action and a date into
+         corrective_action while status stayed OVERDUE — silently destroying the
+         CAPA text and leaving the record open. handleDwmDone_ calls this too, so
+         closing an NC from DWM did the same.
+         Status values are stored upper-case elsewhere (STATUS.CLOSED); normalise
+         so a record closed here matches one closed anywhere else. */
+      var _st = String(newStatus || '').toUpperCase() === 'CLOSED'
+        ? 'CLOSED' : String(newStatus);
+      sh.getRange(i + 1, NC_COL.STATUS + 1).setValue(_st);
+      if (_st === 'CLOSED') {
+        sh.getRange(i + 1, NC_COL.CLOSURE_DATE + 1).setValue(new Date());
       }
       CacheService.getScriptCache().removeAll(['KANBAN_DATA', 'ANALYTICS_KPIS']);
       /* Closing an NC was silent — the channel announced every problem raised
          and no problem solved. Non-blocking: a Telegram failure must not undo
          a status write that has already committed. */
-      if (newStatus === 'Closed' && typeof tg5sBroadcast_ === 'function') {
+      if (_st === 'CLOSED' && typeof tg5sBroadcast_ === 'function') {
         try {
           var ncZone = String(data[i][NC_COL.ZONE_ID] || '').trim();
           tg5sBroadcast_(_tg5sCard_({

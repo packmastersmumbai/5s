@@ -1525,6 +1525,38 @@ function _getPublicRecordUncached_(type, id) {
     });
     aFind.sort(function (x, y) { return (y.fail ? 1 : 0) - (x.fail ? 1 : 0); });
 
+    /* What came OUT of this audit. Without it the record answers "what was
+       wrong" and never "did anything happen" — a closed-out audit and one whose
+       every finding is still open read identically. */
+    var aActs = { actions: [], byCriterion: {}, summary: { open: 0, progress: 0, closed: 0, total: 0 } };
+    try {
+      if (typeof getAuditActions === 'function') aActs = getAuditActions(id) || aActs;
+    } catch (e) { Logger.log('audit actions skipped for ' + id + ': ' + e.message); }
+
+    /* Hang each action on the criterion it came from, so a failed line shows
+       its own follow-up rather than sending the reader to a separate list. */
+    aFind.forEach(function (f) {
+      var cid = '';
+      for (var ai = 0; ai < aItems.length; ai++) {
+        if ((aItems[ai].label || aItems[ai].criterionId) === f.q) { cid = aItems[ai].criterionId; break; }
+      }
+      f.actions = (cid && aActs.byCriterion[cid]) ? aActs.byCriterion[cid] : [];
+    });
+
+    var aFields = [
+      { l: 'Auditor', v: String(ah.auditor || '') },
+      { l: 'Date', v: fmtD(ah.timestamp) },
+      { l: 'Criteria scored', v: String(aItems.length) },
+      { l: 'Score', v: aSum + ' of ' + aMax + ' (' + aPct + '%)' }
+    ];
+    if (aActs.summary.total) {
+      aFields.push({
+        l: 'Actions raised',
+        v: aActs.summary.total + ' · ' + aActs.summary.closed + ' closed, ' +
+           aActs.summary.progress + ' in progress, ' + aActs.summary.open + ' open'
+      });
+    }
+
     return {
       type: 'Audit', id: id,
       title: '5S audit — ' + aPct + '%',
@@ -1533,12 +1565,9 @@ function _getPublicRecordUncached_(type, id) {
       photoUrls: aPhotos,
       photoFileIds: aFileIds.length ? aFileIds : aPhotos.map(_extractDriveFileId_),
       findings: aFind,
-      fields: [
-        { l: 'Auditor', v: String(ah.auditor || '') },
-        { l: 'Date', v: fmtD(ah.timestamp) },
-        { l: 'Criteria scored', v: String(aItems.length) },
-        { l: 'Score', v: aSum + ' of ' + aMax + ' (' + aPct + '%)' }
-      ] };
+      auditActions: aActs.actions,
+      auditActionSummary: aActs.summary,
+      fields: aFields };
   }
   if (type === 'kz' || type === 'kaizen') {
     var ks = ss.getSheetByName('KaizenSuggestions'); if (!ks) return null;

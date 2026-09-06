@@ -6,7 +6,14 @@
  * only just made visible in the records list, so there was no way to see how
  * they render without waiting for real ones.
  *
- * Every row it writes is tagged DEMO_TAG so it can be removed cleanly:
+ * Rows carry REAL staff names and real zone activities, because seeded rows
+ * are read by the same people whose names they carry: invented surnames that
+ * shadowed real staff (an "Anuj Sharma" beside the real Anuj Pathak, a
+ * "Khushi Patel" beside Khushi Paswan) made the list look like a data-entry
+ * error rather than a demo.
+ *
+ * Removal is by ID PREFIX — GW-DEMO-, KZ-DEMO-, demo- — never by name, so
+ * cleanup stays exact even though nothing user-visible says "demo":
  *   clasp run seedDemoRecords     — create
  *   clasp run purgeDemoRecords    — remove exactly what was created
  *
@@ -18,8 +25,11 @@
 
 var DEMO_TAG = "[demo]";
 
-/** Marks a demo row without polluting anything a user reads first. */
-function _demoMark_(s) { return String(s || "") + " " + DEMO_TAG; }
+/* Kept for any legacy row still carrying the tag, and for _isDemo_ below.
+   NOT applied to new rows: it appeared in kaizen titles and owner names on
+   screen, so every seeded record read as clutter in a live list. Identity now
+   comes from the ID prefix, which is what purgeDemoRecords already matched. */
+function _demoMark_(s) { return String(s || ""); }
 function _isDemo_(s) { return String(s || "").indexOf(DEMO_TAG) > -1; }
 
 /** n days ago, at a plausible shift hour. */
@@ -57,10 +67,10 @@ function seedDemoGembaWalks() {
      rather than three identical rows. failEvery: 1 = every question fails,
      4 = one in four, 0 = a clean walk. */
   var plan = [
-    { type: types[0], zone: "Z-04", walker: "Rajesh Kumar",     daysAgo: 2,  failEvery: 3 },
-    { type: types[Math.min(1, types.length - 1)], zone: "Z-08", walker: "Anuj Sharma",  daysAgo: 5,  failEvery: 5 },
-    { type: types[Math.min(2, types.length - 1)], zone: "Z-16", walker: "Khushi Patel", daysAgo: 9,  failEvery: 0 },
-    { type: types[Math.min(3, types.length - 1)], zone: "Z-21", walker: "Santosh Rao",  daysAgo: 14, failEvery: 2 }
+    { type: types[0], zone: "Z-04", walker: "Rajesh Kumar",   daysAgo: 2,  failEvery: 3 },
+    { type: types[Math.min(1, types.length - 1)], zone: "Z-08", walker: "Anuj Pathak",   daysAgo: 5,  failEvery: 5 },
+    { type: types[Math.min(2, types.length - 1)], zone: "Z-16", walker: "Khushi Paswan", daysAgo: 9,  failEvery: 0 },
+    { type: types[Math.min(3, types.length - 1)], zone: "Z-21", walker: "Santosh Maurya", daysAgo: 14, failEvery: 2 }
   ];
 
   var written = [];
@@ -126,30 +136,34 @@ function seedDemoKaizen() {
       desc: "Operators open bin lids by hand with gloves that have just touched product. A foot pedal keeps hands off the lid entirely.",
       benefit: "Removes a contamination route and saves a glove change each time",
       est: 12000, status: STATUS.SUBMITTED },
-    { zone: "Z-08", by: "Anuj Sharma", cat: "Delivery", daysAgo: 12,
+    /* Moved out of Z-08 (Wash Bays): pallets are not staged in a wash bay.
+       Z-04 Production Area is where the evening despatch is actually built. */
+    { zone: "Z-04", by: "Anuj Pathak", cat: "Delivery", daysAgo: 12,
       title: "Pre-staged pallet lanes for the evening despatch",
       desc: "Loading waits while pallets are found. Marking three lanes and staging by route the shift before removes the search.",
       benefit: "Target 20 minutes off each evening load",
-      est: 45000, status: STATUS.APPROVED, reviewer: "Manoj Tiwari", assigned: "Anuj Sharma", targetDays: 10 },
-    { zone: "Z-16", by: "Khushi Patel", cat: "Quality", daysAgo: 26,
+      est: 45000, status: STATUS.APPROVED, reviewer: "Manoj Tiwari", assigned: "Anuj Pathak", targetDays: 10 },
+    { zone: "Z-16", by: "Khushi Paswan", cat: "Quality", daysAgo: 26,
       title: "Colour-coded scoops per raw material bin",
       desc: "One scoop is shared between bins, which is how cross-contamination happens. One scoop per bin, colour matched to the bin label.",
       benefit: "Removes cross-contamination risk at the point of use",
-      est: 6000, status: STATUS.IMPLEMENTING, reviewer: "Manoj Tiwari", assigned: "Khushi Patel", targetDays: 5 },
-    { zone: "Z-21", by: "Santosh Rao", cat: "Cost", daysAgo: 48,
-      title: "Reuse inner cartons as line-side parts bins",
-      desc: "Inner cartons are discarded after de-boxing. Cut down they replace the bought parts bins on the assembly line.",
+      est: 6000, status: STATUS.IMPLEMENTING, reviewer: "Manoj Tiwari", assigned: "Khushi Paswan", targetDays: 5 },
+    /* Z-21 is the Maintenance Area, so the idea is framed around what is
+       consumed there rather than an assembly line the plant does not have. */
+    { zone: "Z-21", by: "Santosh Maurya", cat: "Cost", daysAgo: 48,
+      title: "Reuse inner cartons as parts bins on the maintenance bench",
+      desc: "Inner cartons are discarded after de-boxing. Cut down they replace the bought parts bins on the maintenance bench and the spares rack.",
       benefit: "Stops a recurring consumable purchase",
       est: 30000, actual: 34500, status: STATUS.COMPLETED,
-      reviewer: "Manoj Tiwari", assigned: "Santosh Rao", targetDays: 14, doneDaysAgo: 6,
-      implNotes: "Rolled out on both assembly lines; cartons cut on the existing table.",
+      reviewer: "Manoj Tiwari", assigned: "Santosh Maurya", targetDays: 14, doneDaysAgo: 6,
+      implNotes: "Rolled out on the bench and the spares rack; cartons cut on the existing table.",
       verifiedBy: "Manoj Tiwari" },
-    { zone: "Z-12", by: "Harish Nair", cat: "Morale", daysAgo: 64,
+    { zone: "Z-12", by: "Harish", cat: "Morale", daysAgo: 64,
       title: "Shift handover board by the canteen door",
       desc: "Handover happens by word of mouth and gets lost. A board on the route everyone already walks makes it visible.",
       benefit: "Fewer repeat questions at shift start",
       est: 8000, actual: 9200, status: STATUS.BENEFIT_VERIFIED,
-      reviewer: "Manoj Tiwari", assigned: "Harish Nair", targetDays: 7, doneDaysAgo: 21,
+      reviewer: "Manoj Tiwari", assigned: "Harish", targetDays: 7, doneDaysAgo: 21,
       implNotes: "Board mounted and in daily use since week 2.",
       verifiedBy: "Manoj Tiwari" }
   ];
@@ -204,10 +218,10 @@ function seedDemoAudits() {
   /* Scores chosen to land either side of the record list's priority
      thresholds (<70 HIGH, <85 MEDIUM) so all three colours appear. */
   var plan = [
-    { zone: "Z-04", by: "Rajesh Kumar", daysAgo: 1,  scores: [4,4,3,4,4,3,4,4,4,3,4,4,3,4,4] },
-    { zone: "Z-08", by: "Anuj Sharma",  daysAgo: 4,  scores: [3,3,2,3,4,3,3,2,3,3,4,3,3,2,3] },
-    { zone: "Z-16", by: "Khushi Patel", daysAgo: 8,  scores: [2,2,1,2,3,2,2,1,2,2,3,2,2,1,2] },
-    { zone: "Z-21", by: "Santosh Rao",  daysAgo: 15, scores: [4,3,4,4,3,4,4,4,3,4,4,3,4,4,4] }
+    { zone: "Z-04", by: "Rajesh Kumar",   daysAgo: 1,  scores: [4,4,3,4,4,3,4,4,4,3,4,4,3,4,4] },
+    { zone: "Z-08", by: "Anuj Pathak",    daysAgo: 4,  scores: [3,3,2,3,4,3,3,2,3,3,4,3,3,2,3] },
+    { zone: "Z-16", by: "Khushi Paswan",  daysAgo: 8,  scores: [2,2,1,2,3,2,2,1,2,2,3,2,2,1,2] },
+    { zone: "Z-21", by: "Santosh Maurya", daysAgo: 15, scores: [4,3,4,4,3,4,4,4,3,4,4,3,4,4,4] }
   ];
 
   var written = [];

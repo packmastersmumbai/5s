@@ -113,8 +113,21 @@ function doGet(e) {
       // Validate session token for all protected pages
       session = validateSession(token);
       if (!session.valid) {
-        // No session and no action → show Zone Selector (not login)
-        if (!action) {
+        /* No session and no action → Zone Selector.
+           But NOT when a zone was named: QR codes encode '?zone=Z-XX' with no
+           action, and this guard tested only `action`, so every scan returned
+           the full 28-zone list instead of that zone's page — byte-identical to
+           the bare root URL. The zone branch further down already handles it;
+           this was intercepting before it could run. */
+        if (!action && !params.zone) {
+          return serveZoneSelector_();
+        }
+        /* A named zone with no action is a floor worker off a QR code: fall
+           through to the zone landing page rather than demanding a PIN. */
+        if (!action && params.zone) {
+          var _qz = String(params.zone).replace(/[^a-zA-Z0-9\-_]/g, "");
+          var _qcfg = getZoneConfig();
+          if (_qcfg[_qz]) return serveLandingPage_(_qcfg[_qz]);
           return serveZoneSelector_();
         }
         // Protected action requested without session → show login, remembering
@@ -246,8 +259,18 @@ function doGet(e) {
       return serveLandingPage_(zone);
     }
 
-    // Route: No parameters — show zone selector / home page
-    return serveHomePage_();
+    /* Route: no action.
+       Anonymous callers were already sent to the zone selector further up, so
+       reaching here means a VALID SESSION. That fell through to
+       serveHomePage_(), which passes the template only `data` while HomePage
+       reads `homeData` too — so it threw "homeData is not defined" and rendered
+       a 790-byte System Error page. On screen the zone selector painted first
+       and was then replaced, which is what made the landing look like a flash
+       of zones followed by a pointless redirect.
+       The v2 route already serves HomePage correctly (it supplies homeData via
+       getHomeData_), so send signed-in users there instead of maintaining a
+       second, broken copy of the same page. */
+    return serveV2Page_("HomePage", params);
 
   } catch (error) {
     Logger.log("doGet error: " + error.message + "\n" + error.stack);

@@ -85,9 +85,31 @@
       Array.prototype.forEach.call(document.querySelectorAll('.user'), function (el) {
         el.addEventListener('click', function () {
           selectedId = el.getAttribute('data-id'); pin = ''; setErr(''); renderUsers(); renderDots();
+          warmData();
         });
       });
     }
+    /* Picking a name is the earliest reliable signal that someone is about to
+       sign in, and four PIN digits take a few seconds to tap. That window is
+       spent rebuilding the action list on the server, so the first page after
+       sign-in reads a hot cache instead of waiting ~2s for six sheets.
+
+       Deliberately fire-and-forget: the login must never wait on this, and a
+       failed warm costs nothing but the old speed. Guarded so that re-picking
+       a name, or picking one after a wrong PIN, does not queue a second
+       rebuild. */
+    var warmed = false;
+    function warmData() {
+      if (warmed) return;
+      warmed = true;
+      try {
+        google.script.run
+          .withSuccessHandler(function () {})
+          .withFailureHandler(function () { warmed = false; })
+          .warmActionListCache();
+      } catch (e) { warmed = false; }
+    }
+
     function renderDots() {
       var dots = document.querySelectorAll('#dots .dot');
       for (var i = 0; i < dots.length; i++) dots[i].className = 'dot' + (i < pin.length ? ' fill' : '');

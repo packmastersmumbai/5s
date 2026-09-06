@@ -90,6 +90,15 @@ function v2InvalidateCache(sheetName, zoneId) {
     var cache = CacheService.getScriptCache();
     var invalidated = [];
 
+    /* The unified action list spans every sheet and every zone, so any write
+       that invalidates anything invalidates it too. It is dropped before the
+       per-zone work below because it is not zone-scoped: a task moved in Z-04
+       still changes the all-zones list. */
+    if (typeof invalidateActionListCache_ === 'function') {
+      invalidateActionListCache_();
+      invalidated.push('pm5s_actionlist_v1');
+    }
+
     // Get dependent cache keys for this sheet
     var dependentKeys = SHEET_CACHE_DEPENDENCIES[sheetName] || [];
 

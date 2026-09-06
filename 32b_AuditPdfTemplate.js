@@ -70,6 +70,165 @@ function _apdfEsc_(v) {
 }
 
 /**
+ * Shared document head: fonts, palette and the full stylesheet.
+ *
+ * All three reports (audit, Gemba walk, Kaizen) render through this so the
+ * type system cannot drift between them — the whole point of picking one
+ * family was that a plant sees one document, not three lookalikes.
+ *
+ * @param {string} accent    the verdict/status colour for this report
+ * @param {string} accentBg  its tinted stock
+ */
+function _apdfHead_(accent, accentBg) {
+  return '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+  /* IBM Plex: designed for technical documentation, and the only family here
+     with a matched Devanagari companion — so the Hindi line shares the Latin
+     line's skeleton, weight and rhythm instead of being a borrowed face sitting
+     awkwardly beside it. Condensed carries the data; Mono carries identifiers,
+     which is what a mono is actually for. */
+  '<link href="https://fonts.googleapis.com/css2?' +
+    'family=IBM+Plex+Sans:wght@400;450;600;700&' +
+    'family=IBM+Plex+Sans+Condensed:wght@500;600;700&' +
+    'family=IBM+Plex+Sans+Devanagari:wght@400;500&' +
+    'family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">' +
+  '<style>' +
+  '@page { size: A4; margin: 14mm 13mm 16mm; }' +
+  '* { box-sizing: border-box; }' +
+  'body { margin:0; background:' + APDF.paper + '; color:' + APDF.ink + ';' +
+    " font-family:'IBM Plex Sans',system-ui,sans-serif; font-size:9pt;" +
+    ' line-height:1.45; -webkit-font-smoothing:antialiased; }' +
+  // One class for every Hindi string, so the Devanagari never inherits a Latin face.
+  ".hi { font-family:'IBM Plex Sans Devanagari','IBM Plex Sans',sans-serif; }" +
+  // masthead
+  /* The masthead is a nameplate, not a banner: a tight lockup on a single hard
+     rule. Weight and letterspacing carry the hierarchy, not size. */
+  '.mast { display:flex; align-items:baseline; justify-content:space-between;' +
+    ' border-bottom:1.5pt solid ' + APDF.ink + '; padding-bottom:5px; }' +
+  ".mast-l { font-family:'IBM Plex Sans Condensed',sans-serif; font-weight:700;" +
+    ' font-size:15pt; letter-spacing:.01em; text-transform:uppercase; line-height:1; }' +
+  '.mast-l i { font-style:normal; font-weight:500; color:' + APDF.ink3 + '; }' +
+  ".mast-r { font-family:'IBM Plex Mono',monospace; font-weight:400; font-size:7pt;" +
+    ' text-align:right; color:' + APDF.ink3 + '; letter-spacing:.04em; line-height:1.5; }' +
+  // verdict
+  /* No outline box. A 3pt bar on the left edge carries the verdict colour and
+     the block sits on tinted stock — a boxed panel inside a bordered page just
+     stacks frames. */
+  '.vd { display:flex; align-items:stretch; margin-top:14px;' +
+    ' border-left:3pt solid ' + accent + '; background:' + accentBg + '; }' +
+  '.vd-s { flex:0 0 104px; text-align:center; padding:11px 6px 9px;' +
+    ' border-right:1px solid ' + APDF.rule + '; }' +
+  ".vd-n { font-family:'IBM Plex Sans Condensed',sans-serif; font-weight:600; font-size:38pt;" +
+    ' line-height:.84; color:' + accent + '; letter-spacing:-.03em;' +
+    ' font-feature-settings:\'tnum\' 1; }' +
+  '.vd-n i { font-style:normal; font-size:14pt; font-weight:500; letter-spacing:0; }' +
+  ".vd-l { font-family:'IBM Plex Mono',monospace; font-weight:400; font-size:6pt;" +
+    ' letter-spacing:.16em; text-transform:uppercase; color:' + APDF.ink3 + '; margin-top:5px; }' +
+  '.vd-b { flex:1; padding:11px 14px 10px; }' +
+  ".vd-t { font-family:'IBM Plex Sans Condensed',sans-serif; font-weight:600; font-size:13pt;" +
+    ' letter-spacing:.02em; text-transform:uppercase; color:' + accent + '; line-height:1.05; }' +
+  '.vd-sub { font-size:8.5pt; color:' + APDF.ink2 + '; margin-top:2px; }' +
+  /* A long auditor email crushed the last field into a two-line wrap. Fixed
+     shares stop one value from starving its neighbours, and the email is
+     allowed to break rather than push the row apart. */
+  '.vd-f { display:flex; gap:16px; margin-top:9px; padding-top:8px;' +
+    ' border-top:1px solid ' + APDF.rule + '; }' +
+  '.vd-f > div { flex:1 1 0; min-width:0; }' +
+  '.vd-f > div:first-child { flex:1.5 1 0; }' +
+  ".vd-f b { display:block; font-family:'IBM Plex Mono',monospace; font-weight:400;" +
+    ' font-size:5.8pt; letter-spacing:.14em; text-transform:uppercase;' +
+    ' color:' + APDF.ink3 + '; margin-bottom:1px; }' +
+  '.vd-f span { font-size:9pt; font-weight:450; word-break:break-word; }' +
+  /* Meters: five boxed tiles became five columns divided by hairlines. Boxing
+     each one repeated a frame five times across the page; a rule between them
+     says the same thing with a tenth of the ink. Left-aligned so the pillar
+     keys form a vertical reading edge instead of five floating centres. */
+  '.mtrs { display:flex; margin-top:14px; border-top:1px solid ' + APDF.rule + ';' +
+    ' border-bottom:1px solid ' + APDF.rule + '; }' +
+  '.mtr { flex:1; padding:8px 10px 9px; }' +
+  '.mtr + .mtr { border-left:1px solid ' + APDF.ruleSoft + '; }' +
+  '.mtr-bar { margin-top:6px; font-size:8.5px; line-height:1; letter-spacing:-0.5px;' +
+    ' white-space:nowrap; }' +
+  '.mtr-bar .off { color:' + APDF.ruleSoft + '; }' +
+  ".mtr-k { font-family:'IBM Plex Mono',monospace; font-weight:500; font-size:6.5pt;" +
+    ' letter-spacing:.14em; color:' + APDF.ink3 + '; }' +
+  ".mtr-n { font-family:'IBM Plex Sans Condensed',sans-serif; font-weight:600; font-size:8pt;" +
+    ' text-transform:uppercase; letter-spacing:.03em; margin-top:2px; line-height:1.15; }' +
+  ".mtr-hi { font-family:'IBM Plex Sans Devanagari',sans-serif; font-size:7pt;" +
+    ' color:' + APDF.ink3 + '; line-height:1.3; }' +
+  ".mtr-v { font-family:'IBM Plex Sans Condensed',sans-serif; font-weight:600; font-size:17pt;" +
+    " line-height:1.1; margin-top:4px; letter-spacing:-.02em; font-feature-settings:'tnum' 1; }" +
+  '.mtr-v i { font-style:normal; font-size:8pt; font-weight:500; letter-spacing:0; }' +
+  // sections
+  '.sec { margin-top:18px; }' +
+  '.sec--break { page-break-before:auto; }' +
+  /* A small, hard-set label on a hairline. The 2pt rule read as a divider
+     competing with the masthead; a heading should mark a start, not shout. */
+  ".sec-h { font-family:'IBM Plex Sans Condensed',sans-serif; font-weight:600; font-size:8.5pt;" +
+    ' letter-spacing:.16em; text-transform:uppercase; margin:0 0 8px; padding-bottom:5px;' +
+    ' border-bottom:1px solid ' + APDF.ink + '; display:flex; align-items:baseline; gap:8px; }' +
+  '.sec-h--red { border-bottom-color:' + APDF.red + '; color:' + APDF.red + '; }' +
+  ".sec-h-hi { font-family:'IBM Plex Sans Devanagari',sans-serif; font-weight:400; font-size:7.5pt;" +
+    ' letter-spacing:0; text-transform:none; color:' + APDF.ink3 + '; }' +
+  ".sec-h-n { margin-left:auto; font-family:'IBM Plex Mono',monospace; font-size:7.5pt;" +
+    ' color:' + APDF.ink3 + '; letter-spacing:.04em; }' +
+  // failures
+  '.fail { display:flex; gap:11px; align-items:flex-start; padding:8px 10px; margin-bottom:3px;' +
+    ' background:' + APDF.redBg + '; border-left:2.5pt solid ' + APDF.red + '; page-break-inside:avoid; }' +
+  ".fail-sc { font-family:'IBM Plex Sans Condensed',sans-serif; font-weight:600; font-size:14pt;" +
+    ' line-height:1.05; color:' + APDF.red + '; flex:0 0 auto; width:15px; text-align:center; }' +
+  '.fail-b { flex:1; min-width:0; }' +
+  '.fail-t { font-weight:600; font-size:9.5pt; line-height:1.3; }' +
+  ".fail-hi { font-family:'IBM Plex Sans Devanagari',sans-serif; font-size:8pt;" +
+    ' color:' + APDF.ink2 + '; line-height:1.45; }' +
+  '.fail-r { font-size:8pt; color:' + APDF.ink2 + '; margin-top:3px;' +
+    ' padding-left:7px; border-left:1px solid ' + APDF.rule + '; }' +
+  ".fail-p { font-family:'IBM Plex Mono',monospace; font-size:7pt; letter-spacing:.08em;" +
+    ' color:' + APDF.red + '; flex:0 0 auto; padding-top:3px; }' +
+  // evidence
+  '.ev { display:flex; flex-wrap:wrap; gap:10px; }' +
+  '.ev-i { margin:0; width:calc(50% - 5px); page-break-inside:avoid; }' +
+  '.ev-i img { width:100%; height:210px; object-fit:cover; display:block;' +
+    ' border:1px solid ' + APDF.rule + '; }' +
+  '.ev-i figcaption { display:flex; gap:7px; align-items:baseline; margin-top:5px; }' +
+  ".ev-sc { font-family:'IBM Plex Sans Condensed',sans-serif; font-weight:600; font-size:10.5pt;" +
+    ' flex:0 0 auto; line-height:1; }' +
+  '.ev-t { font-size:8.5pt; line-height:1.35; color:' + APDF.ink2 + '; }' +
+  // criteria table
+  'table { width:100%; border-collapse:collapse; }' +
+  "thead th { font-family:'IBM Plex Mono',monospace; font-weight:400; font-size:6.5pt;" +
+    ' letter-spacing:.14em; text-transform:uppercase; color:' + APDF.ink3 + ';' +
+    ' text-align:left; padding:0 7px 5px; border-bottom:1px solid ' + APDF.ink + '; }' +
+  /* Hairline rules only, and the softer tone: 15 rows of full-strength rule
+     turned the list into a ladder you read instead of the criteria. */
+  'tbody td { padding:6px 7px; border-bottom:1px solid ' + APDF.ruleSoft + '; vertical-align:top; }' +
+  'tbody tr { page-break-inside:avoid; }' +
+  'tbody tr:last-child td { border-bottom:1px solid ' + APDF.rule + '; }' +
+  ".c-n { width:20px; font-family:'IBM Plex Mono',monospace; font-size:7pt;" +
+    ' color:' + APDF.ink3 + '; padding-top:7px; }' +
+  '.c-en { display:block; font-size:9pt; line-height:1.35; font-weight:450; }' +
+  ".c-hi { display:block; font-family:'IBM Plex Sans Devanagari',sans-serif; font-size:7.5pt;" +
+    ' color:' + APDF.ink2 + '; line-height:1.5; }' +
+  '.c-r { display:block; font-size:7.5pt; color:' + APDF.ink3 + '; margin-top:3px;' +
+    ' padding-left:7px; border-left:1px solid ' + APDF.rule + '; }' +
+  ".c-p { width:26px; font-family:'IBM Plex Mono',monospace; font-size:7pt;" +
+    ' color:' + APDF.ink3 + '; padding-top:7px; }' +
+  '.c-s { width:32px; text-align:right; }' +
+  ".pip { font-family:'IBM Plex Sans Condensed',sans-serif; font-weight:600; font-size:9.5pt;" +
+    " display:inline-block; min-width:18px; padding:1px 0; text-align:center;" +
+    " font-feature-settings:'tnum' 1; }" +
+  '.pip.g { color:' + APDF.green + '; } .pip.a { color:' + APDF.amber + '; }' +
+  /* Reversed white-on-red is the one place a fill is used in the table, and it
+     works because the converter paints backgrounds behind glyphs. */
+  '.pip.r { color:#fff; background:' + APDF.red + '; } .pip.na { color:' + APDF.ink3 + '; }' +
+  // footer
+  '.foot { margin-top:16px; padding-top:6px; border-top:1px solid ' + APDF.rule + ';' +
+    " font-family:'IBM Plex Mono',monospace; font-weight:400; font-size:6.5pt;" +
+    ' letter-spacing:.06em; text-transform:uppercase; color:' + APDF.ink3 + ';' +
+    ' display:flex; justify-content:space-between; }' +
+  '</style></head><body>';
+}
+
+/**
  * Full report as an HTML string.
  * @param {Object} detail   getAuditDetail() result
  * @param {Object} zoneCfg  zone config row (leader, etc.)
@@ -192,152 +351,7 @@ function buildAuditReportHtml_(detail, zoneCfg, overall, byPillar, ncCount) {
     '</tr>';
   }).join('');
 
-  return '<!DOCTYPE html><html><head><meta charset="utf-8">' +
-  /* IBM Plex: designed for technical documentation, and the only family here
-     with a matched Devanagari companion — so the Hindi line shares the Latin
-     line's skeleton, weight and rhythm instead of being a borrowed face sitting
-     awkwardly beside it. Condensed carries the data; Mono carries identifiers,
-     which is what a mono is actually for. */
-  '<link href="https://fonts.googleapis.com/css2?' +
-    'family=IBM+Plex+Sans:wght@400;450;600;700&' +
-    'family=IBM+Plex+Sans+Condensed:wght@500;600;700&' +
-    'family=IBM+Plex+Sans+Devanagari:wght@400;500&' +
-    'family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">' +
-  '<style>' +
-  '@page { size: A4; margin: 14mm 13mm 16mm; }' +
-  '* { box-sizing: border-box; }' +
-  'body { margin:0; background:' + APDF.paper + '; color:' + APDF.ink + ';' +
-    " font-family:'IBM Plex Sans',system-ui,sans-serif; font-size:9pt;" +
-    ' line-height:1.45; -webkit-font-smoothing:antialiased; }' +
-  // One class for every Hindi string, so the Devanagari never inherits a Latin face.
-  ".hi { font-family:'IBM Plex Sans Devanagari','IBM Plex Sans',sans-serif; }" +
-  // masthead
-  /* The masthead is a nameplate, not a banner: a tight lockup on a single hard
-     rule. Weight and letterspacing carry the hierarchy, not size. */
-  '.mast { display:flex; align-items:baseline; justify-content:space-between;' +
-    ' border-bottom:1.5pt solid ' + APDF.ink + '; padding-bottom:5px; }' +
-  ".mast-l { font-family:'IBM Plex Sans Condensed',sans-serif; font-weight:700;" +
-    ' font-size:15pt; letter-spacing:.01em; text-transform:uppercase; line-height:1; }' +
-  '.mast-l i { font-style:normal; font-weight:500; color:' + APDF.ink3 + '; }' +
-  ".mast-r { font-family:'IBM Plex Mono',monospace; font-weight:400; font-size:7pt;" +
-    ' text-align:right; color:' + APDF.ink3 + '; letter-spacing:.04em; line-height:1.5; }' +
-  // verdict
-  /* No outline box. A 3pt bar on the left edge carries the verdict colour and
-     the block sits on tinted stock — a boxed panel inside a bordered page just
-     stacks frames. */
-  '.vd { display:flex; align-items:stretch; margin-top:14px;' +
-    ' border-left:3pt solid ' + band.c + '; background:' + band.bg + '; }' +
-  '.vd-s { flex:0 0 104px; text-align:center; padding:11px 6px 9px;' +
-    ' border-right:1px solid ' + APDF.rule + '; }' +
-  ".vd-n { font-family:'IBM Plex Sans Condensed',sans-serif; font-weight:600; font-size:38pt;" +
-    ' line-height:.84; color:' + band.c + '; letter-spacing:-.03em;' +
-    ' font-feature-settings:\'tnum\' 1; }' +
-  '.vd-n i { font-style:normal; font-size:14pt; font-weight:500; letter-spacing:0; }' +
-  ".vd-l { font-family:'IBM Plex Mono',monospace; font-weight:400; font-size:6pt;" +
-    ' letter-spacing:.16em; text-transform:uppercase; color:' + APDF.ink3 + '; margin-top:5px; }' +
-  '.vd-b { flex:1; padding:11px 14px 10px; }' +
-  ".vd-t { font-family:'IBM Plex Sans Condensed',sans-serif; font-weight:600; font-size:13pt;" +
-    ' letter-spacing:.02em; text-transform:uppercase; color:' + band.c + '; line-height:1.05; }' +
-  '.vd-sub { font-size:8.5pt; color:' + APDF.ink2 + '; margin-top:2px; }' +
-  /* A long auditor email crushed the last field into a two-line wrap. Fixed
-     shares stop one value from starving its neighbours, and the email is
-     allowed to break rather than push the row apart. */
-  '.vd-f { display:flex; gap:16px; margin-top:9px; padding-top:8px;' +
-    ' border-top:1px solid ' + APDF.rule + '; }' +
-  '.vd-f > div { flex:1 1 0; min-width:0; }' +
-  '.vd-f > div:first-child { flex:1.5 1 0; }' +
-  ".vd-f b { display:block; font-family:'IBM Plex Mono',monospace; font-weight:400;" +
-    ' font-size:5.8pt; letter-spacing:.14em; text-transform:uppercase;' +
-    ' color:' + APDF.ink3 + '; margin-bottom:1px; }' +
-  '.vd-f span { font-size:9pt; font-weight:450; word-break:break-word; }' +
-  /* Meters: five boxed tiles became five columns divided by hairlines. Boxing
-     each one repeated a frame five times across the page; a rule between them
-     says the same thing with a tenth of the ink. Left-aligned so the pillar
-     keys form a vertical reading edge instead of five floating centres. */
-  '.mtrs { display:flex; margin-top:14px; border-top:1px solid ' + APDF.rule + ';' +
-    ' border-bottom:1px solid ' + APDF.rule + '; }' +
-  '.mtr { flex:1; padding:8px 10px 9px; }' +
-  '.mtr + .mtr { border-left:1px solid ' + APDF.ruleSoft + '; }' +
-  '.mtr-bar { margin-top:6px; font-size:8.5px; line-height:1; letter-spacing:-0.5px;' +
-    ' white-space:nowrap; }' +
-  '.mtr-bar .off { color:' + APDF.ruleSoft + '; }' +
-  ".mtr-k { font-family:'IBM Plex Mono',monospace; font-weight:500; font-size:6.5pt;" +
-    ' letter-spacing:.14em; color:' + APDF.ink3 + '; }' +
-  ".mtr-n { font-family:'IBM Plex Sans Condensed',sans-serif; font-weight:600; font-size:8pt;" +
-    ' text-transform:uppercase; letter-spacing:.03em; margin-top:2px; line-height:1.15; }' +
-  ".mtr-hi { font-family:'IBM Plex Sans Devanagari',sans-serif; font-size:7pt;" +
-    ' color:' + APDF.ink3 + '; line-height:1.3; }' +
-  ".mtr-v { font-family:'IBM Plex Sans Condensed',sans-serif; font-weight:600; font-size:17pt;" +
-    " line-height:1.1; margin-top:4px; letter-spacing:-.02em; font-feature-settings:'tnum' 1; }" +
-  '.mtr-v i { font-style:normal; font-size:8pt; font-weight:500; letter-spacing:0; }' +
-  // sections
-  '.sec { margin-top:18px; }' +
-  '.sec--break { page-break-before:auto; }' +
-  /* A small, hard-set label on a hairline. The 2pt rule read as a divider
-     competing with the masthead; a heading should mark a start, not shout. */
-  ".sec-h { font-family:'IBM Plex Sans Condensed',sans-serif; font-weight:600; font-size:8.5pt;" +
-    ' letter-spacing:.16em; text-transform:uppercase; margin:0 0 8px; padding-bottom:5px;' +
-    ' border-bottom:1px solid ' + APDF.ink + '; display:flex; align-items:baseline; gap:8px; }' +
-  '.sec-h--red { border-bottom-color:' + APDF.red + '; color:' + APDF.red + '; }' +
-  ".sec-h-hi { font-family:'IBM Plex Sans Devanagari',sans-serif; font-weight:400; font-size:7.5pt;" +
-    ' letter-spacing:0; text-transform:none; color:' + APDF.ink3 + '; }' +
-  ".sec-h-n { margin-left:auto; font-family:'IBM Plex Mono',monospace; font-size:7.5pt;" +
-    ' color:' + APDF.ink3 + '; letter-spacing:.04em; }' +
-  // failures
-  '.fail { display:flex; gap:11px; align-items:flex-start; padding:8px 10px; margin-bottom:3px;' +
-    ' background:' + APDF.redBg + '; border-left:2.5pt solid ' + APDF.red + '; page-break-inside:avoid; }' +
-  ".fail-sc { font-family:'IBM Plex Sans Condensed',sans-serif; font-weight:600; font-size:14pt;" +
-    ' line-height:1.05; color:' + APDF.red + '; flex:0 0 auto; width:15px; text-align:center; }' +
-  '.fail-b { flex:1; min-width:0; }' +
-  '.fail-t { font-weight:600; font-size:9.5pt; line-height:1.3; }' +
-  ".fail-hi { font-family:'IBM Plex Sans Devanagari',sans-serif; font-size:8pt;" +
-    ' color:' + APDF.ink2 + '; line-height:1.45; }' +
-  '.fail-r { font-size:8pt; color:' + APDF.ink2 + '; margin-top:3px;' +
-    ' padding-left:7px; border-left:1px solid ' + APDF.rule + '; }' +
-  ".fail-p { font-family:'IBM Plex Mono',monospace; font-size:7pt; letter-spacing:.08em;" +
-    ' color:' + APDF.red + '; flex:0 0 auto; padding-top:3px; }' +
-  // evidence
-  '.ev { display:flex; flex-wrap:wrap; gap:10px; }' +
-  '.ev-i { margin:0; width:calc(50% - 5px); page-break-inside:avoid; }' +
-  '.ev-i img { width:100%; height:210px; object-fit:cover; display:block;' +
-    ' border:1px solid ' + APDF.rule + '; }' +
-  '.ev-i figcaption { display:flex; gap:7px; align-items:baseline; margin-top:5px; }' +
-  ".ev-sc { font-family:'IBM Plex Sans Condensed',sans-serif; font-weight:600; font-size:10.5pt;" +
-    ' flex:0 0 auto; line-height:1; }' +
-  '.ev-t { font-size:8.5pt; line-height:1.35; color:' + APDF.ink2 + '; }' +
-  // criteria table
-  'table { width:100%; border-collapse:collapse; }' +
-  "thead th { font-family:'IBM Plex Mono',monospace; font-weight:400; font-size:6.5pt;" +
-    ' letter-spacing:.14em; text-transform:uppercase; color:' + APDF.ink3 + ';' +
-    ' text-align:left; padding:0 7px 5px; border-bottom:1px solid ' + APDF.ink + '; }' +
-  /* Hairline rules only, and the softer tone: 15 rows of full-strength rule
-     turned the list into a ladder you read instead of the criteria. */
-  'tbody td { padding:6px 7px; border-bottom:1px solid ' + APDF.ruleSoft + '; vertical-align:top; }' +
-  'tbody tr { page-break-inside:avoid; }' +
-  'tbody tr:last-child td { border-bottom:1px solid ' + APDF.rule + '; }' +
-  ".c-n { width:20px; font-family:'IBM Plex Mono',monospace; font-size:7pt;" +
-    ' color:' + APDF.ink3 + '; padding-top:7px; }' +
-  '.c-en { display:block; font-size:9pt; line-height:1.35; font-weight:450; }' +
-  ".c-hi { display:block; font-family:'IBM Plex Sans Devanagari',sans-serif; font-size:7.5pt;" +
-    ' color:' + APDF.ink2 + '; line-height:1.5; }' +
-  '.c-r { display:block; font-size:7.5pt; color:' + APDF.ink3 + '; margin-top:3px;' +
-    ' padding-left:7px; border-left:1px solid ' + APDF.rule + '; }' +
-  ".c-p { width:26px; font-family:'IBM Plex Mono',monospace; font-size:7pt;" +
-    ' color:' + APDF.ink3 + '; padding-top:7px; }' +
-  '.c-s { width:32px; text-align:right; }' +
-  ".pip { font-family:'IBM Plex Sans Condensed',sans-serif; font-weight:600; font-size:9.5pt;" +
-    " display:inline-block; min-width:18px; padding:1px 0; text-align:center;" +
-    " font-feature-settings:'tnum' 1; }" +
-  '.pip.g { color:' + APDF.green + '; } .pip.a { color:' + APDF.amber + '; }' +
-  /* Reversed white-on-red is the one place a fill is used in the table, and it
-     works because the converter paints backgrounds behind glyphs. */
-  '.pip.r { color:#fff; background:' + APDF.red + '; } .pip.na { color:' + APDF.ink3 + '; }' +
-  // footer
-  '.foot { margin-top:16px; padding-top:6px; border-top:1px solid ' + APDF.rule + ';' +
-    " font-family:'IBM Plex Mono',monospace; font-weight:400; font-size:6.5pt;" +
-    ' letter-spacing:.06em; text-transform:uppercase; color:' + APDF.ink3 + ';' +
-    ' display:flex; justify-content:space-between; }' +
-  '</style></head><body>' +
+  return _apdfHead_(band.c, band.bg) +
 
   '<div class="mast"><div class="mast-l">Pack Masters <i>/ 5S Audit</i></div>' +
     '<div class="mast-r">FRM/5S/01<br>' + _apdfEsc_(h.zoneId || '') + '</div></div>' +

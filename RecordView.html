@@ -132,6 +132,20 @@
   .gal-thumb:hover { transform: scale(1.06); box-shadow: 0 4px 16px rgba(16,24,40,.15); }
   @media (hover: none) { .gal-thumb:hover { transform: none; box-shadow: none; } }
 
+  /* Share row. Generating the PDF is a round trip, so the row announces itself
+     as pending rather than appearing late and shifting the page under a thumb. */
+  .shr { display:flex; gap:8px; margin-top:14px; }
+  .shr-btn {
+    flex:1; display:block; text-align:center; padding:11px 8px; border-radius:10px;
+    font-size:12.5px; font-weight:600; text-decoration:none; border:1px solid var(--line);
+    background: var(--card); color: var(--ink);
+  }
+  /* --accent is green in this page, so the two buttons would have been the same
+     colour. PDF stays neutral-strong; WhatsApp takes the accent. */
+  .shr-btn.pdf { color: var(--ink); border-color: var(--line); background: var(--card); }
+  .shr-btn.wa { color: var(--accent); border-color:#bfe4cd; background: var(--accent-soft); }
+  .shr-wait { font-size:12px; color: var(--ink3); padding:11px 2px; }
+
   .signin {
     display: block; margin-top: 12px; text-align: center; background: var(--card);
     color: var(--accent); text-decoration: none; padding: 11px; border-radius: 10px;
@@ -268,6 +282,7 @@ function render(rec){
     buildFindings_(rec) +
     buildTaskLinks_(rec) +
     gallery +
+    buildShare_(rec) +
     buildQuickAction_(rec) +
     '<a class="signin" href="' + DU + '?v2=1&action=login&next=' + encodeURIComponent(next) + '" target="_top">Sign in for full access</a>';
 }
@@ -356,6 +371,38 @@ function buildTaskLinks_(rec){
 var _currentRec = null;
 function _savedName_(){ try { return localStorage.getItem('pm5s_public_name') || ''; } catch(e){ return ''; } }
 function _saveName_(n){ try { localStorage.setItem('pm5s_public_name', n); } catch(e){} }
+
+/* Gemba walks and Kaizen now have a printable report; audits are shared from
+   the Actions page, and NC/Task/Red Tag have no generator wired up. Only offer
+   the row where something will actually come back. */
+function buildShare_(rec){
+  var t = rec.type;
+  if (t !== 'Gemba Walk' && t !== 'Kaizen') return '';
+  setTimeout(function(){ fillShare_(t, rec.id); }, 0);
+  return '<div class="shr" id="shrRow"><span class="shr-wait">Preparing report\u2026</span></div>';
+}
+
+function fillShare_(type, id){
+  var row = document.getElementById('shrRow');
+  if (!row) return;
+  var fn = (type === 'Kaizen') ? 'generateKaizenPdf' : 'generateWalkPdf';
+  google.script.run
+    .withSuccessHandler(function(r){
+      var el = document.getElementById('shrRow');
+      if (!el) return;
+      if (!r || !r.success || (!r.pdfUrl && !r.waUrl)) { el.style.display = 'none'; return; }
+      var h = '';
+      if (r.pdfUrl) h += '<a class="shr-btn pdf" href="' + esc(r.pdfUrl) +
+        '" target="_blank" rel="noopener">View PDF</a>';
+      if (r.waUrl) h += '<a class="shr-btn wa" href="' + esc(r.waUrl) +
+        '" target="_blank" rel="noopener">Share on WhatsApp</a>';
+      el.innerHTML = h;
+    })
+    .withFailureHandler(function(){
+      var el = document.getElementById('shrRow');
+      if (el) el.style.display = 'none';   // a missing PDF must not break the record
+    })[fn](id);
+}
 
 function buildQuickAction_(rec){
   var opts = quickActionOptions_(rec);

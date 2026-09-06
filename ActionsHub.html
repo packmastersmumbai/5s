@@ -376,6 +376,31 @@ body {
 .type-badge.AUDIT    { background: #DCFCE7; color: #15803D; }
 
 /* PRIORITY badge */
+/* Priority as an icon. Colour carries the level at a glance, but the glyph
+   differs too (up / dot / down), so the column still reads for anyone who
+   cannot separate the hues. Critical and High share the triangle and part on
+   colour plus weight -- they are the two that must never be missed. */
+.pri-ic {
+  display: inline-block; width: 100%; text-align: center;
+  font-size: 13px; line-height: 1; cursor: default;
+}
+.pri-ic.CRITICAL { color: var(--score-red);   font-size: 15px; text-shadow: 0 0 0 var(--score-red); }
+.pri-ic.HIGH     { color: var(--score-amber); }
+.pri-ic.MEDIUM   { color: #B45309; font-size: 10px; }
+.pri-ic.LOW      { color: var(--text-muted); }
+
+/* Photo evidence, in its own column so the camera sits in one place down the
+   list rather than trailing whatever text came before it. */
+.ah-evi { display: inline-flex; align-items: center; gap: 2px; font-size: 12px; cursor: default; }
+.ah-evi-n { font-size: 10px; font-weight: 700; color: var(--text-muted); }
+
+/* Visible to screen readers only -- the photo column's header has no visible
+   label because the icon speaks for itself on screen. */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
 .pri-badge {
   font-family: var(--font-mono);
   font-size: 9px;
@@ -466,7 +491,8 @@ body {
 .ah-table col.c-owner  { width: 12%; }
 .ah-table col.c-due    { width: 9%; }
 .ah-table col.c-age    { width: 6%; }
-.ah-table col.c-pri    { width: 8%; }
+.ah-table col.c-pri    { width: 44px; }
+.ah-table col.c-evi    { width: 40px; }
 .ah-table col.c-status { width: 8%; }
 .ah-table col.c-acts   { width: 200px; }
 /* Urgency-first rail: priority tints a thin rail; OVERDUE overrides it with a
@@ -1699,12 +1725,15 @@ var CURRENT_USER = '<?= (typeof params !== "undefined" && params && params.curre
    rail then owns zone, status and priority for every page alike, so the hub no
    longer keeps its own copies of those controls. */
 var PAGE_TYPE = '<?= (typeof params !== "undefined" && params && params.only) ? String(params.only).replace(/[^A-Z_]/g, "") : "" ?>';
-/* Seeded from the rail's per-page default rather than a hardcoded OPEN --
-   see buildPageChrome_. On Audits, Walks and Kaizen this is "" (all). */
-var STATUS_DEFAULT = (function () {
-  try { return (window.PM5S_FILTERS && window.PM5S_FILTERS.status !== undefined)
-    ? window.PM5S_FILTERS.status : ''; } catch (e) { return ''; }
-})();
+/* The per-page status default. It used to be read off the filter rail, which
+   has since been retired, so it is stated here instead of inferred from a
+   control that no longer exists.
+
+   TASK keeps OPEN because the Tasks strip opens on Open and the two must
+   agree. Everything else defaults to every status: an audit or a walk is
+   finished the moment it is recorded, and all 34 NCs are closed, so filtering
+   to OPEN showed an empty page on three of the five. */
+var STATUS_DEFAULT = (PAGE_TYPE === 'TASK') ? 'OPEN' : '';
 var _filters = { type: PAGE_TYPE, status: STATUS_DEFAULT, priority: '', zoneId: '' };
 
 /* Adopt whatever the rail already holds, then follow it. Without this a filter
@@ -2177,7 +2206,13 @@ function fetchAndRender(quiet, force) {
       document.getElementById('ahContent').innerHTML =
         '<div class="ah-loading" style="color:var(--score-red)">' + escHtml(friendlyError_(e)) + '</div>';
     })
-    .getUnifiedActionList({});   // whole plant — every filter is applied locally
+    /* Fetch only this page's own type. The server has always supported a type
+       filter; the client passed {} and pulled all 252 records to draw 27
+       audits, then discarded the rest -- which is why Audits and Issues sat on
+       a spinner. Zone, priority and status stay local: the cache spans every
+       zone of THIS type, so the chips and the Tasks strip remain instant.
+       The mixed list (no PAGE_TYPE) still asks for everything. */
+    .getUnifiedActionList(PAGE_TYPE ? { type: PAGE_TYPE } : {});
 }
 
 /* Zone tabs are rendered from the cached set, so switching zone is instant and
@@ -2339,6 +2374,17 @@ function renderCards(items) {
      filter, were grouped, and were then simply never emitted -- the section
      loop had no entry to print them under. */
   var order = ['NC', 'TASK', 'RED_TAG', 'KAIZEN', 'AUDIT', 'GEMBA'];
+
+  /* A per-type page holds exactly one type, so its section header would read
+     "Audit 27" above 27 audits on a page already titled Audits -- a collapsible
+     wrapper around the only thing on it. Single-type pages render the table
+     bare; the mixed list still groups. */
+  if (PAGE_TYPE) {
+    var flat = [];
+    order.forEach(function (t) { flat = flat.concat(groups[t] || []); });
+    document.getElementById('ahContent').innerHTML = buildTable_(flat);
+    return;
+  }
   var emoji = { NC: '&#128995;', TASK: '&#128203;', RED_TAG: '&#128308;',
                 KAIZEN: '&#128161;', GEMBA: '&#128065;', AUDIT: '&#128202;' };
   var html = '';
@@ -2395,17 +2441,66 @@ function ageCell_(d) {
   return '<span class="ah-age ' + b.k + '" title="' + b.t + '">' + escHtml(String(d)) + 'd</span>';
 }
 
+/* Priority as colour + shape. A word per row read as text to be parsed;
+   an icon column reads as a pattern, and the four levels stay distinguishable
+   without relying on colour alone (the glyph differs too). */
+function priIcon_(p) {
+  var P = {
+    CRITICAL: ['&#9650;', 'Critical'],
+    HIGH:     ['&#9650;', 'High'],
+    MEDIUM:   ['&#9679;', 'Medium'],
+    LOW:      ['&#9662;', 'Low']
+  };
+  var k = String(p || '').toUpperCase();
+  if (!P[k]) return '';
+  return '<span class="pri-ic ' + k + '" title="' + P[k][1] + ' priority" role="img" ' +
+         'aria-label="' + P[k][1] + ' priority">' + P[k][0] + '</span>';
+}
+
+/* Photo evidence: an icon, with the count only when there is more than one. */
+function eviCell_(a) {
+  var n = (a.photos && a.photos.length) || 0;
+  if (!n) return '';
+  var lbl = n + (n === 1 ? ' photo' : ' photos');
+  return '<span class="ah-evi" title="' + lbl + '" role="img" aria-label="' + lbl + '">' +
+         '&#128247;' + (n > 1 ? '<span class="ah-evi-n">' + n + '</span>' : '') + '</span>';
+}
+
+/* Audit dates arrive as ISO strings; the list wants a date, not a timestamp. */
+function shortDate_(v) {
+  if (!v) return '—';
+  var d = new Date(v);
+  if (isNaN(d.getTime())) return String(v).substring(0, 11);
+  var M = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return d.getDate() + '-' + M[d.getMonth()] + '-' + d.getFullYear();
+}
+
 function buildTable_(rows) {
   var sel = _selectMode;
   var selCol = sel ? '<col class="c-sel">' : '';
   var selHead = sel ? '<th class="ah-sel-th"><input type="checkbox" class="ah-sel-box ah-sel-all"' +
     ' aria-label="Select all in this section" onchange="onSelAll_(this)"></th>' : '';
+  /* Audits carry no owner and no due date -- every one reads "Unassigned" with
+     a blank Due -- so on that page those two columns were a pair of permanent
+     em-dashes. They give way to what an audit does have: how many criteria
+     were scored. */
+  var isAudit = (PAGE_TYPE === 'AUDIT');
+  var col3 = isAudit
+    ? '<col class="c-owner"><col class="c-due">'
+    : '<col class="c-owner"><col class="c-due">';
+  var head3 = isAudit
+    ? '<th class="hide-sm">Criteria</th><th class="hide-sm">Taken</th>'
+    : '<th class="hide-sm">Owner</th><th class="hide-sm">Due</th>';
+
+  /* Status is gone: each page IS one status context, and Tasks carries the
+     Open/In progress/Closed strip. Repeating it per row restated on 101 lines
+     what the tab above already said once. */
   var html = '<div class="ah-table-wrap"><table class="ah-table' + (sel ? ' selecting' : '') + '">' +
-    '<colgroup>' + selCol + '<col class="c-title"><col class="c-zone"><col class="c-owner">' +
-    '<col class="c-due"><col class="c-age"><col class="c-pri"><col class="c-status"><col class="c-acts"></colgroup>' +
+    '<colgroup>' + selCol + '<col class="c-title"><col class="c-zone">' + col3 +
+    '<col class="c-age"><col class="c-pri"><col class="c-evi"><col class="c-acts"></colgroup>' +
     '<thead><tr>' + selHead +
-    '<th>Title</th><th class="hide-sm">Zone</th><th class="hide-sm">Owner</th>' +
-    '<th class="hide-sm">Due</th><th class="hide-sm">Age</th><th>Pri</th><th>Status</th><th></th>' +
+    '<th>Title</th><th class="hide-sm">Zone</th>' + head3 +
+    '<th class="hide-sm">Age</th><th>Pri</th><th><span class="sr-only">Photos</span></th><th></th>' +
     '</tr></thead><tbody>';
 
   rows.forEach(function(a) {
@@ -2431,14 +2526,23 @@ function buildTable_(rows) {
       '<span class="ah-ttl-txt">' + escHtml(rowTitle_(a)) + '</span>' +
       '<span class="ah-ttl-id">' + escHtml(rowId_(a)) + '</span></td>';
     html += '<td class="ah-td muted hide-sm" data-label="Zone">' + escHtml(a.zone || '') + '</td>';
-    html += '<td class="ah-td muted hide-sm" data-label="Owner">' + escHtml(a.owner || '—') + '</td>';
-    html += '<td class="ah-td hide-sm" data-label="Due">' + dueCell_(a, overdue) + '</td>';
+    if (isAudit) {
+      html += '<td class="ah-td muted hide-sm" data-label="Criteria">' +
+        escHtml(a.description || '') + '</td>';
+      html += '<td class="ah-td muted hide-sm" data-label="Taken">' +
+        escHtml(shortDate_(a.createdDate)) + '</td>';
+    } else {
+      html += '<td class="ah-td muted hide-sm" data-label="Owner">' + escHtml(a.owner || '—') + '</td>';
+      html += '<td class="ah-td hide-sm" data-label="Due">' + dueCell_(a, overdue) + '</td>';
+    }
     html += '<td class="ah-td hide-sm" data-label="Age">' + ageCell_(a.ageDays) + '</td>';
-    html += '<td class="ah-td" data-label="Priority">' + (a.priority ? '<span class="pri-badge ' + escHtml(a.priority) + '">' + escHtml(a.priority) + '</span>' : '') + '</td>';
-    html += '<td class="ah-td" data-label="Status">' + statusCell_(a) +
-      ((a.photos && a.photos.length)
-        ? '<span class="ah-evi-flag" title="' + a.photos.length + ' photo(s) attached">&#128247; ' +
-          a.photos.length + '</span>' : '') + '</td>';
+    /* Priority reads as colour and shape, scannable down the column at a
+       glance; the word is kept for screen readers and as the tooltip. */
+    html += '<td class="ah-td" data-label="Priority">' + priIcon_(a.priority) + '</td>';
+    /* The photo flag used to ride inside the Status cell, which no longer
+       exists. It gets its own narrow column so the camera stays in one place
+       down the list instead of trailing whatever text preceded it. */
+    html += '<td class="ah-td" data-label="Photos">' + eviCell_(a) + '</td>';
     /* Actions live in the expander only. Repeating them on every row put four
        controls beside every record, competing with the record itself and
        duplicating exactly what the expander already offers. The chevron says
@@ -3919,15 +4023,13 @@ loadZones();
    is open, what is moving, what is done -- so it keeps the tab strip. The
    strip has been in the DOM all along but nothing ever showed it: setTypeTab,
    its only caller, handles type tabs that were deleted last session and so
-   never runs. Where the strip shows, the rail's Status picker steps aside:
-   two controls for one value could disagree on screen, which is why the strip
-   was pulled in the first place. */
+   never runs. The filter rail that once carried a competing Status picker has
+   since been retired entirely, so the strip is now the only status control in
+   the app. */
 (function () {
   var strip = document.getElementById('ahStatusTabs');
-  var rail  = document.getElementById('fltStatus');
   var show  = (PAGE_TYPE === 'TASK');
   if (strip) strip.style.display = show ? '' : 'none';
-  if (rail)  rail.style.display  = show ? 'none' : '';
   if (!show) return;
   var cur = _filters.status || 'OPEN';
   document.querySelectorAll('.ah-status-tab').forEach(function (b) {

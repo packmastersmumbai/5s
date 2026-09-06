@@ -672,20 +672,11 @@ function buildPageChrome_(deployUrl, action, token, zone, zoneConfig, pageType) 
 
   var html = '';
 
-  /* The rail only appears on pages that list records; Analytics and the forms
-     have nothing for it to filter. */
-  if (CREATE[action]) {
-    html += '<div class="pm5s-filters" id="pm5sFilters" role="group" aria-label="Filters">\n';
-    html += '  <button type="button" class="pm5s-filter" id="fltZone" aria-haspopup="dialog">' +
-            '<span id="fltZoneTxt">All zones</span>' + caret + '</button>\n';
-    html += '  <button type="button" class="pm5s-filter" id="fltStatus" aria-haspopup="dialog">' +
-            '<span id="fltStatusTxt">' + (statusDefault === "OPEN" ? "Open" : "All status") +
-            '</span>' + caret + '</button>\n';
-    html += '  <button type="button" class="pm5s-filter" id="fltPriority" aria-haspopup="dialog">' +
-            '<span id="fltPriorityTxt">All priority</span>' + caret + '</button>\n';
-    html += '  <button type="button" class="pm5s-filter-clear" id="fltClear" hidden>Clear</button>\n';
-    html += '</div>\n';
-  }
+  /* The filter rail is retired. Zone already has the chip row above the list,
+     with a live count per zone; Tasks has its Open/In progress/Closed strip;
+     and with the Status column gone there was nothing left for a status
+     dropdown to restate. Three pickers each duplicating a control already on
+     screen is furniture, not function. */
 
   if (create) {
     var href = deployUrl + "?v2=1&action=" + create.action +
@@ -696,83 +687,11 @@ function buildPageChrome_(deployUrl, action, token, zone, zoneConfig, pageType) 
             '<span class="pm5s-fab-text">' + create.label + '</span></a>\n';
   }
 
-  if (!CREATE[action]) return html;
-
-  /* Filter state. sessionStorage, not localStorage: filters should survive a
-     hop between pages, not a return the next morning. */
-  html += '<script>\n';
-  html += '(function(){\n';
-  html += '  var ZONES = ' + zoneJson + ';\n';
-  html += '  var KEY = "pm5s_filters_v1";\n';
-  html += '  var STATUS = [["","All status"],["OPEN","Open"],["IN_PROGRESS","In progress"],["CLOSED","Closed"]];\n';
-  html += '  var PRIO = [["","All priority"],["CRITICAL","Critical"],["HIGH","High"],["MEDIUM","Medium"],["LOW","Low"]];\n';
-  html += '  var STATUS_DEFAULT = ' + JSON.stringify(statusDefault) + ';\n';
-  html += '  var f = { zone: "", status: STATUS_DEFAULT, priority: "" };\n';
-  html += '  try { var raw = sessionStorage.getItem(KEY); if (raw) { var o = JSON.parse(raw); if (o) f = o; } } catch(e){}\n';
-  /* Status is per page, so it must NOT ride sessionStorage between pages the
-     way zone and priority do: carrying "Open" from Tasks onto Audits would
-     re-hide all 27 rows and reintroduce the bug one navigation later. Zone and
-     priority still carry -- they mean the same thing everywhere. */
-  html += '  f.status = STATUS_DEFAULT;\n';
-  html += '  var ZONE_FROM_URL = ' + JSON.stringify(zone) + ';\n';
-  /* A zone in the URL is an explicit instruction (a QR code, a shared link) and
-     outranks whatever was left in the session. */
-  html += '  if (ZONE_FROM_URL) f.zone = ZONE_FROM_URL;\n';
-  html += '  function save(){ try { sessionStorage.setItem(KEY, JSON.stringify(f)); } catch(e){} }\n';
-  html += '  function label(list, v){ for (var i=0;i<list.length;i++){ if (list[i][0]===v) return list[i][1]; } return list[0][1]; }\n';
-  html += '  function zoneLabel(){ if (!f.zone) return "All zones"; for (var i=0;i<ZONES.length;i++){ if (ZONES[i].id===f.zone) return ZONES[i].id; } return f.zone; }\n';
-  html += '  function paint(){\n';
-  html += '    var z=document.getElementById("fltZone"), st=document.getElementById("fltStatus"), pr=document.getElementById("fltPriority");\n';
-  html += '    if(!z) return;\n';
-  html += '    document.getElementById("fltZoneTxt").textContent = zoneLabel();\n';
-  html += '    document.getElementById("fltStatusTxt").textContent = label(STATUS, f.status);\n';
-  html += '    document.getElementById("fltPriorityTxt").textContent = label(PRIO, f.priority);\n';
-  /* Only non-defaults are marked, so the dot means "you changed this". */
-  html += '    z.classList.toggle("on", !!f.zone);\n';
-  html += '    st.classList.toggle("on", f.status !== STATUS_DEFAULT);\n';
-  html += '    pr.classList.toggle("on", !!f.priority);\n';
-  html += '    var n = (f.zone?1:0) + (f.status!==STATUS_DEFAULT?1:0) + (f.priority?1:0);\n';
-  html += '    var c = document.getElementById("fltClear");\n';
-  html += '    c.hidden = (n === 0); c.textContent = "Clear (" + n + ")";\n';
-  html += '    apply();\n';
-  html += '  }\n';
-  /* The host page owns its list; the rail just announces the change. */
-  html += '  function apply(){\n';
-  html += '    try { window.PM5S_FILTERS = f; } catch(e){}\n';
-  html += '    try { window.dispatchEvent(new CustomEvent("pm5s:filters", { detail: f })); } catch(e){}\n';
-  html += '  }\n';
-  html += '  function pick(title, opts, cur, cb){\n';
-  html += '    var host=document.createElement("div"); host.className="pm5s-zp-host";\n';
-  html += '    var scrim=document.createElement("div"); scrim.className="pm5s-zp-scrim";\n';
-  html += '    var card=document.createElement("div"); card.className="pm5s-zp"; card.setAttribute("role","dialog");\n';
-  html += '    var h=document.createElement("h4"); h.textContent=title; card.appendChild(h);\n';
-  html += '    var grid=document.createElement("div"); grid.className="pm5s-zp-grid"; card.appendChild(grid);\n';
-  html += '    opts.forEach(function(o){\n';
-  html += '      var b=document.createElement("button"); b.type="button";\n';
-  html += '      b.className="pm5s-zp-z"+(o[0]===cur?" on":"");\n';
-  html += '      b.innerHTML="<b></b><span></span>";\n';
-  html += '      b.querySelector("b").textContent=o[1];\n';
-  html += '      if(o[2]) b.querySelector("span").textContent=o[2];\n';
-  html += '      b.onclick=function(){ cb(o[0]); document.body.removeChild(host); };\n';
-  html += '      grid.appendChild(b);\n';
-  html += '    });\n';
-  html += '    scrim.onclick=function(){ document.body.removeChild(host); };\n';
-  html += '    host.appendChild(scrim); host.appendChild(card); document.body.appendChild(host);\n';
-  html += '  }\n';
-  html += '  document.getElementById("fltZone").onclick=function(){\n';
-  html += '    var o=[["","All zones",""]].concat(ZONES.map(function(z){return [z.id,z.id,z.name];}));\n';
-  html += '    pick("Zone", o, f.zone, function(v){ f.zone=v; save(); paint(); });\n';
-  html += '  };\n';
-  html += '  document.getElementById("fltStatus").onclick=function(){\n';
-  html += '    pick("Status", STATUS.map(function(x){return [x[0],x[1],""];}), f.status, function(v){ f.status=v; save(); paint(); });\n';
-  html += '  };\n';
-  html += '  document.getElementById("fltPriority").onclick=function(){\n';
-  html += '    pick("Priority", PRIO.map(function(x){return [x[0],x[1],""];}), f.priority, function(v){ f.priority=v; save(); paint(); });\n';
-  html += '  };\n';
-  html += '  document.getElementById("fltClear").onclick=function(){ f={zone:"",status:"OPEN",priority:""}; save(); paint(); };\n';
-  html += '  paint();\n';
-  html += '})();\n';
-  html += '<\/script>\n';
+  /* The rail's script went with its markup. It wired click handlers onto
+     #fltZone / #fltStatus / #fltPriority / #fltClear, and once those buttons
+     stopped being rendered every page threw "Cannot set properties of null
+     (setting 'onclick')" at load -- which killed the rest of the chrome
+     script with it. */
 
   return html;
 }

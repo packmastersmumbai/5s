@@ -11,46 +11,290 @@
     if(E){document.addEventListener('click',function(e){var a=e.target&&e.target.closest?e.target.closest('a[href]'):null;if(!a)return;var h=a.getAttribute('href')||'';if(!h||h.charAt(0)==='#'||/^javascript:/i.test(h))return;e.preventDefault();window.pm5sNav(a.href);},true);}
   })();
   </script>
+  <script>
+  /* Before first paint: a wrong-theme flash on the screen people open 20x a
+     shift is the most visible bug this page could have. Defaults to dark —
+     the panel is the plant's own object, and the floor reads it lit. */
+  (function () {
+    var t = 'dark';
+    try { t = localStorage.getItem('pm5s_theme') || 'dark'; } catch (e) {}
+    document.documentElement.setAttribute('data-theme', t);
+  })();
+  </script>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>PackMasters 5S — Login</title>
   <style>
+    /* ── DIRECTION ────────────────────────────────────────────────────────
+       THESIS: A shift-start terminal, not a login form. The category ships a
+       centred card floating on a gradient; this owns the plant's own object —
+       the illuminated control panel you badge in at. It refuses the flat card
+       whose surface, ground and buttons were all one navy value.
+
+       OWN-WORLD: Machined dark steel (#0A0E17) or brushed light panel, with a
+       cyan signal accent (oklch 72% .16 205) reserved ONLY for the live
+       element — the selected operator, the filled PIN dot, the pressed key.
+       Keycaps sit ABOVE the panel on a real bevel: top highlight, bottom
+       shadow, and they physically depress. Colour never decorates; it reports.
+
+       STORY: I find my face, I tap four digits, the machine acknowledges each
+       one, and I am in. Under three seconds, with gloves on.
+
+       FIRST VIEWPORT: Panel centred, max 400px. Wordmark and shift line top.
+       Operator faces in a 4-up grid, the chosen one lit and raised. Four PIN
+       dots at the optical centre. Keypad filling the lower half at 56px
+       minimum. Theme switch top-right, away from the tap path.
+
+       FORM: Control panel, first on the ordered list — the only candidate that
+       is literally the audience's daily object rather than a metaphor for it.
+       ──────────────────────────────────────────────────────────────────── */
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-      background: linear-gradient(160deg,var(--pm-primary),var(--pm-primary-light)); color: var(--border-light);
-      min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
-    .card { width: 100%; max-width: 380px; background: var(--pm-primary-light); border: 1px solid var(--pm-primary-light);
-      border-radius: 18px; padding: 28px 24px; box-shadow: 0 12px 40px rgba(0,0,0,.4); }
-    .brand { text-align: center; margin-bottom: 18px; }
-    .brand h1 { font-size: 20px; font-weight: 700; letter-spacing: .5px; }
-    .brand p { font-size: 12px; color: #94a3b8; margin-top: 2px; }
-    .users { display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 12px 6px; padding: 6px 2px 12px; max-height: 42vh; overflow-y: auto; }
-    .user { text-align: center; cursor: pointer; opacity: .55;
-      transition: all .15s; }
-    .user.sel { opacity: 1; transform: scale(1.06); }
-    .ava { width: 46px; height: 46px; border-radius: 50%; margin: 0 auto 4px;
-      display: flex; align-items: center; justify-content: center; font-weight: 700;
-      color: var(--bg-card); font-size: 16px; border: 2px solid transparent; }
-    .user.sel .ava { border-color: var(--score-blue); box-shadow: 0 0 0 3px rgba(56,189,248,.25); }
-    .uname { font-size: 11px; color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .err { min-height: 18px; text-align: center; font-size: 13px; color: var(--score-red); margin: 4px 0 10px; }
-    .dots { display: flex; gap: 14px; justify-content: center; margin: 6px 0 20px; }
-    .dot { width: 14px; height: 14px; border-radius: 50%; background: transparent;
-      border: 2px solid #64748b; transition: all .12s; }
-    .dot.fill { background: var(--score-blue); border-color: var(--score-blue); }
-    .pad { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
-    .key { padding: 16px 0; font-size: 22px; font-weight: 600; background: var(--pm-primary-light);
-      border: none; color: var(--border-light); border-radius: 12px; cursor: pointer; transition: background .1s; }
-    .key:active { background: var(--text-secondary); }
-    .key.ghost { background: transparent; }
-    .shake { animation: shk .45s; }
-    @keyframes shk { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-8px)} 40%,80%{transform:translateX(8px)} }
-    .ver { text-align: center; font-size: 10px; color: var(--text-secondary); margin-top: 16px; }
+
+    /* The login owns its own surface tokens. It is the one screen with no app
+       chrome around it, and it must render correctly before CommonStyles'
+       theme script has run — so the values are stated here, keyed off the same
+       data-theme attribute the rest of the app uses. */
+    :root {
+      --lg-void:    #060910;
+      --lg-panel:   #0F1520;
+      --lg-panel-2: #161E2C;
+      --lg-key:     #1C2635;
+      --lg-key-top: #26334A;
+      --lg-edge:    rgba(255,255,255,.07);
+      --lg-ink:     #E8EDF7;
+      --lg-ink-dim: #8595AE;
+      --lg-signal:      oklch(72% 0.16 205);
+      --lg-signal-soft: oklch(72% 0.16 205 / .22);
+      --lg-signal-glow: oklch(72% 0.16 205 / .38);
+      --lg-danger:  oklch(64% 0.21 25);
+      --lg-grid:    rgba(120,190,255,.045);
+    }
+    /* Light: a brushed panel under plant lighting, not an inverted dark theme.
+       The signal hue darkens to hold 4.5:1 on a pale ground. */
+    [data-theme="light"] {
+      --lg-void:    #D6DEEA;
+      --lg-panel:   #EFF3F9;
+      --lg-panel-2: #FFFFFF;
+      /* Caps are lighter than the panel they sit on, never equal to it —
+         white-on-white erased the bevel that carries the press. */
+      --lg-key:     #F7F9FC;
+      --lg-key-top: #FFFFFF;
+      --lg-edge:    rgba(9,20,40,.14);
+      --lg-ink:     #0C1420;
+      --lg-ink-dim: #55637A;
+      --lg-signal:      oklch(52% 0.15 220);
+      --lg-signal-soft: oklch(52% 0.15 220 / .14);
+      --lg-signal-glow: oklch(52% 0.15 220 / .22);
+      --lg-danger:  oklch(52% 0.20 25);
+      --lg-grid:    rgba(20,50,90,.05);
+    }
+
+    body {
+      font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      background: var(--lg-void);
+      /* Machined ground: a faint grid, lit from where the panel sits. Static —
+         an animated background on a screen someone uses 20x a shift is noise. */
+      background-image:
+        radial-gradient(120% 80% at 50% 0%, var(--lg-signal-soft) 0%, transparent 55%),
+        linear-gradient(var(--lg-grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--lg-grid) 1px, transparent 1px);
+      background-size: 100% 100%, 44px 44px, 44px 44px;
+      color: var(--lg-ink);
+      min-height: 100vh; min-height: 100dvh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+    }
+
+    /* ── Panel ─────────────────────────────────────────────────────────── */
+    .card {
+      position: relative;
+      width: 100%; max-width: 400px;
+      background: linear-gradient(180deg, var(--lg-panel-2), var(--lg-panel));
+      border: 1px solid var(--lg-edge);
+      border-radius: 20px;
+      padding: 22px 20px 20px;
+      /* Offset + blur, and a top inner highlight so the panel has a lit edge.
+         The old card used a single flat 40px shadow and read as a rectangle. */
+      box-shadow:
+        0 1px 0 rgba(255,255,255,.06) inset,
+        0 18px 50px -12px rgba(0,0,0,.7),
+        0 4px 12px rgba(0,0,0,.35);
+      animation: panelIn .5s cubic-bezier(.16,1,.3,1) both;
+    }
+    [data-theme="light"] .card {
+      box-shadow:
+        0 1px 0 rgba(255,255,255,.9) inset,
+        0 18px 44px -14px rgba(16,32,60,.28),
+        0 3px 10px rgba(16,32,60,.10);
+    }
+    @keyframes panelIn {
+      from { opacity: 0; transform: translateY(14px) scale(.985); }
+      to   { opacity: 1; transform: none; }
+    }
+
+    /* ── Theme switch ──────────────────────────────────────────────────── */
+    .theme-sw {
+      position: absolute; top: 14px; right: 14px;
+      width: 34px; height: 34px; border-radius: 10px;
+      display: grid; place-items: center;
+      background: var(--lg-key); border: 1px solid var(--lg-edge);
+      color: var(--lg-ink-dim); cursor: pointer; font-size: 15px; line-height: 1;
+      transition: color .16s, border-color .16s, transform .12s;
+    }
+    .theme-sw:hover { color: var(--lg-signal); border-color: var(--lg-signal-soft); }
+    .theme-sw:active { transform: scale(.92); }
+    .theme-sw:focus-visible { outline: 2px solid var(--lg-signal); outline-offset: 2px; }
+
+    /* ── Brand ─────────────────────────────────────────────────────────── */
+    .brand { text-align: center; margin-bottom: 16px; padding-right: 38px; padding-left: 38px; }
+    .brand h1 {
+      font-size: 19px; font-weight: 700; letter-spacing: -.01em; color: var(--lg-ink);
+    }
+    .brand h1 b { color: var(--lg-signal); font-weight: 700; }
+    .brand p {
+      font-size: 11.5px; color: var(--lg-ink-dim); margin-top: 3px;
+      letter-spacing: .01em;
+    }
+
+    /* ── Operators ─────────────────────────────────────────────────────── */
+    .users {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(66px, 1fr));
+      gap: 10px 4px; padding: 8px 2px 14px;
+      max-height: 40vh; overflow-y: auto; scrollbar-width: thin;
+    }
+    .user {
+      text-align: center; cursor: pointer; padding: 6px 2px 5px; border-radius: 12px;
+      background: transparent; border: 1px solid transparent;
+      transition: background .18s, border-color .18s, transform .18s cubic-bezier(.16,1,.3,1);
+      animation: userIn .34s cubic-bezier(.16,1,.3,1) both;
+    }
+    @keyframes userIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    .user:hover { background: var(--lg-key); }
+    .user.sel {
+      background: var(--lg-signal-soft);
+      border-color: var(--lg-signal);
+      transform: translateY(-2px);
+    }
+    .ava {
+      width: 44px; height: 44px; border-radius: 13px; margin: 0 auto 5px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 15px; color: #fff;
+      /* Each operator keeps a stable hue from their own name (set in JS), so a
+         face is recognisable by colour before the label is read. */
+      background: var(--ava-bg, var(--lg-key-top));
+      box-shadow: 0 2px 6px rgba(0,0,0,.3), 0 1px 0 rgba(255,255,255,.14) inset;
+      transition: box-shadow .2s, transform .2s cubic-bezier(.16,1,.3,1);
+    }
+    .user.sel .ava {
+      transform: scale(1.06);
+      box-shadow: 0 0 0 2px var(--lg-signal), 0 0 18px var(--lg-signal-glow),
+                  0 2px 8px rgba(0,0,0,.4);
+    }
+    .uname {
+      font-size: 11px; color: var(--lg-ink-dim);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .user.sel .uname { color: var(--lg-ink); font-weight: 600; }
+
+    /* ── Error ─────────────────────────────────────────────────────────── */
+    .err {
+      min-height: 17px; text-align: center; font-size: 12.5px;
+      color: var(--lg-danger); margin: 2px 0 8px; font-weight: 600;
+    }
+
+    /* ── PIN dots ──────────────────────────────────────────────────────── */
+    .dots {
+      display: flex; gap: 15px; justify-content: center; align-items: center;
+      margin: 2px auto 16px; padding: 11px 20px; width: fit-content;
+      border-radius: 999px;
+      /* Seated in the panel rather than floating on it, so the entry state has
+         somewhere to live. Inset, because the read-out is recessed hardware. */
+      background: var(--lg-void);
+      box-shadow: 0 2px 5px rgba(0,0,0,.28) inset, 0 1px 0 var(--lg-edge);
+    }
+    [data-theme="light"] .dots {
+      box-shadow: 0 2px 4px rgba(16,32,60,.13) inset, 0 1px 0 rgba(255,255,255,.9);
+    }
+    .dot {
+      width: 13px; height: 13px; border-radius: 50%;
+      background: transparent; border: 2px solid var(--lg-ink-dim); opacity: .8;
+      transition: background .16s, border-color .16s, opacity .16s, transform .16s cubic-bezier(.16,1,.3,1);
+    }
+    .dot.fill {
+      background: var(--lg-signal); border-color: var(--lg-signal); opacity: 1;
+      transform: scale(1.18);
+      box-shadow: 0 0 12px var(--lg-signal-glow);
+    }
+
+    /* ── Keypad ────────────────────────────────────────────────────────── */
+    .pad { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+    .key {
+      position: relative;
+      min-height: 56px;               /* gloved-hand target, never below 44 */
+      font-size: 21px; font-weight: 600; font-variant-numeric: tabular-nums;
+      color: var(--lg-ink); cursor: pointer;
+      background: linear-gradient(180deg, var(--lg-key-top), var(--lg-key));
+      border: 1px solid var(--lg-edge);
+      border-radius: 13px;
+      /* A keycap, not a rectangle: lit top edge, cast shadow beneath. */
+      box-shadow: 0 1px 0 rgba(255,255,255,.09) inset, 0 2px 5px rgba(0,0,0,.32);
+      transition: transform .09s ease-out, box-shadow .09s ease-out,
+                  border-color .14s, background .14s;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      user-select: none;
+    }
+    [data-theme="light"] .key {
+      box-shadow: 0 1px 0 rgba(255,255,255,1) inset, 0 2px 5px rgba(16,32,60,.13);
+    }
+    .key:hover { border-color: var(--lg-signal-soft); }
+    /* The press: the cap physically travels down and its shadow collapses. */
+    .key:active, .key.press {
+      transform: translateY(2px);
+      box-shadow: 0 0 0 rgba(0,0,0,0), 0 0 0 2px var(--lg-signal-soft) inset;
+      border-color: var(--lg-signal);
+      background: var(--lg-key);
+    }
+    .key:focus-visible { outline: 2px solid var(--lg-signal); outline-offset: 2px; }
+    /* The empty cell holds its place without pretending to be a key: a
+       disabled <button> there read as a dead key you could try to press. */
+    .key-gap { display: block; }
+
+    /* ── Error shake ───────────────────────────────────────────────────── */
+    .shake { animation: shk .42s cubic-bezier(.36,.07,.19,.97); }
+    @keyframes shk {
+      0%,100% { transform: translateX(0); }
+      18%,58% { transform: translateX(-7px); }
+      38%,78% { transform: translateX(7px); }
+    }
+
+    .ver {
+      text-align: center; font-size: 10px; color: var(--lg-ink-dim);
+      margin-top: 14px; letter-spacing: .06em; text-transform: uppercase;
+    }
+
+    /* Gloved hands on a noisy floor: motion is feedback, never spectacle.
+       With reduced motion requested, every state still reads — the cap keeps
+       its pressed colour, the dot still fills. Only travel is removed. */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .01ms !important; animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+      }
+      .key:active, .key.press { transform: none; }
+      .user.sel { transform: none; }
+    }
   </style>
 </head>
 <body>
   <div class="card" id="card">
-    <div class="brand"><h1>PackMasters 5S</h1><p>Tap your name, enter your PIN</p></div>
+    <button class="theme-sw" id="themeSw" type="button"
+            aria-label="Switch between light and dark" title="Switch theme">◐</button>
+    <div class="brand">
+      <h1>PackMasters <b>5S</b></h1>
+      <p>Tap your name, then enter your PIN</p>
+    </div>
     <div class="users" id="users"></div>
     <div class="err" id="err"></div>
     <div class="dots" id="dots">
@@ -68,6 +312,39 @@
 
     var users = [], selectedId = null, pin = '', locked = false;
 
+    /* ── Theme switch ──────────────────────────────────────────────────────
+       A full dark theme has been in CommonStyles since 2026-08-20, keyed on
+       localStorage 'pm5s_theme' — but nothing in the app ever WROTE that key,
+       so it was unreachable. This is the control. It writes the same key the
+       rest of the app already reads, so the choice carries to every page. */
+    (function () {
+      var sw = document.getElementById('themeSw');
+      if (!sw) return;
+      function paint() {
+        var dark = document.documentElement.getAttribute('data-theme') !== 'light';
+        // The glyph shows what you GET, not what you are in.
+        sw.textContent = dark ? '☀' : '☾';
+        sw.setAttribute('aria-label', dark ? 'Switch to light theme' : 'Switch to dark theme');
+      }
+      paint();
+      sw.addEventListener('click', function () {
+        var next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', next);
+        try { localStorage.setItem('pm5s_theme', next); } catch (e) {}
+        paint();
+      });
+    })();
+
+    /* Key feedback for taps that never fire :active — a gloved finger on a
+       capacitive screen often registers as a fast tap with no hover state.
+       50ms is under the threshold where a press feels delayed, but long
+       enough to be seen. */
+    function flashKey(el) {
+      if (!el) return;
+      el.classList.add('press');
+      setTimeout(function () { el.classList.remove('press'); }, 90);
+    }
+
     function initials(name) {
       var p = (name || '').trim().split(/\s+/);
       return ((p[0] || '?')[0] + (p[1] ? p[1][0] : '')).toUpperCase();
@@ -76,9 +353,10 @@
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 
     function renderUsers() {
-      var html = users.map(function (u) {
-        return '<div class="user' + (u.id === selectedId ? ' sel' : '') + '" data-id="' + esc(u.id) + '">' +
-          '<div class="ava" style="background:' + esc(u.avatarColor) + '">' + esc(initials(u.name)) + '</div>' +
+      var html = users.map(function (u, i) {
+        return '<div class="user' + (u.id === selectedId ? ' sel' : '') + '" data-id="' + esc(u.id) + '"' +
+          ' style="animation-delay:' + (i * 34) + 'ms">' +
+          '<div class="ava" style="--ava-bg:' + esc(u.avatarColor) + '">' + esc(initials(u.name)) + '</div>' +
           '<div class="uname">' + esc(u.name) + '</div></div>';
       }).join('');
       document.getElementById('users').innerHTML = html;
@@ -160,12 +438,13 @@
     function renderPad() {
       var keys = ['1','2','3','4','5','6','7','8','9','','0','del'];
       document.getElementById('pad').innerHTML = keys.map(function (k) {
-        if (k === '') return '<button class="key ghost" disabled></button>';
+        if (k === '') return '<span class="key-gap" aria-hidden="true"></span>';
         if (k === 'del') return '<button class="key" data-k="del">⌫</button>';
         return '<button class="key" data-k="' + k + '">' + k + '</button>';
       }).join('');
       Array.prototype.forEach.call(document.querySelectorAll('.key[data-k]'), function (b) {
         b.addEventListener('click', function () {
+          flashKey(b);
           var k = b.getAttribute('data-k');
           if (k === 'del') backspace(); else addDigit(k);
         });

@@ -671,7 +671,8 @@ function createKaizenSuggestion(kzData) {
         ],
         action: "review & approve",
         by: d.submitterName || "5S"
-      }), [{ text: "💡 Open Kaizen", url: _tg5sDeep_('?v2=1&action=record&type=kaizen&id=' + kaizenId) }]);
+      }), [{ text: "💡 Open Kaizen", url: _tg5sDeep_('?v2=1&action=record&type=kaizen&id=' + kaizenId) }],
+        kzPhotoUrls.join(","));
     }
     return { success: true, kaizenId: kaizenId, message: "Kaizen suggestion submitted." };
   }, "createKaizenSuggestion", { success: false, kaizenId: "", message: "Server error." });
@@ -875,6 +876,43 @@ function submitGembaWalk(walkData) {
     if (walkPhotoUrls.length) {
       walkSheet.getRange(walkSheet.getLastRow(), GW_COL.PHOTO_URLS + 1)
         .setValue(walkPhotoUrls.join(","));
+    }
+
+    /* A completed walk told nobody. Every other record type broadcasts, the
+       Gemba kind glyph was already defined in TG5S_KIND, and the walk is the
+       one event where a supervisor most wants to know findings were raised —
+       it was simply never wired. Status follows the findings, not the act of
+       walking: a clean walk is green, findings are amber, and a walk whose
+       actions failed to raise is red, because that is the case where the
+       record says "done" while nothing was actually assigned. */
+    if (typeof tg5sBroadcast_ === "function") {
+      try {
+        var gWalker = _tg5sWho_(d.walkerName);
+        var gStatus = taskError ? "blocked" : (noCount > 0 ? "soon" : "good");
+        var gZoneName = v2GetZoneName_(d.zoneId);
+        tg5sBroadcast_(_tg5sCard_({
+          kind: "Gemba", status: gStatus, id: walkId,
+          link: _tg5sDeep_('?v2=1&action=record&type=walk&id=' + walkId),
+          zoneId: d.zoneId, zoneName: gZoneName,
+          facts: [
+            "👁 " + TelegramLib.esc(d.walkType || "Walk") + " walk · " +
+              (noCount === 1 ? "1 finding" : noCount + " findings"),
+            "✅ " + compliancePct + "% compliant · " + yesCount + "/" + answeredExNA +
+              (naCount ? " · " + naCount + " n/a" : ""),
+            taskError
+              ? "⚠ actions NOT raised: " + TelegramLib.esc(String(taskError).substring(0, 80))
+              : (taskIds.length
+                  ? "🗒️ " + taskIds.length + " action" + (taskIds.length === 1 ? "" : "s") + " raised"
+                  : "")
+          ],
+          action: noCount > 0 ? "close the findings" : "",
+          by: gWalker
+        }), [{ text: "👁 Open walk", url: _tg5sDeep_('?v2=1&action=record&type=walk&id=' + walkId) }],
+          walkPhotoUrls.join(","));
+      } catch (e) {
+        /* A chat notification must never fail a saved walk. */
+        Logger.log("Gemba telegram skipped for " + walkId + ": " + e.message);
+      }
     }
 
     var expectedNo = noCount;

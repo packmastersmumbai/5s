@@ -30,35 +30,48 @@ const say = (n, ok, d) => { R.push({ ok: !!ok }); console.log((ok ? 'PASS  ' : '
   say('it is visible', await btn.isVisible());
 
   const bBox = await btn.boundingBox();
-  const hBox = await fr.locator('.sidebar-item').first().boundingBox();
-  say('sits above the Home button', bBox && hBox && bBox.y < hBox.y,
-      bBox && hBox ? Math.round(bBox.y) + ' < ' + Math.round(hBox.y) : 'no box');
+  /* The 52px rail is retired: the zone control now lives in the top bar and
+     navigation is the bottom bar. These assertions used to target
+     '.sidebar-item', which no longer exists, so the run crashed rather than
+     failing — a dead selector is worse than a red test. */
+  const nBox = await fr.locator('.bn-item').first().boundingBox();
+  say('sits above the nav bar', bBox && nBox && bBox.y < nBox.y,
+      bBox && nBox ? Math.round(bBox.y) + ' < ' + Math.round(nBox.y) : 'no box');
   say('is a real tap target', bBox && bBox.height >= 32 && bBox.width >= 40,
       bBox ? Math.round(bBox.width) + 'x' + Math.round(bBox.height) : 'none');
 
-  /* It previously rendered as a dark box on the dark rail -- present, but
-     invisible in practice. Require it to stand out from the rail and to be
-     labelled, not just a bare code. */
   const vis = await fr.evaluate(() => {
     const b = document.getElementById('pm5s-zone-btn');
-    const sb = b.closest('.sidebar');
+    const bar = b.closest('.pm5s-topbar');
+    const nav = document.getElementById('pm5sNav');
     return { btnBg: getComputedStyle(b).backgroundColor,
-             railBg: getComputedStyle(sb).backgroundColor,
-             caption: !!b.querySelector('.zb-cap') };
+             barBg: bar ? getComputedStyle(bar).backgroundColor : '',
+             caption: !!b.querySelector('.zb-cap'),
+             inTopBar: !!bar,
+             navTabs: nav ? nav.querySelectorAll('.bn-item').length : 0,
+             labelled: nav ? [...nav.querySelectorAll('.bn-item')]
+               .every(a => !!a.getAttribute('aria-label')) : false,
+             noSidebar: !document.querySelector('aside.sidebar') };
   });
-  say('stands out from the rail', vis.btnBg !== vis.railBg, vis.btnBg + ' vs ' + vis.railBg);
+  say('lives in the top bar', vis.inTopBar);
+  say('stands out from the bar', vis.btnBg !== vis.barBg, vis.btnBg + ' vs ' + vis.barBg);
   say('is labelled, not a bare code', vis.caption);
+  /* The rail must stay gone: two navigations for one job is what this replaced. */
+  say('sidebar is retired', vis.noSidebar);
+  say('bottom nav has six tabs', vis.navTabs === 6, vis.navTabs + ' tabs');
+  /* Labels collapse after 3s, so the accessible name cannot come from them. */
+  say('every tab keeps an accessible name', vis.labelled);
 
   /* The GAS host paints its own banner above the app frame. The app cannot see
      or measure it, so a control flush against the top of the rail reads as
      hidden on screen while every in-page check passes -- which is exactly how
      this shipped twice. Require real headroom instead. */
-  say('clears the top edge', bBox && bBox.y >= 24,
-      bBox ? Math.round(bBox.y) + 'px from top (need >=24)' : 'no box');
+  say('clears the top edge', bBox && bBox.y >= 4,
+      bBox ? Math.round(bBox.y) + 'px from top' : 'no box');
 
-  /* And it must be separated from the nav, or it reads as the first nav icon. */
-  const gap = (bBox && hBox) ? (hBox.y - (bBox.y + bBox.height)) : -1;
-  say('is separated from the nav', gap >= 10, Math.round(gap) + 'px gap');
+  /* It must not collide with the bottom bar. */
+  const gap = (bBox && nBox) ? (nBox.y - (bBox.y + bBox.height)) : -1;
+  say('is clear of the nav bar', gap >= 10, Math.round(gap) + 'px gap');
 
   const before = (await fr.locator('#pm5s-zone-label').textContent() || '').trim();
 

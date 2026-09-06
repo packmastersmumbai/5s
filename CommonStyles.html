@@ -1147,6 +1147,8 @@ body { padding-top: 44px; }
 
 @media (prefers-reduced-motion: reduce) { .pm5s-zone-chip { transition: none; } }
 
+/* The filter pickers wrap scrim+card in a host so one removeChild closes both. */
+.pm5s-zp-host { position: fixed; inset: 0; z-index: 998; }
 .pm5s-zp-scrim { position: fixed; inset: 0; background: rgba(15,23,42,.55); z-index: 998; }
 .pm5s-zp {
   position: fixed; left: 50%; top: 50%; transform: translate(-50%,-50%); z-index: 999;
@@ -1187,89 +1189,134 @@ body { padding-top: 44px; }
    page to it. One bar means one muscle memory and one thing to maintain.
    Centred and width-capped so it reads as a control on a 1440px monitor rather
    than a stretched phone component. */
+/* ── BOTTOM NAV — six record destinations, every screen size ───────────────
+   Labels are shown on arrival and collapse after 3s: they orient you when you
+   land and then hand ~20px back to the page. They return on hover, focus or
+   touch, aria-label carries the name permanently for screen readers, and
+   prefers-reduced-motion pins them open — a timed disappearance is exactly what
+   that preference exists to prevent. */
 .bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: center;
-  align-items: stretch;
-  gap: 2px;
-  height: 60px;
+  position: fixed; bottom: 0; left: 0; right: 0;
+  display: flex; justify-content: center; align-items: stretch;
   background-color: var(--bg-card);
   border-top: 1px solid var(--border);
   z-index: 110;
   padding: 0 4px env(safe-area-inset-bottom);
-  /* A hairline lift so the bar reads as floating above the page, not welded
-     to it — the page scrolls under it and needs the separation. */
   box-shadow: 0 -1px 0 rgba(15,23,42,.04), 0 -8px 24px rgba(15,23,42,.05);
 }
-
 .bottom-nav-inner {
-  display: flex;
-  align-items: stretch;
-  width: 100%;
-  max-width: 560px;   /* five 44px+ targets never need more than this */
-  gap: 2px;
+  display: flex; align-items: stretch; width: 100%;
+  max-width: 660px;   /* six targets never need more */
+  gap: 1px;
 }
-
-.bottom-nav-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  flex: 1;
-  /* 44px is the accessibility floor; 60px gives a gloved hand real margin. */
-  min-height: 44px;
-  height: 60px;
-  text-decoration: none;
-  color: var(--text-muted);
-  font-size: 10.5px;
-  font-weight: 500;
-  letter-spacing: .01em;
-  gap: 3px;
-  position: relative;
-  border-radius: 10px;
-  /* Colour only — a transform here would shift the whole bar under a thumb. */
-  transition: color .18s ease, background-color .18s ease;
+.bn-item {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  flex: 1; min-width: 0;
+  /* 56px with labels, 48px without. Even at six tabs on a 390px phone each is
+     ~64px wide, comfortably past the 44px touch floor. */
+  min-height: 44px; height: 56px;
+  text-decoration: none; color: var(--text-muted);
+  font-size: 10px; font-weight: 500; gap: 3px;
+  position: relative; border-radius: 10px;
+  transition: color .18s ease, background-color .18s ease, height .22s ease;
   -webkit-tap-highlight-color: transparent;
 }
-
-.bottom-nav-item:hover { color: var(--pm-primary); background-color: var(--bg-page); }
-.bottom-nav-item:active { background-color: var(--border-light); }
-.bottom-nav-item:focus-visible {
-  outline: 2px solid var(--pm-primary);
-  outline-offset: -2px;
-}
-
-.bottom-nav-item.active { color: var(--pm-primary); font-weight: 600; }
-/* The active tab is marked by a bar at the top edge as well as by colour —
-   colour alone fails for anyone who cannot distinguish it. */
-.bottom-nav-item.active::before {
-  content: "";
-  position: absolute;
-  top: 0; left: 50%;
+.bn-item:hover { color: var(--pm-primary); background-color: var(--bg-page); }
+.bn-item:active { background-color: var(--border-light); }
+.bn-item:focus-visible { outline: 2px solid var(--pm-primary); outline-offset: -2px; }
+.bn-item.active { color: var(--pm-primary); font-weight: 600; }
+/* Marked by a bar as well as by colour — colour alone fails for anyone who
+   cannot distinguish it. */
+.bn-item.active::before {
+  content: ""; position: absolute; top: 0; left: 50%;
   transform: translateX(-50%);
-  width: 26px; height: 2.5px;
-  border-radius: 0 0 3px 3px;
+  width: 24px; height: 2.5px; border-radius: 0 0 3px 3px;
   background: var(--pm-primary);
 }
+.bn-ico { width: 22px; height: 22px; display: block; flex-shrink: 0; }
+.bn-ico svg { width: 100%; height: 100%; display: block; }
 
-/* SVG icons, not emoji: emoji render differently on every Android skin, iOS
-   version and Windows build, so the nav looked like a different product on
-   each device. */
-.bottom-nav-icon {
-  width: 22px; height: 22px;
-  display: block;
-  flex-shrink: 0;
+.bn-lbl {
+  line-height: 1; white-space: nowrap;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+  opacity: 1; max-height: 14px;
+  transition: opacity .2s ease, max-height .22s ease, margin .22s ease;
 }
-.bottom-nav-icon svg { width: 100%; height: 100%; display: block; }
-.bottom-nav-label { line-height: 1; }
-
+/* Collapsed: labels fade and the bar tightens. */
+.bottom-nav.compact .bn-item { height: 48px; }
+.bottom-nav.compact .bn-lbl { opacity: 0; max-height: 0; margin-top: -3px; }
+/* Reduced motion: never collapse, never animate. */
+.bottom-nav.labels-locked .bn-lbl { opacity: 1 !important; max-height: 14px !important; }
 @media (prefers-reduced-motion: reduce) {
-  .bottom-nav-item { transition: none; }
+  .bn-item, .bn-lbl { transition: none; }
 }
+
+/* ── FILTER RAIL — zone, status, priority on every record page ─────────────
+   Three controls, same place on every page, so the working set is changed in
+   one known spot instead of a different control per screen. */
+.pm5s-filters {
+  position: sticky; top: 44px; z-index: 100;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  /* One scrolling row on a phone rather than wrapping to two and pushing the
+     list down. */
+  overflow-x: auto; scrollbar-width: none;
+}
+.pm5s-filters::-webkit-scrollbar { display: none; }
+.pm5s-filter {
+  display: inline-flex; align-items: center; gap: 5px;
+  min-height: 34px; padding: 0 10px; flex-shrink: 0;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--bg-page); color: var(--text-primary);
+  font-family: inherit; font-size: 12.5px; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+  transition: border-color .18s ease, background-color .18s ease;
+}
+.pm5s-filter:hover { border-color: var(--pm-accent); }
+.pm5s-filter:focus-visible { outline: 2px solid var(--pm-primary); outline-offset: 2px; }
+/* A dot marks any non-default filter, so a page showing three rows reads as
+   filtered rather than broken. */
+.pm5s-filter.on { border-color: var(--pm-primary); color: var(--pm-primary); background: var(--pm-primary-soft, var(--bg-card)); }
+.pm5s-filter.on::after {
+  content: ""; width: 5px; height: 5px; border-radius: 50%;
+  background: var(--pm-primary); flex-shrink: 0;
+}
+.pm5s-filter svg { width: 13px; height: 13px; opacity: .55; flex-shrink: 0; }
+.pm5s-filter-clear {
+  margin-left: auto; flex-shrink: 0;
+  background: none; border: 0; cursor: pointer;
+  font-family: inherit; font-size: 12px; font-weight: 600;
+  color: var(--text-muted); padding: 6px 4px; min-height: 34px;
+}
+.pm5s-filter-clear:hover { color: var(--pm-primary); }
+.pm5s-filter-clear[hidden] { display: none; }
+
+/* ── FAB — creates the record type of the page you are on ──────────────────
+   No menu and no choice: the page already says what you are looking at, so the
+   button that adds one more of it needs no further question. */
+.pm5s-fab {
+  position: fixed; right: 16px; bottom: 76px; z-index: 108;
+  width: 60px; height: 60px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  border: 0; cursor: pointer;
+  background: var(--pm-primary); color: #fff;
+  box-shadow: 0 4px 14px rgba(15,23,42,.22), 0 1px 3px rgba(15,23,42,.18);
+  transition: box-shadow .18s ease, background-color .18s ease;
+}
+.pm5s-fab:hover { box-shadow: 0 6px 20px rgba(15,23,42,.28), 0 1px 3px rgba(15,23,42,.2); }
+.pm5s-fab:active { box-shadow: 0 2px 8px rgba(15,23,42,.24); }
+.pm5s-fab:focus-visible { outline: 3px solid var(--pm-primary); outline-offset: 3px; }
+.pm5s-fab svg { width: 26px; height: 26px; }
+.pm5s-fab[hidden] { display: none; }
+/* The label rides alongside on a wide screen where there is room for it. */
+.pm5s-fab-text { display: none; }
+@media (min-width: 900px) {
+  .pm5s-fab { width: auto; height: 52px; border-radius: 26px; padding: 0 20px; gap: 8px; }
+  .pm5s-fab-text { display: inline; font-family: inherit; font-size: 14px; font-weight: 600; }
+}
+@media (prefers-reduced-motion: reduce) { .pm5s-fab { transition: none; } }
 
 /* Zone Switcher Top Bar (mobile) */
 .zone-switcher-top {
@@ -1489,8 +1536,9 @@ input, select, textarea { font-size: max(16px, 1em); }
   .zone-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
   .pm-header { padding: 8px 16px; }
   .bottom-nav { height: 44px; }
-  .bottom-nav-item { height: 44px; font-size: 10px; }
-  .bottom-nav-icon { font-size: 16px; }
+  /* Short viewport: labels stay collapsed and the bar sits at its floor. */
+  .bn-item { height: 44px; font-size: 10px; }
+  .bn-lbl { opacity: 0; max-height: 0; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1516,7 +1564,7 @@ select:focus-visible,
 .pf-btn:focus-visible,
 .pf-toggle:focus-visible,
 .lang-toggle:focus-visible,
-.bottom-nav-item:focus-visible,
+.bn-item:focus-visible,
 .pm-fab:focus-visible,
 .action-item:focus-visible,
 .criterion-row:focus-visible {

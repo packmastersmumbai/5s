@@ -102,6 +102,14 @@ function handleV2Route_(params) {
     case "opl":          return serveV2Page_("OPLViewer", params);
     case "riskregister": return serveV2Page_("TierDashboard_Full", params);
     // ── Zone-level tools ─────────────────────────────────────────────────
+    /* Per-type record pages. Six destinations, one implementation: the hub
+       already lists, filters and opens every type, so these arrive pre-scoped
+       via params.only rather than duplicating it six times. */
+    case "audits":       params.only = "AUDIT";   return serveV2Page_("ActionsHub", params);
+    case "issues":       params.only = "NC";      return serveV2Page_("ActionsHub", params);
+    case "tasks":        params.only = "TASK";    return serveV2Page_("ActionsHub", params);
+    case "walks":        params.only = "GEMBA";   return serveV2Page_("ActionsHub", params);
+    case "kaizenlist":   params.only = "KAIZEN";  return serveV2Page_("ActionsHub", params);
     case "kanban":       return serveV2Page_("ActionsHub", params);
     case "charts":       return serveV2Page_("InsightsView", params);
     case "analytics":    return serveV2Page_("InsightsView", params);
@@ -240,7 +248,16 @@ function serveV2Page_(templateFile, params) {
       params && params.zone ? params.zone : "",
       zoneConfigObj
     );
-    var finalContent = output.getContent().replace('</body>', sidebarHtml + bottomNavHtml + '\n</body>');
+    var pageChromeHtml = buildPageChrome_(
+      deployUrl,
+      navAction,
+      params && params.token ? params.token : "",
+      params && params.zone ? params.zone : "",
+      zoneConfigObj,
+      params && params.only ? params.only : ""
+    );
+    var finalContent = output.getContent()
+      .replace('</body>', sidebarHtml + pageChromeHtml + bottomNavHtml + '\n</body>');
     return HtmlService.createHtmlOutput(finalContent)
       .setTitle("PackMasters 5S — " + templateFile)
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
@@ -604,6 +621,146 @@ var PM_NAV_ICONS_ = {
  * @param {string} zone — current zone ID
  * @returns {string} HTML bottom nav bar
  */
+/**
+ * Filter rail + create button, shared by every record page.
+ *
+ * The three filters were previously per-page controls in different places (or
+ * absent), so changing the working set meant learning a new control on each
+ * screen. They are now one rail, in one position, on all of them.
+ *
+ * Selections are held in sessionStorage: they carry between pages so a zone is
+ * picked once, and clear when the app is reopened so nobody inherits
+ * yesterday's filter and concludes the records have vanished.
+ *
+ * @param {string} pageType  record type this page lists — decides what + creates
+ */
+function buildPageChrome_(deployUrl, action, token, zone, zoneConfig, pageType) {
+  deployUrl = String(deployUrl || "").replace(/['"<>]/g, "");
+  token = String(token || "").replace(/[^a-zA-Z0-9\-_.]/g, "");
+  zone = String(zone || "").replace(/[^a-zA-Z0-9\-_]/g, "");
+  action = String(action || "").toLowerCase();
+
+  /* What the + creates, per page. No menu: the page already says what you are
+     looking at, so the button adding one more needs no further question.
+     Analytics has no entry — nothing there is created by hand. */
+  var CREATE = {
+    audits:     { action: "quickaudit",  label: "New audit" },
+    issues:     { action: "capa",        label: "New NC" },
+    tasks:      { action: "actionlist",  label: "New task" },
+    walks:      { action: "gembawalk",   label: "New walk" },
+    kaizenlist: { action: "kaizen",      label: "New kaizen" }
+  };
+  var create = CREATE[action] || null;
+
+  var zc = zoneConfig || {};
+  var zoneIds = Object.keys(zc).sort();
+  var zoneJson = JSON.stringify(zoneIds.map(function (z) {
+    return { id: z, name: String((zc[z] || {}).name || z) };
+  }));
+
+  var caret = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" ' +
+              'stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+
+  var html = '';
+
+  /* The rail only appears on pages that list records; Analytics and the forms
+     have nothing for it to filter. */
+  if (CREATE[action]) {
+    html += '<div class="pm5s-filters" id="pm5sFilters" role="group" aria-label="Filters">\n';
+    html += '  <button type="button" class="pm5s-filter" id="fltZone" aria-haspopup="dialog">' +
+            '<span id="fltZoneTxt">All zones</span>' + caret + '</button>\n';
+    html += '  <button type="button" class="pm5s-filter" id="fltStatus" aria-haspopup="dialog">' +
+            '<span id="fltStatusTxt">Open</span>' + caret + '</button>\n';
+    html += '  <button type="button" class="pm5s-filter" id="fltPriority" aria-haspopup="dialog">' +
+            '<span id="fltPriorityTxt">All priority</span>' + caret + '</button>\n';
+    html += '  <button type="button" class="pm5s-filter-clear" id="fltClear" hidden>Clear</button>\n';
+    html += '</div>\n';
+  }
+
+  if (create) {
+    var href = deployUrl + "?v2=1&action=" + create.action +
+               (token ? "&token=" + token : "") + (zone ? "&zone=" + zone : "");
+    html += '<a class="pm5s-fab" href="' + href + '" aria-label="' + create.label + '" title="' + create.label + '">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" ' +
+            'stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>' +
+            '<span class="pm5s-fab-text">' + create.label + '</span></a>\n';
+  }
+
+  if (!CREATE[action]) return html;
+
+  /* Filter state. sessionStorage, not localStorage: filters should survive a
+     hop between pages, not a return the next morning. */
+  html += '<script>\n';
+  html += '(function(){\n';
+  html += '  var ZONES = ' + zoneJson + ';\n';
+  html += '  var KEY = "pm5s_filters_v1";\n';
+  html += '  var STATUS = [["","All status"],["OPEN","Open"],["IN_PROGRESS","In progress"],["CLOSED","Closed"]];\n';
+  html += '  var PRIO = [["","All priority"],["CRITICAL","Critical"],["HIGH","High"],["MEDIUM","Medium"],["LOW","Low"]];\n';
+  html += '  var f = { zone: "", status: "OPEN", priority: "" };\n';
+  html += '  try { var raw = sessionStorage.getItem(KEY); if (raw) { var o = JSON.parse(raw); if (o) f = o; } } catch(e){}\n';
+  html += '  var ZONE_FROM_URL = ' + JSON.stringify(zone) + ';\n';
+  /* A zone in the URL is an explicit instruction (a QR code, a shared link) and
+     outranks whatever was left in the session. */
+  html += '  if (ZONE_FROM_URL) f.zone = ZONE_FROM_URL;\n';
+  html += '  function save(){ try { sessionStorage.setItem(KEY, JSON.stringify(f)); } catch(e){} }\n';
+  html += '  function label(list, v){ for (var i=0;i<list.length;i++){ if (list[i][0]===v) return list[i][1]; } return list[0][1]; }\n';
+  html += '  function zoneLabel(){ if (!f.zone) return "All zones"; for (var i=0;i<ZONES.length;i++){ if (ZONES[i].id===f.zone) return ZONES[i].id; } return f.zone; }\n';
+  html += '  function paint(){\n';
+  html += '    var z=document.getElementById("fltZone"), st=document.getElementById("fltStatus"), pr=document.getElementById("fltPriority");\n';
+  html += '    if(!z) return;\n';
+  html += '    document.getElementById("fltZoneTxt").textContent = zoneLabel();\n';
+  html += '    document.getElementById("fltStatusTxt").textContent = label(STATUS, f.status);\n';
+  html += '    document.getElementById("fltPriorityTxt").textContent = label(PRIO, f.priority);\n';
+  /* Only non-defaults are marked, so the dot means "you changed this". */
+  html += '    z.classList.toggle("on", !!f.zone);\n';
+  html += '    st.classList.toggle("on", f.status !== "OPEN");\n';
+  html += '    pr.classList.toggle("on", !!f.priority);\n';
+  html += '    var n = (f.zone?1:0) + (f.status!=="OPEN"?1:0) + (f.priority?1:0);\n';
+  html += '    var c = document.getElementById("fltClear");\n';
+  html += '    c.hidden = (n === 0); c.textContent = "Clear (" + n + ")";\n';
+  html += '    apply();\n';
+  html += '  }\n';
+  /* The host page owns its list; the rail just announces the change. */
+  html += '  function apply(){\n';
+  html += '    try { window.PM5S_FILTERS = f; } catch(e){}\n';
+  html += '    try { window.dispatchEvent(new CustomEvent("pm5s:filters", { detail: f })); } catch(e){}\n';
+  html += '  }\n';
+  html += '  function pick(title, opts, cur, cb){\n';
+  html += '    var host=document.createElement("div"); host.className="pm5s-zp-host";\n';
+  html += '    var scrim=document.createElement("div"); scrim.className="pm5s-zp-scrim";\n';
+  html += '    var card=document.createElement("div"); card.className="pm5s-zp"; card.setAttribute("role","dialog");\n';
+  html += '    var h=document.createElement("h4"); h.textContent=title; card.appendChild(h);\n';
+  html += '    var grid=document.createElement("div"); grid.className="pm5s-zp-grid"; card.appendChild(grid);\n';
+  html += '    opts.forEach(function(o){\n';
+  html += '      var b=document.createElement("button"); b.type="button";\n';
+  html += '      b.className="pm5s-zp-z"+(o[0]===cur?" on":"");\n';
+  html += '      b.innerHTML="<b></b><span></span>";\n';
+  html += '      b.querySelector("b").textContent=o[1];\n';
+  html += '      if(o[2]) b.querySelector("span").textContent=o[2];\n';
+  html += '      b.onclick=function(){ cb(o[0]); document.body.removeChild(host); };\n';
+  html += '      grid.appendChild(b);\n';
+  html += '    });\n';
+  html += '    scrim.onclick=function(){ document.body.removeChild(host); };\n';
+  html += '    host.appendChild(scrim); host.appendChild(card); document.body.appendChild(host);\n';
+  html += '  }\n';
+  html += '  document.getElementById("fltZone").onclick=function(){\n';
+  html += '    var o=[["","All zones",""]].concat(ZONES.map(function(z){return [z.id,z.id,z.name];}));\n';
+  html += '    pick("Zone", o, f.zone, function(v){ f.zone=v; save(); paint(); });\n';
+  html += '  };\n';
+  html += '  document.getElementById("fltStatus").onclick=function(){\n';
+  html += '    pick("Status", STATUS.map(function(x){return [x[0],x[1],""];}), f.status, function(v){ f.status=v; save(); paint(); });\n';
+  html += '  };\n';
+  html += '  document.getElementById("fltPriority").onclick=function(){\n';
+  html += '    pick("Priority", PRIO.map(function(x){return [x[0],x[1],""];}), f.priority, function(v){ f.priority=v; save(); paint(); });\n';
+  html += '  };\n';
+  html += '  document.getElementById("fltClear").onclick=function(){ f={zone:"",status:"OPEN",priority:""}; save(); paint(); };\n';
+  html += '  paint();\n';
+  html += '})();\n';
+  html += '<\/script>\n';
+
+  return html;
+}
+
 function buildBottomNav_(deployUrl, action, token, zone) {
   // Sanitize inputs
   deployUrl = String(deployUrl || "").replace(/['"<>]/g, "");
@@ -614,48 +771,53 @@ function buildBottomNav_(deployUrl, action, token, zone) {
   var zoneParam = zone ? "&zone=" + zone : "";
   var tokenParam = token ? "&token=" + token : "";
 
-  /* Lucide-style line icons at 24x24, stroke 1.75 throughout. Emoji were the
-     previous icons and they render as a different glyph on every Android skin,
-     iOS version and Windows build — the nav literally looked like a different
-     product per device, which is the opposite of "visible on all devices". */
+  /* Inline SVG at 24x24, stroke 1.75. Emoji rendered as a different glyph on
+     every Android skin and Windows build, so the bar looked like a different
+     product per device. */
   var ICONS = {
     insights: '<path d="M3 3v18h18"/><path d="m7 15 3.5-3.5 3 3L21 7"/>',
-    quickaudit: '<path d="M9 11.5 11.5 14 16 9"/><rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M8 2v4M16 2v4M3 10h18"/>',
-    actionlist: '<path d="M9 5h9M9 12h9M9 19h9"/><path d="m3.5 5 1.2 1.2L7 4M3.5 12l1.2 1.2L7 11M3.5 19l1.2 1.2L7 18"/>',
+    audits: '<rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M8 2v4M16 2v4M3 10h18"/><path d="m8.5 14.5 2 2 4-4"/>',
+    issues: '<path d="M12 9v4.5"/><circle cx="12" cy="17" r="1"/><path d="M10.3 3.9 2.4 17.6A2 2 0 0 0 4.1 20.6h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/>',
     kaizen: '<path d="M9 18h6"/><path d="M10 21.5h4"/><path d="M12 2.5a6.5 6.5 0 0 0-3.8 11.8c.5.4.8 1 .8 1.7h6c0-.7.3-1.3.8-1.7A6.5 6.5 0 0 0 12 2.5Z"/>',
-    gemba: '<path d="M2.5 12S5.5 5.5 12 5.5 21.5 12 21.5 12 18.5 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.75"/>'
+    tasks: '<path d="M9 5h10M9 12h10M9 19h10"/><path d="m3.5 5 1.2 1.2L7 4M3.5 12l1.2 1.2L7 11M3.5 19l1.2 1.2L7 18"/>',
+    walks: '<path d="M2.5 12S5.5 5.5 12 5.5 21.5 12 21.5 12 18.5 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.75"/>'
   };
 
   function svg(key) {
-    return '<span class="bottom-nav-icon" aria-hidden="true">' +
+    return '<span class="bn-ico" aria-hidden="true">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" ' +
       'stroke-linecap="round" stroke-linejoin="round">' + (ICONS[key] || '') + '</svg></span>';
   }
 
-  /* Analytics leads. Home was tab one and takes ~12s to render against ~0.4s
-     for analytics, so it was both the slowest page and the least useful landing
-     — measured, not assumed. Analytics answers "how is the plant doing", which
-     is the question anyone opening this app actually has.
+  /* Six record destinations, each its own page. Analytics leads because it is
+     the landing page and the fast one (~423ms against ~11,975ms for the old
+     home). NC and Red Tag share "Issues" and split with a segmented control
+     inside — one tab, two lists.
      [action, iconKey, label] */
   var tabs = [
-    ["insights", "insights", "Analytics"],
-    ["quickaudit", "quickaudit", "Audit"],
-    ["actionlist", "actionlist", "Actions"],
-    ["kaizenboard", "kaizen", "Kaizen"],
-    ["gembaboard", "gemba", "Gemba"]
+    ["insights",   "insights", "Analytics"],
+    ["audits",     "audits",   "Audits"],
+    ["issues",     "issues",   "Issues"],
+    ["kaizenlist", "kaizen",   "Kaizen"],
+    ["tasks",      "tasks",    "Tasks"],
+    ["walks",      "walks",    "Walks"]
   ];
 
-  /* Several routes render one of these five pages under a different action
-     name; without aliasing, those pages showed no lit tab at all and the user
-     lost their place. 'home' maps to Analytics because Home is retired as a
-     destination and Analytics replaced it. */
-  var ALIAS = { kanban: "actionlist", redtag: "actionlist", redtagboard: "actionlist",
-                raiseredtag: "actionlist", sqcdp: "insights", charts: "insights",
-                analytics: "insights", home: "insights",
-                kaizen: "kaizenboard", gembawalk: "gembaboard" };
+  /* Many routes render one of these six under a different action name; without
+     aliasing, those pages lit no tab at all and the user lost their place. */
+  var ALIAS = {
+    home: "insights", sqcdp: "insights", charts: "insights", analytics: "insights",
+    sqcdpboard: "insights",
+    quickaudit: "audits", audithistory: "audits",
+    actionlist: "issues", kanban: "issues", redtag: "issues",
+    redtagboard: "issues", raiseredtag: "issues", capa: "issues",
+    kaizen: "kaizenlist", kaizenboard: "kaizenlist",
+    taskboard: "tasks",
+    gembawalk: "walks", gembaboard: "walks"
+  };
   var activeAction = ALIAS[action] || action;
 
-  var html = '<nav class="bottom-nav" role="navigation" aria-label="Main">\n';
+  var html = '<nav class="bottom-nav" id="pm5sNav" role="navigation" aria-label="Main">\n';
   html += '  <div class="bottom-nav-inner">\n';
 
   for (var i = 0; i < tabs.length; i++) {
@@ -663,15 +825,44 @@ function buildBottomNav_(deployUrl, action, token, zone) {
     var isActive = (tabAction === activeAction);
     var href = deployUrl + "?v2=1&action=" + tabAction + tokenParam + zoneParam;
 
-    html += '    <a href="' + href + '" class="bottom-nav-item' + (isActive ? ' active' : '') + '"' +
-            (isActive ? ' aria-current="page"' : '') + '>\n';
+    /* aria-label carries the name permanently: the visible label collapses
+       after 3s, and a screen reader must never depend on a timer. */
+    html += '    <a href="' + href + '" class="bn-item' + (isActive ? ' active' : '') + '"' +
+            ' aria-label="' + label + '"' + (isActive ? ' aria-current="page"' : '') + '>\n';
     html += '      ' + svg(iconKey) + '\n';
-    html += '      <span class="bottom-nav-label">' + label + '</span>\n';
+    html += '      <span class="bn-lbl">' + label + '</span>\n';
     html += '    </a>\n';
   }
 
   html += '  </div>\n';
   html += '</nav>\n';
+
+  /* Labels show on arrival, then collapse — they orient you on landing and get
+     out of the way afterwards, returning on tap, hover or keyboard focus.
+     prefers-reduced-motion keeps them permanently: a timed disappearance is
+     precisely what that preference exists to prevent. */
+  html += '<script>\n';
+  html += '(function(){\n';
+  html += '  var nav = document.getElementById("pm5sNav");\n';
+  html += '  if (!nav) return;\n';
+  html += '  var reduce = false;\n';
+  html += '  try { reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch(e){}\n';
+  html += '  if (reduce) { nav.classList.add("labels-locked"); return; }\n';
+  html += '  var t = null;\n';
+  html += '  function collapse(){ nav.classList.add("compact"); }\n';
+  html += '  function expand(hold){\n';
+  html += '    nav.classList.remove("compact");\n';
+  html += '    if (t) clearTimeout(t);\n';
+  html += '    t = setTimeout(collapse, hold || 3000);\n';
+  html += '  }\n';
+  html += '  expand(3000);\n';
+  html += '  nav.addEventListener("pointerenter", function(){ if (t) clearTimeout(t); nav.classList.remove("compact"); });\n';
+  html += '  nav.addEventListener("pointerleave", function(){ expand(1200); });\n';
+  html += '  nav.addEventListener("focusin", function(){ if (t) clearTimeout(t); nav.classList.remove("compact"); });\n';
+  html += '  nav.addEventListener("focusout", function(){ expand(1200); });\n';
+  html += '  nav.addEventListener("touchstart", function(){ expand(2500); }, {passive:true});\n';
+  html += '})();\n';
+  html += '<\/script>\n';
   return html;
 }
 function buildSidebar_(deployUrl, action, token, zone, zoneConfig) {
@@ -726,7 +917,11 @@ function buildSidebar_(deployUrl, action, token, zone, zoneConfig) {
   html += '  var zoneBtn = document.getElementById("pm5s-zone-btn");\n';
   html += '  if (zoneBtn) {\n';
   html += '    var lbl = document.getElementById("pm5s-zone-label");\n';
-  html += '    if (lbl && (!lbl.textContent || lbl.textContent === "--")) {\n';
+  /* Placeholder-aware. The chip shows "Select" when no zone is set (it showed
+     "--" before), and this guard still tested that one literal — so a saved
+     zone was never restored and every page reverted to Select. */
+  html += '    var PLACEHOLDERS = { "--": 1, "Select": 1, "": 1 };\n';
+  html += '    if (lbl && PLACEHOLDERS[String(lbl.textContent).trim()]) {\n';
   html += '      try {\n';
   html += '        var rem = localStorage.getItem("pm5s_zone");\n';
   html += '        if (rem) lbl.textContent = rem;\n';

@@ -1391,10 +1391,10 @@ body {
 
 <!-- VIEW TABS (record types are collapsible sections in the list itself) -->
 <div class="ah-type-tabs" id="ahTypeTabs">
-  <button class="ah-type-tab active" data-type="ALL"     onclick="setTypeTab(this)">Records <span class="tab-badge is-pending" id="cntAll">–</span></button>
-  <button class="ah-type-tab"        data-type="AUDITS"  onclick="setTypeTab(this)">Audits</button>
-  <button class="ah-type-tab"        data-type="WALKS"   onclick="setTypeTab(this)">Walks</button>
-  <button class="ah-type-tab"        data-type="SUMMARY" onclick="setTypeTab(this)">Summary</button>
+  <!-- Type tabs removed: each record type has its own bottom-nav page now, and
+       Summary folded into Analytics. Four tabs duplicating five nav
+       destinations was two navigations for one job. The strip stays in the DOM
+       only as the anchor the page-title row renders into. -->
 </div>
 
 <!-- FILTERS (status + priority + zone) — folded behind the Filters toggle so the
@@ -1408,7 +1408,7 @@ body {
 <!-- Status tabs are ALWAYS visible: they are how you reach In Progress and
      Closed records. They used to sit inside .ah-filter-row (display:none until
      the Filters toggle was pressed), which made those two views unreachable. -->
-<div class="ah-status-tabs" id="ahStatusTabs">
+<div class="ah-status-tabs" id="ahStatusTabs" style="display:none">
   <button class="ah-status-tab active" data-status="OPEN"        onclick="setStatusTab(this)">Open        <span class="tab-badge is-pending" id="cntOPEN">–</span></button>
   <button class="ah-status-tab"        data-status="IN_PROGRESS" onclick="setStatusTab(this)">In Progress <span class="tab-badge is-pending" id="cntIN_PROGRESS">–</span></button>
   <button class="ah-status-tab"        data-status="CLOSED"      onclick="setStatusTab(this)">Closed      <span class="tab-badge is-pending" id="cntCLOSED">–</span></button>
@@ -1694,7 +1694,29 @@ function escHtml(s) {
 
 /* ── state ── */
 var CURRENT_USER = '<?= (typeof params !== "undefined" && params && params.currentUser) ? params.currentUser : "" ?>';
-var _filters = { type: '', status: 'OPEN', priority: '', zoneId: '' };
+/* params.only arrives from the per-type routes (audits / issues / tasks /
+   walks / kaizenlist) and pins this page to one record type. The shared filter
+   rail then owns zone, status and priority for every page alike, so the hub no
+   longer keeps its own copies of those controls. */
+var PAGE_TYPE = '<?= (typeof params !== "undefined" && params && params.only) ? String(params.only).replace(/[^A-Z_]/g, "") : "" ?>';
+var _filters = { type: PAGE_TYPE, status: 'OPEN', priority: '', zoneId: '' };
+
+/* Adopt whatever the rail already holds, then follow it. Without this a filter
+   set on Tasks would be visibly active in the rail while this list ignored it. */
+(function () {
+  function adopt(f) {
+    if (!f) return;
+    _filters.zoneId = f.zone || '';
+    _filters.status = (f.status === undefined) ? 'OPEN' : f.status;
+    _filters.priority = f.priority || '';
+    _filters.type = PAGE_TYPE;          // the page's type always wins
+    if (typeof applyFiltersAndRender_ === 'function' && window._allItems) {
+      applyFiltersAndRender_();
+    }
+  }
+  try { if (window.PM5S_FILTERS) adopt(window.PM5S_FILTERS); } catch (e) {}
+  window.addEventListener('pm5s:filters', function (e) { adopt(e.detail); });
+})();
 var _lastCounts = { byType:{NC:0,TASK:0,RED_TAG:0,KAIZEN:0,GEMBA:0,AUDIT:0}, byStatus:{OPEN:0,IN_PROGRESS:0,CLOSED:0}, byPriority:{}, total:0 };
 var _rcaPendingId = null;
 
@@ -1707,6 +1729,8 @@ function setTypeTab(btn) {
   var isWalks = (t === 'WALKS');
   var isSummary = (t === 'SUMMARY');
   var own = isAudits || isWalks || isSummary;   // views with their own renderer
+  /* Status lives in the shared filter rail now; showing it here too meant two
+     controls for one value that could disagree on screen. */
   var st = document.getElementById('ahStatusTabs');
   var fr = document.querySelector('.ah-filter-row');
   var ft = document.getElementById('ahFilterToggle');

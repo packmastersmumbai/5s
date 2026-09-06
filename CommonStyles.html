@@ -273,7 +273,9 @@ body {
   color: var(--pm-primary);
   padding: 12px 16px;
   position: sticky;
-  top: 0;
+  /* Clears the 44px fixed top bar. At top:0 a sticky header slid underneath it
+     and the page title disappeared behind the zone chip on scroll. */
+  top: 44px;
   z-index: 100;
   border-bottom: 1px solid var(--border);
   box-shadow: 0 1px 0 var(--border-light), 0 2px 8px rgba(0,0,0,.05);
@@ -1099,67 +1101,51 @@ body.lang-en .criterion-label-hi { display: none; }
 }
 
 /* Zone switcher pill in sidebar header */
-.sidebar-zone-switcher {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 52px;
-  height: 44px;
-  color: rgba(255,255,255,.7);
-  font-size: 12px;
-  margin-bottom: 12px;
-}
+/* rail switcher styles removed with the rail — see .pm5s-zone-chip */
 
-.sidebar.expanded .sidebar-zone-switcher {
-  justify-content: flex-start;
-  width: 100%;
-  padding-left: 12px;
-  padding-right: 12px;
-  gap: 8px;
-}
 
-/* WORKING ZONE — the control that decides which zone audits, kaizen and new
-   records belong to.
+/* ── TOP BAR ───────────────────────────────────────────────────────────────
+   A 44px strip carrying the product mark and the WORKING ZONE chip. The zone
+   used to live in the 52px rail; the rail is gone but the control cannot be —
+   audits, kaizen and every new record key off it. A chip in a slim bar keeps it
+   permanently visible at a fraction of the space, on every device. */
+.pm5s-topbar {
+  position: fixed; top: 0; left: 0; right: 0; height: 44px; z-index: 105;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; padding: 0 12px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+}
+.pm5s-topbar-brand {
+  font-family: var(--font-display, inherit);
+  font-size: 13.5px; font-weight: 500; letter-spacing: .01em;
+  color: var(--text-secondary); white-space: nowrap;
+}
+.pm5s-topbar-brand b { font-weight: 700; color: var(--text-primary); }
 
-   It lived in the 52px rail as a 44px dark box reading "--" on a dark ground:
-   present, but it read as a smudge in the corner rather than a control anyone
-   would find. It is now a labelled pill in the accent colour with the word
-   ZONE above the code, so it is legible at a glance and unmistakably
-   interactive. The picker still mounts on <body>, since the rail clips. */
-#pm5s-zone-btn {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 0; width: 46px; min-height: 52px;
-  /* 16px of headroom so the pill clears the GAS banner's shadow and does not
-     sit flush against the top edge, and a rule below it so it reads as the
-     working-zone control rather than the first nav icon. */
-  margin: 16px auto 12px; padding: 5px 2px;
-  position: relative;
-  cursor: pointer; font-family: var(--font-mono, monospace);
-  color: #0F172A; background: var(--pm-accent, #F59E0B);
-  border: 0; border-radius: 9px;
-  box-shadow: 0 2px 8px rgba(245,158,11,.35);
+/* The chip states its label AND its value: a bare "Z-07" reads as decoration,
+   and the word Zone is what tells a first-time user the control exists. */
+.pm5s-zone-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  min-height: 32px; padding: 0 10px;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--bg-page); color: var(--text-primary);
+  font-family: inherit; font-size: 13px; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+  transition: border-color .18s ease, background-color .18s ease;
 }
-#pm5s-zone-btn .zb-cap {
-  font-size: 8.5px; font-weight: 800; letter-spacing: .06em;
-  text-transform: uppercase; opacity: .85; line-height: 1.1;
+.pm5s-zone-chip:hover { border-color: var(--pm-accent); background: var(--bg-card); }
+.pm5s-zone-chip:focus-visible { outline: 2px solid var(--pm-primary); outline-offset: 2px; }
+.pm5s-zone-chip .zb-cap {
+  font-size: 9.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text-muted);
 }
-/* A hairline under the zone control separates it from the nav icons; without it
-   the pill read as simply the first, oddly-coloured item in the list. */
-#pm5s-zone-btn::after {
-  content: ""; position: absolute; left: 50%; transform: translateX(-50%);
-  bottom: -7px; width: 22px; height: 1px; background: rgba(255,255,255,.16);
-}
-.sidebar.expanded #pm5s-zone-btn::after { width: calc(100% - 20px); }
-#pm5s-zone-btn #pm5s-zone-label {
-  font-size: 12px; font-weight: 800; letter-spacing: .2px; line-height: 1.25;
-}
-#pm5s-zone-btn:hover { filter: brightness(1.08); }
-#pm5s-zone-btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-.sidebar.expanded #pm5s-zone-btn {
-  width: calc(100% - 20px); flex-direction: row; gap: 7px; padding: 8px 10px;
-}
-.sidebar.expanded #pm5s-zone-btn .zb-cap { font-size: 9px; }
-.sidebar.expanded #pm5s-zone-btn #pm5s-zone-label { font-size: 13px; }
+.pm5s-zone-chip svg { width: 14px; height: 14px; color: var(--text-muted); flex-shrink: 0; }
+
+/* Every page sits under the bar. */
+body { padding-top: 44px; }
+
+@media (prefers-reduced-motion: reduce) { .pm5s-zone-chip { transition: none; } }
 
 .pm5s-zp-scrim { position: fixed; inset: 0; background: rgba(15,23,42,.55); z-index: 998; }
 .pm5s-zp {
@@ -1195,20 +1181,37 @@ body.lang-en .criterion-label-hi { display: none; }
 .sidebar.expanded .sidebar-zone-name { display: block; }
 .sidebar.expanded #pm5s-zone-select { width: 62px; }
 
-/* Mobile Bottom Nav (5-tab bar) */
+/* ── BOTTOM NAV — the only navigation, every screen size ──────────────────
+   The 52px desktop rail was a second nav carrying the same five destinations,
+   so every change had to be made twice and desktop users lost a strip of every
+   page to it. One bar means one muscle memory and one thing to maintain.
+   Centred and width-capped so it reads as a control on a 1440px monitor rather
+   than a stretched phone component. */
 .bottom-nav {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   display: flex;
-  justify-content: space-around;
-  align-items: center;
-  height: 56px;
+  justify-content: center;
+  align-items: stretch;
+  gap: 2px;
+  height: 60px;
   background-color: var(--bg-card);
   border-top: 1px solid var(--border);
   z-index: 110;
-  padding-bottom: env(safe-area-inset-bottom);
+  padding: 0 4px env(safe-area-inset-bottom);
+  /* A hairline lift so the bar reads as floating above the page, not welded
+     to it — the page scrolls under it and needs the separation. */
+  box-shadow: 0 -1px 0 rgba(15,23,42,.04), 0 -8px 24px rgba(15,23,42,.05);
+}
+
+.bottom-nav-inner {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  max-width: 560px;   /* five 44px+ targets never need more than this */
+  gap: 2px;
 }
 
 .bottom-nav-item {
@@ -1217,27 +1220,55 @@ body.lang-en .criterion-label-hi { display: none; }
   align-items: center;
   justify-content: center;
   flex: 1;
-  height: 56px;
+  /* 44px is the accessibility floor; 60px gives a gloved hand real margin. */
+  min-height: 44px;
+  height: 60px;
   text-decoration: none;
   color: var(--text-muted);
-  font-size: 12px;
-  gap: 4px;
-  transition: all 0.2s ease;
-  border-radius: 8px 8px 0 0;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: .01em;
+  gap: 3px;
+  position: relative;
+  border-radius: 10px;
+  /* Colour only — a transform here would shift the whole bar under a thumb. */
+  transition: color .18s ease, background-color .18s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.bottom-nav-item:hover {
-  color: var(--pm-primary);
-  background-color: var(--bg-page);
+.bottom-nav-item:hover { color: var(--pm-primary); background-color: var(--bg-page); }
+.bottom-nav-item:active { background-color: var(--border-light); }
+.bottom-nav-item:focus-visible {
+  outline: 2px solid var(--pm-primary);
+  outline-offset: -2px;
 }
 
-.bottom-nav-item.active {
-  color: var(--pm-primary);
-  font-weight: 600;
+.bottom-nav-item.active { color: var(--pm-primary); font-weight: 600; }
+/* The active tab is marked by a bar at the top edge as well as by colour —
+   colour alone fails for anyone who cannot distinguish it. */
+.bottom-nav-item.active::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 26px; height: 2.5px;
+  border-radius: 0 0 3px 3px;
+  background: var(--pm-primary);
 }
 
+/* SVG icons, not emoji: emoji render differently on every Android skin, iOS
+   version and Windows build, so the nav looked like a different product on
+   each device. */
 .bottom-nav-icon {
-  font-size: 20px;
+  width: 22px; height: 22px;
+  display: block;
+  flex-shrink: 0;
+}
+.bottom-nav-icon svg { width: 100%; height: 100%; display: block; }
+.bottom-nav-label { line-height: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bottom-nav-item { transition: none; }
 }
 
 /* Zone Switcher Top Bar (mobile) */
@@ -1378,41 +1409,17 @@ body.lang-en .criterion-label-hi { display: none; }
   gap: 4px;
 }
 
-/* Responsive: Hide sidebar on mobile, show bottom nav only */
-@media (max-width: 768px) {
-  .sidebar {
-    display: none;
-  }
+/* The sidebar is retired — the bottom bar serves every size now. The rule is
+   kept (rather than the markup deleted everywhere at once) so any page still
+   emitting a rail hides it instead of showing two navigations. */
+.sidebar { display: none !important; }
 
-  body {
-    padding-bottom: 60px;
-  }
+/* Every page clears the bar, at every width. */
+/* padding-top is set with the top bar above; only the bottom clearance here. */
+body { padding-bottom: 68px; }
 
-  body.top-bar-present {
-    padding-top: 48px;
-  }
-}
-
-/* Responsive: Hide bottom nav on desktop, show sidebar */
-@media (min-width: 768px) {
-  .bottom-nav {
-    display: none;
-  }
-
-  body {
-    margin-left: 52px;
-  }
-
-  .pm-header {
-    left: 52px;
-    right: 0;
-    width: auto;
-  }
-
-  body.sidebar-expanded {
-    margin-left: 200px;
-  }
-}
+/* body.sidebar-expanded is no longer emitted; the rule is dropped with the rail
+   so a stale class cannot indent the whole page by 200px. */
 
 /* Animate.css integration */
 .animate__animated {

@@ -611,52 +611,69 @@ function buildBottomNav_(deployUrl, action, token, zone) {
   token = String(token || "").replace(/[^a-zA-Z0-9\-_.]/g, "");
   action = String(action || "").toLowerCase();
 
-  // Zone parameter for all links
   var zoneParam = zone ? "&zone=" + zone : "";
   var tokenParam = token ? "&token=" + token : "";
 
-  // Tab definitions: [action, icon, label]
-  var tabs = [
-    ["home", "🏠", "Home"],
-    ["quickaudit", "✓", "Audit"],
-    ["actionlist", "📋", "Actions"],
-    ["insights", "📈", "Analytics"],
-    ["more", "⋯", "More"]
-  ];
+  /* Lucide-style line icons at 24x24, stroke 1.75 throughout. Emoji were the
+     previous icons and they render as a different glyph on every Android skin,
+     iOS version and Windows build — the nav literally looked like a different
+     product per device, which is the opposite of "visible on all devices". */
+  var ICONS = {
+    insights: '<path d="M3 3v18h18"/><path d="m7 15 3.5-3.5 3 3L21 7"/>',
+    quickaudit: '<path d="M9 11.5 11.5 14 16 9"/><rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M8 2v4M16 2v4M3 10h18"/>',
+    actionlist: '<path d="M9 5h9M9 12h9M9 19h9"/><path d="m3.5 5 1.2 1.2L7 4M3.5 12l1.2 1.2L7 11M3.5 19l1.2 1.2L7 18"/>',
+    kaizen: '<path d="M9 18h6"/><path d="M10 21.5h4"/><path d="M12 2.5a6.5 6.5 0 0 0-3.8 11.8c.5.4.8 1 .8 1.7h6c0-.7.3-1.3.8-1.7A6.5 6.5 0 0 0 12 2.5Z"/>',
+    gemba: '<path d="M2.5 12S5.5 5.5 12 5.5 21.5 12 21.5 12 18.5 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.75"/>'
+  };
 
-  var html = '<nav class="bottom-nav">\n';
-
-  for (var i = 0; i < tabs.length; i++) {
-    var tab = tabs[i];
-    var tabAction = tab[0];
-    var icon = tab[1];
-    var label = tab[2];
-    var isActive = (tabAction === action) ? " active" : "";
-    var href = deployUrl + "?v2=1&action=" + tabAction + tokenParam + zoneParam;
-
-    html += '  <a href="' + href + '" class="bottom-nav-item' + isActive + '">\n';
-    html += '    <span class="bottom-nav-icon">' + icon + '</span>\n';
-    html += '    <span class="bottom-nav-label">' + label + '</span>\n';
-    html += '  </a>\n';
+  function svg(key) {
+    return '<span class="bottom-nav-icon" aria-hidden="true">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" ' +
+      'stroke-linecap="round" stroke-linejoin="round">' + (ICONS[key] || '') + '</svg></span>';
   }
 
+  /* Analytics leads. Home was tab one and takes ~12s to render against ~0.4s
+     for analytics, so it was both the slowest page and the least useful landing
+     — measured, not assumed. Analytics answers "how is the plant doing", which
+     is the question anyone opening this app actually has.
+     [action, iconKey, label] */
+  var tabs = [
+    ["insights", "insights", "Analytics"],
+    ["quickaudit", "quickaudit", "Audit"],
+    ["actionlist", "actionlist", "Actions"],
+    ["kaizenboard", "kaizen", "Kaizen"],
+    ["gembaboard", "gemba", "Gemba"]
+  ];
+
+  /* Several routes render one of these five pages under a different action
+     name; without aliasing, those pages showed no lit tab at all and the user
+     lost their place. 'home' maps to Analytics because Home is retired as a
+     destination and Analytics replaced it. */
+  var ALIAS = { kanban: "actionlist", redtag: "actionlist", redtagboard: "actionlist",
+                raiseredtag: "actionlist", sqcdp: "insights", charts: "insights",
+                analytics: "insights", home: "insights",
+                kaizen: "kaizenboard", gembawalk: "gembaboard" };
+  var activeAction = ALIAS[action] || action;
+
+  var html = '<nav class="bottom-nav" role="navigation" aria-label="Main">\n';
+  html += '  <div class="bottom-nav-inner">\n';
+
+  for (var i = 0; i < tabs.length; i++) {
+    var tabAction = tabs[i][0], iconKey = tabs[i][1], label = tabs[i][2];
+    var isActive = (tabAction === activeAction);
+    var href = deployUrl + "?v2=1&action=" + tabAction + tokenParam + zoneParam;
+
+    html += '    <a href="' + href + '" class="bottom-nav-item' + (isActive ? ' active' : '') + '"' +
+            (isActive ? ' aria-current="page"' : '') + '>\n';
+    html += '      ' + svg(iconKey) + '\n';
+    html += '      <span class="bottom-nav-label">' + label + '</span>\n';
+    html += '    </a>\n';
+  }
+
+  html += '  </div>\n';
   html += '</nav>\n';
   return html;
 }
-
-/**
- * Generates desktop-only sidebar navigation (>768px)
- * Icon-only (52px width), expands to 200px on hover.
- * Saves expanded state to localStorage.
- * Includes zone switcher pill at top.
- *
- * @param {string} deployUrl — deployment URL for navigation links
- * @param {string} action — current page action (for active state)
- * @param {string} token — session token
- * @param {string} zone — current zone ID
- * @param {Object} zoneConfig — full zone configuration (used for zone switcher)
- * @returns {string} HTML sidebar + script
- */
 function buildSidebar_(deployUrl, action, token, zone, zoneConfig) {
   // Sanitize inputs
   deployUrl = String(deployUrl || "").replace(/['"<>]/g, "");
@@ -667,19 +684,13 @@ function buildSidebar_(deployUrl, action, token, zone, zoneConfig) {
   var zoneParam = zone ? "&zone=" + zone : "";
   var tokenParam = token ? "&token=" + token : "";
 
-  // Sidebar menu items: [action, icon, label]
-  var items = [
-    ["home", "&#x1F3E0;", "Home"],
-    ["quickaudit", "&#x2713;", "Audit"],
-    ["actionlist", "&#x1F4CB;", "Actions"],
-    ["insights", "&#x1F4C8;", "Analytics"],
-    ["kaizen", "&#x1F4A1;", "Kaizen"],
-    ["gembawalk", "&#x1F441;", "Gemba"],
-    ["settings", "&#x2699;", "Settings"]
-  ];
-
-  // Build sidebar HTML
-  var html = '<aside class="sidebar" id="pm5s-sidebar">\n';
+  /* The 52px rail is retired — the bottom bar navigates on every screen size
+     now. What must survive is the WORKING ZONE control: audits, kaizen and new
+     records all key off it, and it was only ever in the rail. It becomes a chip
+     in a slim top bar, so it stays visible without costing a nav column.
+     The picker dialog below is unchanged; only its container moved. */
+  var html = '<div class="pm5s-topbar">\n';
+  html += '  <span class="pm5s-topbar-brand">PackMasters <b>5S</b></span>\n';
 
   /* Zone selector, above Home.
      This was a static span that printed "Z-01" whether or not a zone had been
@@ -695,27 +706,15 @@ function buildSidebar_(deployUrl, action, token, zone, zoneConfig) {
      overflow:hidden and appearance:none left no arrow, so it read as a
      static badge and its option list was cramped. A button that opens a
      full picker is unambiguous and cannot be clipped by the rail. */
-  html += '  <button type="button" class="sidebar-zone-switcher" id="pm5s-zone-btn" title="Change working zone" aria-haspopup="dialog">\n';
+  html += '  <button type="button" class="pm5s-zone-chip" id="pm5s-zone-btn" title="Change working zone" aria-haspopup="dialog">\n';
   html += '    <span class="zb-cap">Zone</span>\n';
-  html += '    <span id="pm5s-zone-label">' + (current || '--') + '</span>\n';
+  html += '    <span id="pm5s-zone-label">' + (current || 'Select') + '</span>\n';
+  html += '    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>\n';
   html += '  </button>\n';
 
-  // Menu items
-  for (var i = 0; i < items.length; i++) {
-    var item = items[i];
-    var itemAction = item[0];
-    var icon = item[1];
-    var label = item[2];
-    var isActive = (itemAction === action) ? " active" : "";
-    var href = deployUrl + "?v2=1&action=" + itemAction + tokenParam + zoneParam;
-
-    html += '  <a href="' + href + '" class="sidebar-item' + isActive + '" title="' + label + '">\n';
-    html += '    <span class="sidebar-item-icon">' + icon + '</span>\n';
-    html += '    <span class="sidebar-item-label">' + label + '</span>\n';
-    html += '  </a>\n';
-  }
-
-  html += '</aside>\n';
+  /* No menu items here any more: duplicating the five destinations in a second
+     nav meant every change had to be made twice and they drifted apart. */
+  html += '</div>\n';
 
   // Sidebar state management script
   html += '<script>\n';

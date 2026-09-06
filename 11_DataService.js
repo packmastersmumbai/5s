@@ -2288,3 +2288,40 @@ function getAuditDetail(submissionId) {
     return { found: true, header: header, items: items };
   }, "getAuditDetail", { found: false });
 }
+
+/**
+ * Compact per-zone state for the ZoneSelector list: score, open NCs, red tags.
+ *
+ * The selector is the screen a floor worker starts from and it showed only a
+ * code and a name — the zone's actual condition was a page away. This returns
+ * only what a 44px row can show, cached, so the list stays instant and the
+ * numbers arrive a moment later.
+ *
+ * No session required: the zone selector is deliberately anonymous (QR access),
+ * and these are aggregate counts, not records.
+ */
+function getZoneSelectorStats() {
+  return v2SafeExecute_(function () {
+    var CACHE_KEY = 'pm5s_zonesel_stats_v1';
+    try {
+      var hit = CacheService.getScriptCache().get(CACHE_KEY);
+      if (hit) return JSON.parse(hit);
+    } catch (e) {}
+
+    var grid = (typeof _tg5sZoneGrid_ === 'function') ? _tg5sZoneGrid_() : [];
+    var out = {};
+    (grid || []).forEach(function (z) {
+      out[z.id] = {
+        s: (z.pctScore === null || z.pctScore === undefined) ? null : Math.round(z.pctScore),
+        n: (z.openCAPAs || 0),          // open NCs
+        r: (z.activeRedTags || 0),      // active red tags
+        d: z.submitted ? 1 : 0          // audit done today
+      };
+    });
+
+    /* 10 minutes: long enough that a burst of QR scans costs one read, short
+       enough that a supervisor watching the board sees an audit land. */
+    try { CacheService.getScriptCache().put(CACHE_KEY, JSON.stringify(out), 600); } catch (e) {}
+    return out;
+  }, 'getZoneSelectorStats', {}, 'low');
+}

@@ -32,30 +32,69 @@
   }
   .zs-floor-hdr:first-child { margin-top: 0; }
 
-  /* Compact responsive row list — fills width: 1 col mobile → many on desktop */
+  /* Rows were 220px wide and 46px tall to carry a code and a truncated name —
+     dead space to the right of every one, and the zone's actual state (score,
+     open NCs, red tags) nowhere on the screen a worker starts from. 260px lets
+     the longest zone name sit on one line WITH its numbers. */
   .zone-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 6px;
+    /* 320px, not 260. At 260 the numbers pushed the name into an ellipsis on
+       almost every row ("Security ...", "Conferen..."), which is backwards: this
+       is the screen where a worker finds their zone BY NAME. Fewer columns and
+       a readable name beats one more column of truncated ones. */
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 5px;
   }
   .zone-row {
-    display: flex; align-items: center; gap: 9px;
-    padding: 8px 11px; min-height: 40px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; min-height: 44px;   /* 44px: the touch-target floor */
     background: var(--bg-card); border: 1px solid var(--bg-card-2);
     border-radius: 8px; text-decoration: none; cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     transition: border-color .12s, background .12s;
   }
   .zone-row:active, .zone-row:hover { border-color: var(--pm-accent); background: var(--bg-card-2); }
+  .zone-row:focus-visible { outline: 3px solid var(--border-focus); outline-offset: 2px; }
   .zone-row .zid {
     font-family: var(--font-mono); font-size: 11px; font-weight: 800;
     color: var(--pm-accent); flex-shrink: 0; min-width: 34px;
   }
   .zone-row .znm {
     font-size: 12.5px; font-weight: 600; color: var(--text-primary);
-    flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    /* flex-shrink:0 up to its content: the stats yield first, so a long zone
+       name stays whole and the pills drop off the end instead. */
+    flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .zone-row .chev { color: var(--text-muted); flex-shrink: 0; opacity: .6; }
+
+  /* ── Live state, loaded after the list paints ─────────────────────────────
+     The score is the number a zone is judged on, so it is the only thing given
+     colour. Counts stay neutral and only appear when non-zero: a row of "0 0 0"
+     is noise that trains people to stop reading the row. */
+  .zs-stats {
+    display: flex; align-items: center; gap: 5px;
+    flex: 0 1 auto; min-width: 0; overflow: hidden;
+    margin-left: auto;   /* sits hard against the chevron, never mid-row */
+  }
+  .zs-score {
+    font-family: var(--font-mono); font-size: 11.5px; font-weight: 800;
+    min-width: 34px; text-align: right; letter-spacing: -.02em;
+  }
+  .zs-score.g { color: #15803d; }
+  .zs-score.a { color: #b45309; }
+  .zs-score.r { color: #b91c1c; }
+  .zs-score.n { color: var(--text-muted); font-weight: 600; }
+  .zs-pill {
+    display: inline-flex; align-items: center; gap: 2px;
+    font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+    padding: 1px 5px; border-radius: 5px; line-height: 1.5;
+    background: var(--bg-card-2); color: var(--text-secondary);
+  }
+  .zs-pill.warn { background: #fef2f2; color: #b91c1c; }
+  /* A zone with no audit today is the one thing a supervisor scans for, so it
+     gets a mark rather than being silently identical to a zone at 100%. */
+  .zs-pending { width: 6px; height: 6px; border-radius: 50%; background: var(--pm-accent); flex-shrink: 0; }
+  .zs-legend { font-size: 10.5px; color: var(--text-muted); margin: 2px 2px 10px; }
   .zs-sheet { position: fixed; inset: 0; z-index: 90; background: rgba(15,23,42,.55);
     display: flex; align-items: flex-end; justify-content: center; padding: 12px; }
   .zs-sheet[hidden] { display: none; }
@@ -156,8 +195,13 @@
       a.target = '_top';
       a.setAttribute('role', 'button');
       a.onclick = function(e) { e.preventDefault(); openZoneSheet(z.id, z.name); };
+      a.setAttribute('data-zid', z.id);
+      /* The stats slot is rendered empty and filled after the fetch, so the row
+         never changes height when the numbers land — a list that reflows under
+         a thumb mid-tap sends the worker to the wrong zone. */
       a.innerHTML = '<span class="zid">' + escHtml(z.id) + '</span>' +
-                    '<span class="znm">' + escHtml(z.name) + '</span>' + CHEV;
+                    '<span class="znm">' + escHtml(z.name) + '</span>' +
+                    '<span class="zs-stats" data-stats="' + escHtml(z.id) + '"></span>' + CHEV;
       grid.appendChild(a);
     });
     container.appendChild(grid);
@@ -165,6 +209,47 @@
 
   function escHtml(s) {
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  /* ── Live zone state ───────────────────────────────────────────────────────
+     Fetched AFTER the list paints. The names and codes come from config and are
+     instant; the numbers cost ~2.3s server-side for all 28 zones, and making a
+     worker wait for them before they can tap their zone would be a bad trade.
+     Rendered into a fixed-width slot so nothing reflows when they arrive. */
+  function paintStats(stats) {
+    if (!stats) return;
+    Object.keys(stats).forEach(function (id) {
+      var slot = document.querySelector('[data-stats="' + id.replace(/"/g, '') + '"]');
+      if (!slot) return;
+      var d = stats[id] || {};
+      var html = '';
+
+      /* Score first and the only coloured thing — it is what the zone is judged
+         on. A zone with no audit yet shows a dash, not a zero: they mean
+         opposite things and a 0 would read as a catastrophic score. */
+      if (d.s === null || d.s === undefined) {
+        html += '<span class="zs-score n" title="No audit recorded yet">--</span>';
+      } else {
+        var cls = d.s >= 80 ? 'g' : d.s >= 60 ? 'a' : 'r';
+        html += '<span class="zs-score ' + cls + '" title="Latest 5S score">' + d.s + '%</span>';
+      }
+
+      /* Counts only when non-zero. Printing "0" three times per row across 28
+         rows is 84 zeroes of noise that teaches people to stop reading. */
+      if (d.n) html += '<span class="zs-pill warn" title="' + d.n + ' open NC(s)">NC ' + d.n + '</span>';
+      if (d.r) html += '<span class="zs-pill" title="' + d.r + ' active red tag(s)">RT ' + d.r + '</span>';
+      /* A missing audit is what a supervisor scans for, so it is marked. */
+      if (!d.d) html += '<span class="zs-pending" title="Audit not submitted today"></span>';
+
+      slot.innerHTML = html;
+    });
+  }
+
+  if (typeof google !== 'undefined' && google.script && google.script.run) {
+    google.script.run
+      .withSuccessHandler(paintStats)
+      .withFailureHandler(function () { /* names still work; numbers are a bonus */ })
+      .getZoneSelectorStats();
   }
 
   /* Zone action sheet — two worker destinations for the tapped zone. Both

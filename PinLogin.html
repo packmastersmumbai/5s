@@ -111,8 +111,13 @@
         .withSuccessHandler(function (res) {
           if (res && res.success) {
             try { localStorage.setItem('pm5s_token', res.token); } catch (e) {}
+            /* Analytics, not home. Measured on the live deployment: home takes
+               ~11,975ms to render against ~423ms for insights — it was both the
+               slowest page in the app and the one every sign-in was forced
+               through. Analytics also answers the question someone opening this
+               app actually has: how is the plant doing. */
             var dest = NEXT_QS ? (NEXT_QS + '&token=' + encodeURIComponent(res.token))
-                               : ('v2=1&action=home&token=' + encodeURIComponent(res.token));
+                               : ('v2=1&action=insights&token=' + encodeURIComponent(res.token));
             window.pm5sNav(DEPLOY_URL + '?' + dest);
             return;
           }
@@ -146,12 +151,48 @@
     }
 
     renderPad(); renderDots();
-    google.script.run.withSuccessHandler(function (list) {
+
+    /* The roster costs ~855ms server-side and changes when staff change, not
+       between sign-ins — so it is painted from cache immediately and refreshed
+       in the background. The keypad is usable while that happens; previously
+       the page sat empty for the length of the round trip.
+       CACHE_MS is deliberately short enough that a new starter appears the same
+       day without anyone clearing storage. */
+    var USER_CACHE_KEY = 'pm5s_users_v1';
+    var CACHE_MS = 12 * 60 * 60 * 1000;
+
+    function paintUsers(list, remember) {
       users = (list || []).filter(function (u) { return u.id !== '__error__'; });
       if (users.length && !selectedId) selectedId = users[0].id;
       if (!users.length) setErr('No users — run seedUsers()');
       renderUsers();
-    }).withFailureHandler(function (e) { setErr('Could not load users'); }).getUsersForLogin();
+      if (remember && users.length) {
+        try {
+          localStorage.setItem(USER_CACHE_KEY,
+            JSON.stringify({ t: Date.now(), u: users }));
+        } catch (e) {}
+      }
+    }
+
+    var painted = false;
+    try {
+      var raw = localStorage.getItem(USER_CACHE_KEY);
+      if (raw) {
+        var c = JSON.parse(raw);
+        if (c && c.u && c.u.length && (Date.now() - c.t) < CACHE_MS) {
+          paintUsers(c.u, false);
+          painted = true;
+        }
+      }
+    } catch (e) {}
+
+    google.script.run.withSuccessHandler(function (list) {
+      paintUsers(list, true);
+    }).withFailureHandler(function (e) {
+      /* Only surface the failure if there was nothing on screen — a refresh
+         that fails behind a working cached list is not the user's problem. */
+      if (!painted) setErr('Could not load users');
+    }).getUsersForLogin();
   </script>
 </body>
 </html>
